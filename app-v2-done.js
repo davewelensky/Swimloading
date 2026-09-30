@@ -183,6 +183,8 @@
             try { analytics.track('whatsapp_shared'); } catch (e) { /* optional */ }
             finish();
         });
+        // Instagram story (prototype, flag instagram_story_v1): app-ig-story.js adds its own button when the flag is on
+        try { if (window.IGStory) window.IGStory.attach(ctx, $('v2DoneShare')); } catch (e) { /* optional */ }
         var fix = $('v2DoneFix');
         if (fix) fix.addEventListener('click', function () { if (typeof openMyLogEdit === 'function') openMyLogEdit(logId); });
 
