@@ -113,7 +113,7 @@ export default async function handler(req, res) {
     try {
       payloads = await fetchMarine(batch);
     } catch (e) {
-      summary.errors.push(`batch ${i} bulk failed (${e.message}) — falling back per-venue`);
+      summary.errors.push(`batch ${i} bulk failed (${e.message}), falling back per-venue`);
     }
 
     if (payloads) {

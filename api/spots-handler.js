@@ -343,8 +343,8 @@ function renderSensorVenueBody(slug, spot, venue, regionSlug, regionName, recent
 
   const steps = [
     'Pre-configured sensor delivered to the venue',
-    'Probe submerged — weatherproof enclosure mounted poolside',
-    'Sensor transmits readings automatically via its own SIM card — no Wi-Fi needed',
+    'Probe submerged, with a weatherproof enclosure mounted poolside',
+    'Sensor transmits readings automatically via its own SIM card, so no Wi-Fi needed',
     'Local weather data integrated alongside the water reading',
     'Swimmers get a real-time view of conditions before they leave home',
   ];
@@ -354,7 +354,7 @@ function renderSensorVenueBody(slug, spot, venue, regionSlug, regionName, recent
 
   const recentLogsHtml = recentLogs.length
     ? renderRecentLogsTable(recentLogs)
-    : `<p class="svh-no-logs">No community logs yet — be the first to log a swim here and add your reading to the SwimLoading feed.</p>`;
+    : `<p class="svh-no-logs">No community logs yet. Be the first to log a swim here and add your reading to the SwimLoading feed.</p>`;
 
   const nearbyHtml = nearbySpots.length
     ? `<section class="svh-section">${renderNearbySpots(nearbySpots, regionSlug, regionName)}</section>` : '';
@@ -369,11 +369,11 @@ function renderSensorVenueBody(slug, spot, venue, regionSlug, regionName, recent
     .then(function(r){ return r.ok ? r.json() : null; })
     .then(function(d){
       if (!d || d.unavailable) {
-        slot.textContent = '—';
+        slot.textContent = '–';
         if (sub) sub.textContent = 'Sensor data unavailable';
         return;
       }
-      slot.textContent = d.temperature != null ? parseFloat(d.temperature).toFixed(1) + '\\u00b0C' : '—';
+      slot.textContent = d.temperature != null ? parseFloat(d.temperature).toFixed(1) + '\\u00b0C' : '–';
       if (sub && d.timestamp) {
         try {
           var t = new Date(d.timestamp).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
@@ -381,7 +381,7 @@ function renderSensorVenueBody(slug, spot, venue, regionSlug, regionName, recent
         } catch(e){}
       }
     })
-    .catch(function(){ if (slot) slot.textContent = '—'; });
+    .catch(function(){ if (slot) slot.textContent = '–'; });
 })();
 <\/script>`;
 
@@ -433,11 +433,11 @@ function renderSensorVenueBody(slug, spot, venue, regionSlug, regionName, recent
         <h2 class="svh-section-title">From water to cloud</h2>
         <blockquote class="svh-blockquote">"My Water Live wasn't born in a boardroom; it was engineered at the water's edge."</blockquote>
         <p>It started with a simple question here at Tooting Bec Lido: <em>"Do you log your readings anywhere?"</em> Until then, the data lived only in Strava descriptions. That question sparked a vision: a real-time sensor network for lakes and lidos that lets you check conditions before you've even left the house.</p>
-        <p>Manual readings with fish-tank thermometers are clunky — two people rarely see the same number. The sensor replaced that clutter with one accurate, continuous, automatic reading. No Wi-Fi required, no human error, no gaps.</p>
-        <blockquote class="svh-quote-pull">"When the mind screams 'don't get in', do it — it's good for the soul."</blockquote>
+        <p>Manual readings with fish-tank thermometers are clunky, and two people rarely see the same number. The sensor replaced that clutter with one accurate, continuous, automatic reading. No Wi-Fi required, no human error, no gaps.</p>
+        <blockquote class="svh-quote-pull">"When the mind screams 'don't get in', do it. It's good for the soul."</blockquote>
         <a href="${escapeHtml(venue.url)}" target="_blank" rel="noopener noreferrer" class="svh-credit-link">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-          <strong>Powered by my-water.live</strong> — live sensor network for outdoor swimming venues
+          <strong>Powered by my-water.live</strong>: live sensor network for outdoor swimming venues
         </a>
       </div>
       <div class="svh-how-works">
@@ -499,7 +499,7 @@ function renderMywaterliveWidget(slug) {
       }
       var temp = d.temperature != null
         ? parseFloat(d.temperature).toFixed(1) + '\\u00b0C'
-        : '\\u2014';
+        : '\\u2013';
       slot.innerHTML = temp;
       if (upd && d.timestamp) {
         try {
@@ -550,7 +550,7 @@ function renderMywaterliveWidget(slug) {
   <div class="mwl-hero-footer">
     <a href="${escapeHtml(venue.url)}" target="_blank" rel="noopener noreferrer" class="mwl-powered">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-      <strong>Powered by my-water.live</strong> &mdash; permanent in-water sensor network for outdoor swimming venues
+      <strong>Powered by my-water.live</strong>: permanent in-water sensor network for outdoor swimming venues
     </a>
   </div>
 
@@ -581,7 +581,7 @@ function renderSpotHero(spot, latestData, recentLogs, trend, hasSensor = false, 
 
   const noDataMsg = hasSensor
     ? `<div class="hero-no-data">Live sensor reading below ↓ &nbsp;·&nbsp; <a href="/app" style="color:var(--ocean-lt);">Log your swim</a> to add community data.</div>`
-    : `<div class="hero-no-data">No recent logs — be the first to log this spot today.</div>`;
+    : `<div class="hero-no-data">No recent logs. Be the first to log this spot today.</div>`;
 
   // THE NUMBER THE APP SHOWS.
   //
@@ -598,7 +598,7 @@ function renderSpotHero(spot, latestData, recentLogs, trend, hasSensor = false, 
     ? `Measured at ${escapeHtml(estimate.measured_station || 'a nearby station')}${
         estimate.measured_distance_km != null ? `, ${Number(estimate.measured_distance_km).toFixed(1)} km away` : ''}`
     : estSource === 'model'
-      ? 'Modelled sea-surface estimate (Open-Meteo) — no swimmer reading yet'
+      ? 'Modelled sea-surface estimate (Open-Meteo). No swimmer reading yet'
       : '';
 
   const tempBlock = hasTemp ? `
@@ -611,7 +611,7 @@ function renderSpotHero(spot, latestData, recentLogs, trend, hasSensor = false, 
     <div class="hero-temp-label" style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:2px;">${escapeHtml(estSource === 'measured' ? 'Measured nearby' : 'Typical water temperature')}</div>
     <div class="hero-temp">${estTemp}°C</div>
     <div class="hero-meta">${estCaption}</div>
-    <div class="hero-no-data" style="margin-top:10px;">No swimmer has logged this spot recently — <a href="/app" style="color:var(--ocean-lt);">be the first</a>.</div>
+    <div class="hero-no-data" style="margin-top:10px;">No swimmer has logged this spot recently. <a href="/app" style="color:var(--ocean-lt);">be the first</a>.</div>
   ` : noDataMsg;
 
   const badgeStyle = isIntl
@@ -651,9 +651,9 @@ function renderRecentLogsTable(logs) {
   if (!logs.length) return `<p class="no-logs">No logs in the last 7 days.</p>`;
   const rows = logs.map(l => `
     <tr>
-      <td>${l.created_at ? formatDate(l.created_at) : '—'}</td>
-      <td><strong>${l.temp_c != null ? l.temp_c + '°C' : '—'}</strong></td>
-      <td>${l.conditions ? escapeHtml(capitalise(l.conditions)) : '—'}</td>
+      <td>${l.created_at ? formatDate(l.created_at) : '–'}</td>
+      <td><strong>${l.temp_c != null ? l.temp_c + '°C' : '–'}</strong></td>
+      <td>${l.conditions ? escapeHtml(capitalise(l.conditions)) : '–'}</td>
       <td>${l._displayName ? escapeHtml(l._displayName) : 'Member'}</td>
     </tr>`).join('');
   return `
@@ -741,7 +741,7 @@ function renderSeoCopy(spot, locationLabel, stats) {
   if (spot.water_type === 'POOL') {
     return `
       <p>${name} is a swimming pool in ${loc}. Pool temperatures are logged by SwimLoading members so you always know the water temperature before you arrive.</p>
-      <p>SwimLoading tracks pool temperatures globally — from heated gym pools in Johannesburg to lidos in London — alongside ocean and lake spots, so swimmers everywhere can plan year-round.</p>`;
+      <p>SwimLoading tracks pool temperatures globally (from heated gym pools in Johannesburg to lidos in London) alongside ocean and lake spots, so swimmers everywhere can plan year-round.</p>`;
   }
   if (spot.water_type === 'LAKE') {
     return `
@@ -967,7 +967,7 @@ function renderSpotCards(spots) {
         ${s._liveTemp != null
           ? `<div class="spot-card-temp">${s._liveTemp.toFixed(1)}°C <span>${s._liveSource === 'swimmer' ? 'logged' : s._liveSource === 'measured' ? 'buoy' : 'model'}</span></div>`
           // NO all-time average here. It used to fall back to avg_temp, so an
-          // indoor pool nobody had logged since May advertised "26.4°C avg" —
+          // indoor pool nobody had logged since May advertised "26.4°C avg":
           // a number in the temperature slot, at a glance indistinguishable
           // from a current one, describing water three months ago. Better to
           // show no temperature and let the caption say when it was last
@@ -1020,7 +1020,7 @@ function renderIntlPoolsSection() {
         <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#d97706;">International</span>
       </div>
       <h2 style="margin-bottom:8px;">Swimming outside South Africa?</h2>
-      <p style="margin-bottom:14px;">SwimLoading tracks pools and lidos internationally. UK lidos, Swiss lakes, and more — all community-logged and free to use.</p>
+      <p style="margin-bottom:14px;">SwimLoading tracks pools and lidos internationally. UK lidos, Swiss lakes, and more, all community-logged and free to use.</p>
       <div style="display:flex;flex-wrap:wrap;gap:8px;">
         <a href="/spots/united-kingdom" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;border:1px solid rgba(217,119,6,0.3);background:rgba(217,119,6,0.07);color:#d97706;font-size:13px;font-weight:600;text-decoration:none;">UK Lidos &amp; Open Water</a>
         <a href="/spots/switzerland" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;border:1px solid rgba(217,119,6,0.3);background:rgba(217,119,6,0.07);color:#d97706;font-size:13px;font-weight:600;text-decoration:none;">Swiss Lakes</a>
@@ -1386,7 +1386,7 @@ const FOOTER_HTML = `
   <a href="/spots/cascais">Cascais</a>
 </div>
 <div class="f-copy" style="border-top:1px solid rgba(255,255,255,0.06);padding-top:20px;margin-top:4px;">
-  <a href="/">SwimLoading</a> — Community water temperature tracking across South Africa, UK, Australia, Portugal and beyond.
+  <a href="/">SwimLoading</a>: Community water temperature tracking across South Africa, UK, Australia, Portugal and beyond.
   &nbsp;·&nbsp; <a href="/app">Open the app</a>
   &nbsp;·&nbsp; <a href="mailto:support@swimloading.com">support@swimloading.com</a>
 </div>
@@ -1451,8 +1451,8 @@ function renderFaq(spot, locationLabel, latestData, hazards, freshness = null) {
   const tempAnswer = latestData?.temp_c != null
     ? (fresh.canSayToday
         ? `The water temperature at ${name} is <strong>${latestData.temp_c}°C</strong>${observed ? `, logged ${escapeHtml(observed)}` : ''}.`
-        : `The most recent reading at ${name} is <strong>${latestData.temp_c}°C</strong>${observed ? `, recorded ${escapeHtml(observed)}` : ''} — not a reading from today. Water temperatures move, so treat it as a guide and check for newer logs before you swim.`)
-    : `There is no community log for ${name} yet. SwimLoading relies on swimmers to log temperatures — be the first to log it and help the whole community.`;
+        : `The most recent reading at ${name} is <strong>${latestData.temp_c}°C</strong>${observed ? `, recorded ${escapeHtml(observed)}` : ''}, not a reading from today. Water temperatures move, so treat it as a guide and check for newer logs before you swim.`)
+    : `There is no community log for ${name} yet. SwimLoading relies on swimmers to log temperatures, so be the first to log it and help the whole community.`;
 
   const goodAnswer = isPool
     ? `${name} is a swimming pool in ${escapeHtml(locationLabel)}. It is suitable for lap swimming and training. Check the latest pool temperature above before your session.`
@@ -1460,7 +1460,7 @@ function renderFaq(spot, locationLabel, latestData, hazards, freshness = null) {
 
   const hazardAnswer = hazards.length
     ? `There ${hazards.length === 1 ? 'is 1 active hazard' : `are ${hazards.length} active hazards`} currently reported at ${name} by the SwimLoading community. See the hazards section above for details.`
-    : `No active hazards have been reported at ${name}. This does not guarantee conditions are safe — always assess on the day.`;
+    : `No active hazards have been reported at ${name}. This does not guarantee conditions are safe. Always assess on the day.`;
 
   const updateAnswer = `SwimLoading is a community platform. Temperatures at ${name} are updated whenever a SwimLoading member logs a reading. Active spots are typically updated multiple times per week during peak swimming seasons.`;
 
@@ -1499,7 +1499,7 @@ function buildFaqJsonLd(spot, latestData, hazards, freshness = null) {
   const tempText = latestData?.temp_c != null
     ? (fresh.canSayToday
         ? `The water temperature at ${name} was ${latestData.temp_c}°C, logged by a SwimLoading swimmer${observed ? ` on ${observed}` : ' today'}.`
-        : `The last recorded water temperature at ${name} was ${latestData.temp_c}°C${observed ? `, logged on ${observed}` : ''}. It is not a current reading — check the SwimLoading page for newer logs.`)
+        : `The last recorded water temperature at ${name} was ${latestData.temp_c}°C${observed ? `, logged on ${observed}` : ''}. It is not a current reading, so check the SwimLoading page for newer logs.`)
     : `There is no community log for ${name} yet. Sign up free at swimloading.com and be the first to log it.`;
   const hazardText = hazards.length
     ? `There ${hazards.length === 1 ? 'is 1 active hazard' : `are ${hazards.length} active hazards`} currently reported at ${name}. See the SwimLoading spot page for details.`
@@ -1513,7 +1513,7 @@ function buildFaqJsonLd(spot, latestData, hazards, freshness = null) {
       { '@type': 'Question', name: `Are there any hazards at ${name}?`,
         acceptedAnswer: { '@type': 'Answer', text: hazardText } },
       { '@type': 'Question', name: `How often is ${name} updated on SwimLoading?`,
-        acceptedAnswer: { '@type': 'Answer', text: `SwimLoading is a community platform — temperatures at ${name} are updated by members. Active spots are typically logged multiple times per week during peak seasons.` } },
+        acceptedAnswer: { '@type': 'Answer', text: `SwimLoading is a community platform: temperatures at ${name} are updated by members. Active spots are typically logged multiple times per week during peak seasons.` } },
       { '@type': 'Question', name: `Can I log a temperature for ${name}?`,
         acceptedAnswer: { '@type': 'Answer', text: `Yes. SwimLoading is free to use. Visit swimloading.com or download the app, sign up free, and log a temperature for ${name}.` } },
     ],
@@ -1610,12 +1610,12 @@ function renderRegionFaq(regionName, regionSlug, spots) {
     [
       `What are the best swimming spots in ${rn}?`,
       topSpots
-        ? `SwimLoading tracks ${spots.length} swimming spot${spots.length !== 1 ? 's' : ''} in ${rn}, including ${escapeHtml(topSpots)}. Browse all spots on this page — tap any card for the latest conditions.`
+        ? `SwimLoading tracks ${spots.length} swimming spot${spots.length !== 1 ? 's' : ''} in ${rn}, including ${escapeHtml(topSpots)}. Browse all spots on this page and tap any card for the latest conditions.`
         : `SwimLoading is building its coverage of ${rn} swimming spots. Check back soon or sign up free to log a spot in this region.`,
     ],
     [
       `Is open water swimming in ${rn} safe?`,
-      `Open water conditions vary with weather, swell, and temperature. SwimLoading data is community-logged — it gives you real water temperatures and conditions from other swimmers, but is not a substitute for your own on-the-day assessment. Always swim within your ability and be aware of local hazards.`,
+      `Open water conditions vary with weather, swell, and temperature. SwimLoading data is community-logged. It gives you real water temperatures and conditions from other swimmers, but is not a substitute for your own on-the-day assessment. Always swim within your ability and be aware of local hazards.`,
     ],
     [
       `How does SwimLoading track temperatures in ${rn}?`,
@@ -1746,7 +1746,7 @@ async function renderGreaterLondonPage() {
       {
         '@type': 'Question',
         name: 'What is the difference between a lido and a pond in London?',
-        acceptedAnswer: { '@type': 'Answer', text: 'A lido is an outdoor swimming pool — either heated or unheated, with a defined pool structure. London ponds, specifically the Hampstead Heath ponds, are natural freshwater bodies fed by springs and managed by the City of London. Ponds offer a more wild swimming experience; lidos are more structured venues with lifeguards and set hours.' },
+        acceptedAnswer: { '@type': 'Answer', text: 'A lido is an outdoor swimming pool, either heated or unheated, with a defined pool structure. London ponds, specifically the Hampstead Heath ponds, are natural freshwater bodies fed by springs and managed by the City of London. Ponds offer a more wild swimming experience; lidos are more structured venues with lifeguards and set hours.' },
       },
       {
         '@type': 'Question',
@@ -1812,29 +1812,29 @@ async function renderGreaterLondonPage() {
   const seoCopy = `
     <h2>Swimming Outdoors in London</h2>
 
-    <p>London has one of the most active outdoor swimming communities in the world. Across the city, swimmers brave unheated lidos, natural ponds, and managed reservoirs year-round — from the coloured cubicles of <a href="/spots/tooting-bec-lido">Tooting Bec Lido</a> to the spring-fed ponds of Hampstead Heath. The city's outdoor swimming culture runs deep, shaped by decades of cold water tradition and a community that keeps going long after summer ends.</p>
+    <p>London has one of the most active outdoor swimming communities in the world. Across the city, swimmers brave unheated lidos, natural ponds, and managed reservoirs year-round, from the coloured cubicles of <a href="/spots/tooting-bec-lido">Tooting Bec Lido</a> to the spring-fed ponds of Hampstead Heath. The city's outdoor swimming culture runs deep, shaped by decades of cold water tradition and a community that keeps going long after summer ends.</p>
 
-    <p>SwimLoading tracks water temperatures and conditions at London's key swimming venues so you can check before you get in. Community members log their swims, report conditions, and help build a real-time picture of what the water is actually like — not just on a warm July afternoon, but in February too.</p>
+    <p>SwimLoading tracks water temperatures and conditions at London's key swimming venues so you can check before you get in. Community members log their swims, report conditions, and help build a real-time picture of what the water is actually like, not just on a warm July afternoon, but in February too.</p>
 
-    <h3 style="font-size:16px;font-weight:700;color:var(--text);margin:20px 0 10px;">Lidos, Ponds and Reservoirs — what's the difference?</h3>
+    <h3 style="font-size:16px;font-weight:700;color:var(--text);margin:20px 0 10px;">Lidos, Ponds and Reservoirs: what's the difference?</h3>
 
     <p><strong style="color:var(--text)">Lidos</strong> are outdoor swimming pools, either heated or unheated. London's lidos range from the 91-metre unheated expanse of <a href="/spots/tooting-bec-lido">Tooting Bec Lido</a> to the rooftop heated pool at <a href="/spots/oasis-sports-centre">Oasis Sports Centre</a> in Covent Garden. Most are managed venues with lifeguards, changing facilities, and set opening hours.</p>
 
-    <p><strong style="color:var(--text)">Ponds</strong> — specifically the Hampstead Heath ponds — are natural freshwater bodies fed by springs. The <a href="/spots/hampstead-mixed-pond">Mixed Pond</a>, <a href="/spots/hampstead-ladies-pond">Ladies' Pond</a>, and <a href="/spots/hampstead-mens-pond">Men's Pond</a> are all managed by the City of London and open year-round. They offer some of the most authentic wild swimming available anywhere in a major city. Water temperatures follow natural seasonal patterns with no heating.</p>
+    <p><strong style="color:var(--text)">Ponds</strong> (specifically the Hampstead Heath ponds) are natural freshwater bodies fed by springs. The <a href="/spots/hampstead-mixed-pond">Mixed Pond</a>, <a href="/spots/hampstead-ladies-pond">Ladies' Pond</a>, and <a href="/spots/hampstead-mens-pond">Men's Pond</a> are all managed by the City of London and open year-round. They offer some of the most authentic wild swimming available anywhere in a major city. Water temperatures follow natural seasonal patterns with no heating.</p>
 
     <p><strong style="color:var(--text)">Reservoirs</strong> like <a href="/spots/west-reservoir">West Reservoir</a> in Stoke Newington are Victorian-era infrastructure repurposed for outdoor swimming. Managed sessions with trained safety staff make these accessible to swimmers who want open water without the unpredictability of river or sea swimming.</p>
 
     <h3 style="font-size:16px;font-weight:700;color:var(--text);margin:20px 0 10px;">Why water temperature matters</h3>
 
-    <p>Water temperature is the single most important variable for outdoor swimming safety and enjoyment. A 15°C pond and a 19°C lido feel completely different — and both feel different again at 8°C in January. Cold water shock, swim performance, and how long you can safely stay in are all directly linked to water temperature, not air temperature.</p>
+    <p>Water temperature is the single most important variable for outdoor swimming safety and enjoyment. A 15°C pond and a 19°C lido feel completely different, and both feel different again at 8°C in January. Cold water shock, swim performance, and how long you can safely stay in are all directly linked to water temperature, not air temperature.</p>
 
-    <p>Air temperature and water temperature can diverge significantly, especially in spring when the air warms faster than the water. A sunny 20°C day in April can still mean 10°C water at the Hampstead ponds. Always check the water temperature before you swim — not the forecast.</p>
+    <p>Air temperature and water temperature can diverge significantly, especially in spring when the air warms faster than the water. A sunny 20°C day in April can still mean 10°C water at the Hampstead ponds. Always check the water temperature before you swim, not the forecast.</p>
 
     <h3 style="font-size:16px;font-weight:700;color:var(--text);margin:20px 0 10px;">How SwimLoading helps London swimmers</h3>
 
     <p>SwimLoading is a community platform where swimmers log water temperatures, conditions, and swim sessions at outdoor swimming venues. Every time a swimmer records their swim at <a href="/spots/brockwell-lido">Brockwell Lido</a> or the <a href="/spots/serpentine-lido">Serpentine</a>, it adds to a growing dataset that helps the next swimmer decide whether to go.</p>
 
-    <p>Across London, conditions vary dramatically between venues even on the same day — a heated lido might be at 28°C while a natural pond nearby sits at 12°C. SwimLoading lets you compare across locations, track seasonal trends, and find the conditions that suit your swim style. <a href="/join">Join SwimLoading free</a> to start logging your London swims.</p>`;
+    <p>Across London, conditions vary dramatically between venues even on the same day: a heated lido might be at 28°C while a natural pond nearby sits at 12°C. SwimLoading lets you compare across locations, track seasonal trends, and find the conditions that suit your swim style. <a href="/join">Join SwimLoading free</a> to start logging your London swims.</p>`;
 
   // ── FAQ accordion ───────────────────────────────────────────────────────────
 
@@ -1862,7 +1862,7 @@ async function renderGreaterLondonPage() {
           <a href="/join"
              class="btn-hero"
              onclick="gtag('event','regional_hub_join_click',{region:'greater-london'})">
-            Join SwimLoading — it's free →
+            Join SwimLoading, it's free →
           </a>
         </div>
         <div class="region-hero-phones">
@@ -1901,7 +1901,7 @@ async function renderGreaterLondonPage() {
         <a href="/join"
            class="btn-cta"
            onclick="gtag('event','regional_hub_join_click',{region:'greater-london',source:'bottom_cta'})">
-          Join SwimLoading — it's free →
+          Join SwimLoading, it's free →
         </a>
       </section>
 

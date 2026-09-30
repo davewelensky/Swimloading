@@ -70,12 +70,12 @@ no model coverage and are swimmer-reported only.
 
 Events are crawled from organiser sites and national federations, then reviewed by
 a person before publishing. A date that could not be read from the source page is
-never stored or guessed — an event with an unconfirmed date is held back rather
+never stored or guessed. An event with an unconfirmed date is held back rather
 than published with an invented one.
 
 ## Find a swim
 
-- [Swim calendar](${SITE}/explore): every upcoming swim, filterable by country, date and distance. Three kinds — races you enter, escorted crossings you book, and places to swim without an event.
+- [Swim calendar](${SITE}/explore): every upcoming swim, filterable by country, date and distance. Three kinds: races you enter, escorted crossings you book, and places to swim without an event.
 - [List your swim](${SITE}/list-your-swim): organisers add their own event, free and without an account. Reviewed before it appears.
 
 ## Swims by country
