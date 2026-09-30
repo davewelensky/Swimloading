@@ -80,7 +80,7 @@ async function ukLoadDashboardCard() {
               <div style="padding:16px;">
                 <div style="font-size:11px;font-weight:700;color:#38bdf8;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">The Great UK Swim Spot Challenge</div>
                 <div style="font-weight:800;font-size:18px;color:#f1f5f9;">Starts in ${daysAway} day${daysAway !== 1 ? 's' : ''}</div>
-                <div style="font-size:12px;color:#64748b;margin-top:4px;">Presented by TRIHARD — 10 points per unique UK swim spot</div>
+                <div style="font-size:12px;color:#64748b;margin-top:4px;">Presented by TRIHARD · 10 points per unique UK swim spot</div>
               </div>
             </a>`;
             initIcons();
@@ -100,7 +100,7 @@ async function ukLoadDashboardCard() {
               <div style="padding:16px;">
                 <div style="font-size:11px;font-weight:700;color:#38bdf8;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">The Great UK Swim Spot Challenge</div>
                 <div style="font-weight:800;font-size:17px;color:#f1f5f9;margin-bottom:6px;">Explore UK swim spots. Earn points.</div>
-                <div style="font-size:12px;color:#64748b;margin-bottom:14px;">10 points per unique outdoor UK location — presented by TRIHARD</div>
+                <div style="font-size:12px;color:#64748b;margin-bottom:14px;">10 points per unique outdoor UK location, presented by TRIHARD</div>
                 <button class="btn" onclick="ukShowJoinModal()" style="width:100%;background:linear-gradient(135deg,#0284c7,#0ea5e9);color:white;font-weight:700;font-size:14px;padding:12px;border-radius:50px;border:none;">Join the Challenge</button>
               </div>
             </div>`;
@@ -143,7 +143,7 @@ function ukShowJoinModal() {
         <div style="font-size:11px;font-weight:700;color:#38bdf8;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Join the Challenge</div>
         <div style="font-size:16px;font-weight:800;color:#f1f5f9;margin-bottom:12px;">The Great UK Swim Spot Challenge</div>
         <div style="font-size:13px;color:#94a3b8;line-height:1.6;margin-bottom:16px;">
-          Earn 10 points for every unique outdoor UK swim location you log — from a quick dip to a long crossing, every spot counts.
+          Earn 10 points for every unique outdoor UK swim location you log. From a quick dip to a long crossing, every spot counts.
           Prize and winner-selection details will be announced before the challenge ends.
         </div>
         <label style="display:flex;align-items:flex-start;gap:10px;font-size:12.5px;color:#94a3b8;line-height:1.5;margin-bottom:18px;cursor:pointer;">
@@ -179,7 +179,7 @@ async function ukConfirmJoin() {
             p_user_id: currentUser.id,
         });
         if (error || !data?.joined) {
-            showToast('Could not join right now — try again shortly', 'error');
+            showToast('Could not join right now. Try again shortly.', 'error');
             if (btn) { btn.disabled = false; btn.textContent = 'Join'; }
             return;
         }
@@ -189,7 +189,7 @@ async function ukConfirmJoin() {
         ukLoadDashboardCard();
     } catch (e) {
         console.warn('ukConfirmJoin error:', e);
-        showToast('Could not join right now — try again shortly', 'error');
+        showToast('Could not join right now. Try again shortly.', 'error');
         if (btn) { btn.disabled = false; btn.textContent = 'Join'; }
     }
 }
@@ -210,7 +210,7 @@ async function ukChallengeAwardLocation(logId) {
         if (error) { console.warn('ukChallengeAwardLocation error:', error); return; }
 
         if (data?.awarded) {
-            showToast(`+${data.points} points — new UK spot: ${data.spot_name}!`, 'success');
+            showToast(`+${data.points} points · new UK spot: ${data.spot_name}!`, 'success');
             if (typeof analytics !== 'undefined') analytics.track('uk_challenge_location_earned', { spot_name: data.spot_name });
             ukLoadDashboardCard();
         } else if (data?.reason === 'already_credited_this_spot') {

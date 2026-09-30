@@ -218,7 +218,7 @@ function initStoryTimeline() {
       <div style="margin-bottom:14px;">
         <div style="font-size:16px; font-weight:800; color:#f1f5f9; margin-bottom:4px;">Your swimming story</div>
         <div style="font-size:12px; color:var(--text-secondary); line-height:1.5;">
-          A private, chronological record of meaningful moments from your logged swims — visible only to you.
+          A private, chronological record of meaningful moments from your logged swims, visible only to you.
         </div>
       </div>
       <div id="stFilterBar" role="group" aria-label="Filter story events" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;"></div>

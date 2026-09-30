@@ -27,7 +27,7 @@ export default async function handler(req, res) {
 
   const key = process.env.WORLDTIDES_API_KEY;
   if (!key) {
-    console.error('tides cron: WORLDTIDES_API_KEY not set — refusing to run');
+    console.error('tides cron: WORLDTIDES_API_KEY not set, refusing to run');
     return res.status(503).json({ error: 'WORLDTIDES_API_KEY not set' });
   }
 
