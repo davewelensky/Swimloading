@@ -341,6 +341,11 @@
             '<span id="v2IdentityRow"></span>' +
             row('heart-pulse', 'var(--sl-cyan)', 'Health notes', 'Private notes about how you feel after swims', 'openHealthLog()');
 
+        var rl = window._clubRoleLinks || {}, toolRows = '';
+        (rl.adminClubs || []).forEach(function (c) { toolRows += row('shield', 'var(--sl-cyan)', c.name, 'Club admin', "location.href='/club-admin/" + esc(c.slug) + "'"); });
+        (rl.coachClubs || []).forEach(function (c) { toolRows += row('clipboard-list', 'var(--sl-cyan)', c.name, 'Coach portal', "location.href='/coach/" + esc(c.slug) + "'"); });
+        (rl.coachSetsClubs || []).forEach(function (c) { toolRows += row('calendar-days', 'var(--sl-cyan)', c.name, 'Sets planner', "location.href='/sets/" + esc(c.slug) + "'"); });
+
         var clubSafety =
             (!clubTab && clubAvailable() ? row('users', 'var(--sl-cyan)', 'Club', '', "showPage('club')") : '') +
             row('shield-alert', 'var(--sl-danger)', 'Safety guidance', 'Hazards, marine life, cold water, contacts', "showPage('safety')");
@@ -361,6 +366,7 @@
                 '<span class="v2-row-text"><span class="v2-row-title">Emergency</span><br><span class="v2-sub">NSRI Sea Rescue<br>' + NSRI_DISPLAY + '</span></span>' +
                 '<a class="v2-call" href="tel:' + NSRI_TEL + '" aria-label="Call NSRI Sea Rescue">Call</a>' +
             '</div>' +
+            (toolRows ? '<div class="v2-h2">Club tools</div><div class="v2-card">' + toolRows + '</div>' : '') +
             '<div class="v2-h2">Swimming</div><div class="v2-card">' + swimming + '</div>' +
             '<div class="v2-h2">' + (clubTab ? 'Safety' : 'Club and safety') + '</div><div class="v2-card">' + clubSafety + '</div>' +
             '<div class="v2-h2">Account</div><div class="v2-card">' + account + '</div>';

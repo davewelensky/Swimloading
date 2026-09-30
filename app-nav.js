@@ -281,6 +281,11 @@
                     ...coachSetsClubs.map(c => chip(`/sets/${c.slug}`, 'home-chip--sets', 'calendar-days', c.name, 'Sets')),
                 ].join('')}</div>`;
                 initIcons();
+
+                // The v2 design hides this Home block, so publish the links for it to render itself
+                // (Today chip row + You > Club tools). Coaches lost their portal link in v2 without this.
+                window._clubRoleLinks = { adminClubs, coachClubs, coachSetsClubs };
+                document.dispatchEvent(new CustomEvent('sl:roles'));
             } catch (e) { /* not a club admin or coach */ }
         }
 

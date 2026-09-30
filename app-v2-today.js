@@ -58,6 +58,7 @@
         var t = document.createElement('div');
         t.id = 'v2Today';
         t.innerHTML =
+            '<div id="v2tRoles"></div>' +
             '<div id="v2tClubTop"></div>' +
             '<div id="v2tHazard"></div>' +
             '<div id="v2tHero" class="v2-hero v2-skel" aria-live="polite"></div>' +
@@ -74,7 +75,24 @@
         // Known club member from a previous visit: hold the club card's space from the first paint
         try { if (localStorage.getItem('sl_v2_club') === '1') $('v2tClubTop').classList.add('v2-club-reserve'); } catch (e) { /* optional */ }
         icons();
+        renderRoles();
     }
+
+    // Coach / admin / sets-planner entry points (same links and roles as the classic Home chip row).
+    function renderRoles() {
+        var el = $('v2tRoles'), r = window._clubRoleLinks;
+        if (!el || !r) return;
+        var chip = function (href, cls, icon, name, role) {
+            return '<a href="' + esc(href) + '" class="home-chip ' + cls + '"><i data-lucide="' + icon + '" style="width:15px;height:15px;flex-shrink:0;"></i>' +
+                '<span class="home-chip-name">' + esc(name) + '</span><span class="home-chip-role">' + role + '</span></a>';
+        };
+        var chips = (r.adminClubs || []).map(function (c) { return chip('/club-admin/' + c.slug, 'home-chip--admin', 'shield', c.name, 'Admin'); })
+            .concat((r.coachClubs || []).map(function (c) { return chip('/coach/' + c.slug, 'home-chip--coach', 'clipboard-list', c.name, 'Coach'); }))
+            .concat((r.coachSetsClubs || []).map(function (c) { return chip('/sets/' + c.slug, 'home-chip--sets', 'calendar-days', c.name, 'Sets'); }));
+        el.innerHTML = chips.length ? '<div class="home-chip-row">' + chips.join('') + '</div>' : '';
+        icons();
+    }
+    document.addEventListener('sl:roles', renderRoles);
 
     // ── Data: my spots ─────────────────────────────────────────────────────
     async function loadSpotsAndLatest() {
