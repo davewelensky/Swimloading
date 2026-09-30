@@ -10,7 +10,7 @@
 
         // ─── Fuel functions removed — see PHtest.html ───────────────────────────
         const FUEL_PROTOCOL_LABELS = {
-            baseline:       'Baseline — No intake',
+            baseline:       'Baseline: No intake',
             ph500_during:   'PH500 During',
             ph1500_preload: 'PH1500 Preload',
             ph1500_ph500:   'PH1500 + PH500',
@@ -151,7 +151,7 @@
             document.getElementById('fuelDate').value = new Date().toISOString().slice(0,10);
             // Populate spot dropdown
             const sel = document.getElementById('fuelSpot');
-            sel.innerHTML = '<option value="">— Select spot —</option>' +
+            sel.innerHTML = '<option value="">Select spot</option>' +
                 (spots || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
             // Build set effort rows based on default distance
             buildSetEffortRows(5);
@@ -203,7 +203,7 @@
                 .order('test_date', { ascending: false })
                 .limit(50);
             if (error || !data?.length) {
-                el.innerHTML = '<div style="text-align:center;color:var(--text-secondary);font-size:13px;padding:20px;">No tests yet — tap "+ New Test" to start tracking.</div>';
+                el.innerHTML = '<div style="text-align:center;color:var(--text-secondary);font-size:13px;padding:20px;">No tests yet. Tap "+ New Test" to start tracking.</div>';
                 return;
             }
             // Group by protocol for comparison insight
@@ -235,12 +235,12 @@
                 html += '</div></div>';
             }
             data.forEach(t => {
-                const spotName = t.spots?.name || '—';
+                const spotName = t.spots?.name || '–';
                 const dateStr = new Date(t.test_date).toLocaleDateString('en-ZA', { day:'numeric', month:'short', year:'numeric' });
                 const verdictColor = t.verdict==='better' ? 'var(--success)' : t.verdict==='worse' ? 'var(--danger)' : 'var(--text-secondary)';
                 const verdictEmoji = t.verdict==='better' ? 'Better' : t.verdict==='worse' ? 'Worse' : 'Same';
                 const scores = [t.energy_consistency, t.perceived_effort, t.hydration_feeling, t.stomach_comfort, t.recovery].filter(Boolean);
-                const avg = scores.length ? (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1) : '—';
+                const avg = scores.length ? (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1) : '–';
                 html += `<div class="card" style="margin-bottom:10px;">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
                         <div>

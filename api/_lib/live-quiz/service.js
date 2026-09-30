@@ -99,7 +99,7 @@ export function createService(store, { now = () => new Date() } = {}) {
     if (consent !== true) throw new QuizError(400, 'consent_required', 'Please accept the terms to continue.');
     const fullName = `${first} ${last}`;
     const created = await store.createAuthUser({ email: mail, password, full_name: fullName });
-    if (created.existed) throw new QuizError(409, 'account_exists', 'You already have a SwimLoading account — sign in instead.');
+    if (created.existed) throw new QuizError(409, 'account_exists', 'You already have a SwimLoading account. Sign in instead.');
     const at = now().toISOString();
     await store.upsertProfile(created.id, {
       email: mail, full_name: fullName, display_name: first,

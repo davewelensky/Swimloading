@@ -61,7 +61,7 @@ function _icParticipationSubline(code, totalLogs, activeWeeks) {
 
 function _icColdSubline(code, pending) {
     const threshold = IC_COLD_THRESHOLDS[code];
-    if (pending) return 'Self-reported — verification pending';
+    if (pending) return 'Self-reported, verification pending';
     return threshold ? `Verified below ${threshold}°C` : 'Verified cold swim';
 }
 
@@ -106,7 +106,7 @@ async function identityPostLogShare(ctx, fallbackFn) {
     try {
         await showSwimCardPanel(ctx);
     } catch (e) {
-        console.error('[identity] Swim Card failed — falling back to original share flow', e);
+        console.error('[identity] Swim Card failed, falling back to original share flow', e);
         try { analytics.track('swim_card_failed_fallback', { source: ctx.source }); } catch (_) {}
         try { if (fallbackFn) await fallbackFn(); } catch (_) {}
     }
@@ -341,7 +341,7 @@ async function _icRenderCard(card) {
         ctx.fillStyle = '#38bdf8';
         ctx.font = `700 42px ${sans}`;
         const milestoneSub = story.kind === 'milestone_cold'
-            ? `${card.temp}°C — ${card.spotName}`
+            ? `${card.temp}°C · ${card.spotName}`
             : _icParticipationSubline(story.code, story.totalLogs, story.activeWeeks);
         ctx.fillText(milestoneSub, W / 2, 560);
 
@@ -516,7 +516,7 @@ async function showSwimCardPanel(ctx) {
     } else if (story.kind === 'participation') {
         shareText += `\n${_icParticipationLabel(story.code, story.name)}`;
     }
-    shareText += `\nLogged on SwimLoading — swimloading.com`;
+    shareText += `\nLogged on SwimLoading: swimloading.com`;
 
     _icCurrent = {
         blob: rendered.blob,
@@ -533,7 +533,7 @@ async function showSwimCardPanel(ctx) {
     if (isMilestone) {
         note.style.display = 'block';
         note.textContent = story.kind === 'milestone_cold'
-            ? `${story.name} — Cold Water Identity`
+            ? `${story.name} · Cold Water Identity`
             : _icParticipationLabel(story.code, story.name);
     } else {
         note.style.display = 'none';
@@ -633,11 +633,11 @@ function _icEnsureIdentityView() {
           </div>
           <button onclick="dismissIdentityView()" style="background:none; border:none; color:#64748b; font-size:22px; cursor:pointer; line-height:1;">&times;</button>
         </div>
-        <!-- Story Timeline tab bar (Phase 2.2) — hidden entirely unless
+        <!-- Story Timeline tab bar (Phase 2.2): hidden entirely unless
              story_timeline_v1 is enabled for the current user; see
              showIdentityView() and app-story-timeline.js. Records (drafted
              during Release 2.4 discovery) is explicitly OUT of this
-             release per Dave's scope correction — preserved separately in
+             release per Dave's scope correction, preserved separately in
              app-records.js / sql/2026-07-20_records-v1.sql, not wired in
              here, not committed with Overview V2. -->
         <div id="identityTabBar" role="tablist" aria-label="Profile sections" style="display:none; gap:18px; margin-bottom:16px; border-bottom:1px solid var(--border);">
@@ -647,7 +647,7 @@ function _icEnsureIdentityView() {
           <button type="button" role="tab" id="identityTabStory" aria-selected="false" aria-controls="identityPanelStory"
             onclick="switchIdentityTab('story')"
             style="background:none; border:none; border-bottom:2px solid transparent; color:var(--text-secondary); font-size:13px; font-weight:700; padding:0 0 10px; cursor:pointer;">Story</button>
-          <!-- Passport (Phase 2.5) — hidden unless passport_v1 is enabled
+          <!-- Passport (Phase 2.5): hidden unless passport_v1 is enabled
                for this viewer; showIdentityView() sets its display. -->
           <button type="button" role="tab" id="identityTabPassport" aria-selected="false" aria-controls="identityPanelPassport"
             onclick="switchIdentityTab('passport')"
@@ -712,11 +712,11 @@ function _icBuildIdentityViewHtml({ participationCode, participationName, totalL
       </div>
       <div style="display:flex; gap:10px; margin-bottom:6px;">
         <div style="flex:1; background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:14px; padding:14px; text-align:center;">
-          <div style="font-size:26px; font-weight:800; color:#f1f5f9;">${totalLogs ?? '—'}</div>
+          <div style="font-size:26px; font-weight:800; color:#f1f5f9;">${totalLogs ?? '–'}</div>
           <div style="font-size:10px; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px;">Swims logged</div>
         </div>
         <div style="flex:1; background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:14px; padding:14px; text-align:center;">
-          <div style="font-size:26px; font-weight:800; color:#f1f5f9;">${coldest !== null && coldest !== undefined ? coldest + '°' : '—'}</div>
+          <div style="font-size:26px; font-weight:800; color:#f1f5f9;">${coldest !== null && coldest !== undefined ? coldest + '°' : '–'}</div>
           <div style="font-size:10px; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px;">Coldest</div>
         </div>
       </div>

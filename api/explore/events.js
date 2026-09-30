@@ -106,7 +106,7 @@ function parseQuery(q) {
 
   const radius_km = int(q.radius_km, 'radius_km', { min: 1, max: MAX_RADIUS_KM });
   if (radius_km !== null && lat === null) {
-    throw new BadRequest('radius_km', 'lat and lon as well — a radius needs a centre');
+    throw new BadRequest('radius_km', 'lat and lon as well, since a radius needs a centre');
   }
 
   const date_from = isoDate(q.date_from, 'date_from');
