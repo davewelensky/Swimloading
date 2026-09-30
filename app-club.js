@@ -216,7 +216,8 @@ async function renderSwimClub(container, club, roster, membership) {
           .order('created_at', { ascending: false })
       : Promise.resolve({ data: [] }),
 
-    buildSquadSchedule(club, roster),
+    // v2 builds its own week from the squad timetable and hides this card, so skip the extra queries there.
+    document.documentElement.classList.contains('ui-v2') ? Promise.resolve(null) : buildSquadSchedule(club, roster),
   ]);
 
   const allResults    = resultsRes.data       || [];
