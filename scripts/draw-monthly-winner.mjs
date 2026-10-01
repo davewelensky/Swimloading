@@ -34,7 +34,16 @@ const EXCLUDED_IDS = new Map([
     ['cff2fc33-4a55-451b-8c7f-20f12c1898ce', 'organiser\'s partner ("Ysie"): conflict of interest, standing exclusion since 1 Aug 2026'],
 ]);
 
-const [, , startDateArg, endDateArg, labelArg] = process.argv;
+// Optional flags (for a replacement draw after a winner is ruled ineligible; see the winner-verification rule):
+//   --exclude=<user_id>[,<user_id>]   extra accounts removed from the pool BEFORE tickets are built
+//   --replaces=<challenge_draw_results.id>   links the new row to the one it replaces (replacement_for)
+//   --reason="..."                    recorded in the new row's description (must be the real, disclosed reason)
+const flagArgs = process.argv.slice(2).filter(a => a.startsWith('--'));
+const flag = name => { const f = flagArgs.find(a => a.startsWith(`--${name}=`)); return f ? f.slice(name.length + 3).replace(/^"|"$/g, '') : null; };
+const [startDateArg, endDateArg, labelArg] = process.argv.slice(2).filter(a => !a.startsWith('--'));
+const extraExcluded = (flag('exclude') || '').split(',').map(x => x.trim()).filter(Boolean);
+const replacesId = flag('replaces');
+const replaceReason = flag('reason');
 
 if (!SUPABASE_SERVICE_KEY) {
     console.error('Set SUPABASE_SERVICE_KEY env var first:');
@@ -88,6 +97,8 @@ async function main() {
         process.exit(1);
     }
 
+    extraExcluded.forEach(id => EXCLUDED_IDS.set(id, 'excluded for this draw via --exclude' + (replaceReason ? `: ${replaceReason}` : '')));
+
     const entrants = data.filter(r =>
         !EXCLUDED_IDS.has(r.user_id) &&
         r.qualified_for_draw === true &&
@@ -111,7 +122,7 @@ async function main() {
         cursor += e.draw_entries;
         const end = cursor - 1;
         tickets.push({ display_name: e.display_name, user_id: e.user_id, entries: e.draw_entries, ticketRange: `${start}-${end}` });
-        return { ...e, start, end };
+        return { ...e, entries: e.draw_entries, start, end };
     });
     const totalTickets = cursor;
 
@@ -161,10 +172,12 @@ async function main() {
         winner_display_name: winner.display_name,
         winning_ticket_id: String(winningTicket),
         winning_entry_type: 'draw_entry',
-        winning_entry_description: `Ticket #${winningTicket} of ${totalTickets} (${winner.entries} tickets held, ${winner.temp_logs_rewarded} temp logs)`,
+        winning_entry_description: `Ticket #${winningTicket} of ${totalTickets} (${winner.entries} tickets held, ${winner.temp_logs_rewarded} temp logs)` +
+            (replacesId ? `. REPLACEMENT DRAW for ${replacesId}${extraExcluded.length ? `, excluding ${extraExcluded.join(', ')}` : ''}${replaceReason ? `. Reason: ${replaceReason}` : ''}` : ''),
         participant_count: entrants.length,
         ticket_count: totalTickets,
         raw_ticket_breakdown: tickets,
+        ...(replacesId ? { replacement_for: replacesId } : {}),
     });
 
     if (insertError) {
