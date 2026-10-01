@@ -124,7 +124,7 @@ window.SITE_CONFIG = {
       prize:     'Box of Maurten Gel 100s',
       startDate: '2026-09-01',
       endDate:   '2026-09-30',
-      winner:    null,   // random draw after 30 September — leave null until drawn
+      winner:    'Deon Odendaal',   // drawn + approved 1 Oct 2026 (replacement draw, previous Maurten winners excluded) — see challenge_draw_results id c5214b2b-...
     },
   },
 
