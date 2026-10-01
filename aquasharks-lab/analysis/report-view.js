@@ -5,6 +5,8 @@
  */
 import { f0, f1, signed, span } from './language.js';
 
+/** Arrows are drawn, not typed: Bebas Neue and DM Sans have no arrow glyph, and a server without system fonts (Vercel's Chromium) prints a box. */
+const ARR = '<svg class="rv-arr" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15M13 5l7 7-7 7"/></svg>';
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const chip = (cls, text) => `<span class="rv-chip rv-${cls}">${esc(text)}</span>`;
 const statusChip = (s) => chip('st-' + s.toLowerCase(), s);
@@ -167,5 +169,5 @@ export function renderReport(model) {
     return RENDER[s.id](s, model, isCoach);
   }).join('');
   const note = isCoach && omitted.length ? `<p class="rv-omitted">Sections omitted for lack of evidence: ${omitted.map(esc).join(', ')}.</p>` : '';
-  return `<main class="report rv rv-profile-${model.profile.id.toLowerCase()}">${html}${note}<p class="footer">Aqua Sharks Lab • Measurements by EO Labs SwimBETTER • Interpretation by Aqua Sharks</p></main>`;
+  return `<main class="report rv rv-profile-${model.profile.id.toLowerCase()}">${html}${note}<p class="footer">Aqua Sharks Lab • Measurements by EO Labs SwimBETTER • Interpretation by Aqua Sharks</p></main>`.replace(/\u2192/g, ARR);
 }

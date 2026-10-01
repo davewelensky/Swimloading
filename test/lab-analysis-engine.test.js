@@ -474,3 +474,12 @@ test('coach evidence list summarises from/to groups with their values', () => {
   assert.match(ev.find((e) => e.ref === 'lapComparisons.0.propulsivePower').text, /−33 to −39%/);
   assert.doesNotMatch(sr.text, /n\/a%/);
 });
+
+test('arrows are drawn as SVG, never typed: no arrow glyph survives into the report HTML (fonts without it print a box)', () => {
+  for (const p of ['JUNIOR', 'PERFORMANCE', 'MASTERS_OPEN_WATER', 'COACH']) {
+    const html = renderReport(analyse(A, p).report);
+    assert.doesNotMatch(html, /[\u2192\u2190\u2194]/, p);
+  }
+  const perf = renderReport(analyse(A, 'PERFORMANCE').report);
+  assert.match(perf, /class="rv-arr"/); assert.match(perf, /FIRST 25 m\s*<svg class="rv-arr"/);
+});
