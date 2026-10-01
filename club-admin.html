@@ -10280,12 +10280,8 @@ async function confirmSuggestedLink(rosterId, userId, rosterName, swName, key) {
   const { error: rErr } = await sb.from('club_roster').update({ user_id: userId }).eq('id', rosterId);
   if (rErr) { showToast('Link failed: ' + rErr.message, 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Retry'; } return; }
 
-  // Ensure club_members row exists
-  await sb.from('club_members').upsert({
-    club_id: currentClub.id, user_id: userId, role: 'member',
-    is_active: true, roster_id: rosterId,
-    member_number: allRoster.find(r => r.id === rosterId)?.member_number?.toString() || null,
-  }, { onConflict: 'club_id,user_id', ignoreDuplicates: true });
+  // Ensure club_members row exists AND points at this roster entry
+  await syncMemberRosterLink(userId, rosterId);
 
   // Update in-memory roster
   const row = allRoster.find(r => r.id === rosterId);
@@ -11145,6 +11141,7 @@ async function confirmRosterLink(userId, userName) {
 
   const { error } = await sb.from('club_roster').update({ user_id: userId }).eq('id', rosterId);
   if (error) { showToast('Link failed: ' + error.message, 'error'); return; }
+  await syncMemberRosterLink(userId, rosterId);
 
   const row = allRoster.find(r => r.id === rosterId);
   if (row) { row.user_id = userId; row.sw_name = userName; }
@@ -11152,9 +11149,28 @@ async function confirmRosterLink(userId, userName) {
   showToast(`Linked to ${userName}`, 'success');
 }
 
+// The app's Club tab resolves a swimmer through club_members.roster_id, not
+// club_roster.user_id. Keep both in step: update an existing membership row
+// (a member who joined before being linked), otherwise create it.
+async function syncMemberRosterLink(userId, rosterId) {
+  const { data: upd, error: uErr } = await sb.from('club_members')
+    .update({ roster_id: rosterId, is_active: true })
+    .eq('club_id', currentClub.id).eq('user_id', userId)
+    .select('id');
+  if (uErr) { showToast('Linked, but membership update failed: ' + uErr.message, 'error'); return; }
+  if (upd && upd.length) return;
+  const { error: iErr } = await sb.from('club_members').insert({
+    club_id: currentClub.id, user_id: userId, role: 'member',
+    is_active: true, roster_id: rosterId,
+    member_number: allRoster.find(r => r.id === rosterId)?.member_number?.toString() || null,
+  });
+  if (iErr) showToast('Linked, but membership create failed: ' + iErr.message, 'error');
+}
+
 async function unlinkRosterMember(rosterId) {
   const { error } = await sb.from('club_roster').update({ user_id: null }).eq('id', rosterId);
   if (error) { showToast('Unlink failed: ' + error.message, 'error'); return; }
+  await sb.from('club_members').update({ roster_id: null }).eq('club_id', currentClub.id).eq('roster_id', rosterId);
 
   const row = allRoster.find(r => r.id === rosterId);
   if (row) { row.user_id = null; row.sw_name = null; }
