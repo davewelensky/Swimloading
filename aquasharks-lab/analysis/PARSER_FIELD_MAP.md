@@ -1,11 +1,13 @@
 # EO ingestion: parser field map (Phase 5, pre-implementation)
 
-Status: **mapping only.** No production parser exists yet. This document maps every SwimAnalysis source field to what a real EO
-report specimen can supply, how reliably, and which schema changes are needed first. It contains no EO prose.
+Status (1 Oct 2026): **implemented.** The parser in `parser/` reads the EO AI report as a PDF or a Word document and was verified
+on the real report in both formats (gated acceptance tests: `EO_SPECIMEN_DOCX=... EO_SPECIMEN_PDF=... npm test`). The schema changes below
+(S1-S4, S5-S8, plus the arm-output rename and `forceFieldReadings`) are in schema v3. This document is the field map the parser was built to.
+It contains no EO prose.
 
 Specimen: one EO "SwimBETTER Analysis Report" `.docx` (200 m freestyle, 25 m pool, 8 laps). Evidence: `scripts/lab-parse-specimen.mjs`
-(a dev spike of label/table/regex extractors) extracts **26 fields**; all 26 match the synthetic Test Swimmer A fixture.
-Run it locally with `node scripts/lab-parse-specimen.mjs <file.docx>`. The specimen itself is not committed.
+(superseded by `scripts/lab-parse-eo.mjs`) extracted the R1 fields; all matched the synthetic Test Swimmer A fixture.
+Run the production parser locally with `node scripts/lab-parse-eo.mjs <file.pdf|file.docx> [--vision]`. The specimen itself is not committed.
 
 ## Principle
 
@@ -129,3 +131,18 @@ value flagged `IMAGE` + confidence.
 - Pick between conflicting printed values.
 - Classify EO prose as measured evidence without a recorded basis.
 - Store EO prose in source control (test fixtures use paraphrase; real analyses live in the database).
+
+
+## Implementation notes (what was learned building it)
+
+- **One extractor, two formats.** DOCX and PDF are both reduced to ordered lines (`parser/doc-text.js`); the extractor never sees XML or PDF objects.
+  A PDF text layer fuses a heading with the paragraph after it, spaces out label colons (`Stroke : Freestyle`) and can split a paragraph across pages;
+  the extractor splits on known headings and treats a page-top line as a continuation only when it starts lowercase after an unfinished sentence.
+- **Pictures.** For a Word file the original images are sent to the vision step. For a PDF the browser detects each figure's bounding box
+  (pdf.js operator list) and sends it as its own high-resolution crop; whole pages are only a fallback. Reading small printed labels from a whole
+  page was unreliable run to run; the same labels read perfectly as separate figures.
+- **Vision never reads charts.** It transcribes printed labels only. A partly legible panel keeps the legible values and leaves the rest EMPTY.
+- **Conflicts.** Every other printed value for a quantity is stored as an `alternate`. The parser never records a `selectionBasis`: the coach does,
+  in the review screen, and publishing warns until they have.
+- **Not yet supported:** the older numbered-section PDF layout (detected as "not recognised", nothing extracted), stroke-phase panels from a
+  separate screenshot, multi-lap trends.

@@ -10,8 +10,8 @@ const loc = (p) => (p ? [p.location, p.extraction && p.extraction.locator && p.e
 
 /** @returns {{path:string, sourceValue:string, normalised:string, location:string, method:string, confidence:string, status:string, absence:string, alternates:string}[]} */
 export function debugRows(a) {
-  const rows = [];
-  (function walk(o, path) {
+  /** @type {any[]} */ const rows = [];
+  (/** @param {any} o @param {string} path */ function walk(o, path) {
     if (!o || typeof o !== 'object') return;
     if (['aquaSharksFindings', 'priorities', 'coachReview', 'coachNotes'].includes(path.split('.')[0])) return;
     if ('status' in o && 'provenance' in o && typeof o.status === 'string') {

@@ -12,6 +12,7 @@ import { hasRealConflict } from '../calc.js';
 
 export const LAYOUT = 'EO_AI_REPORT_V1';
 
+/** @type {[string, RegExp][]} */
 const HEADINGS = [
   ['summary', /^Summary(?=\s|$)/], ['snapshot', /^Your Swim Snapshot(?=\s|$)/], ['insights', /^Key Insights(?=\s|$)/],
   ['force', /^Force Field(?=\s|$)/], ['srp', /^Stroke Rate (?:&|and) Power(?=\s|$)/], ['pvt', /^Power vs\.? Time(?=\s|$)/],
@@ -46,7 +47,7 @@ function structure(/** @type {import('./doc-text.js').DocText} */ d) {
       const pr = /^(Priority \d+:)/.exec(text);
       if (pr) { out.push({ kind: 'priority', text, page: p.page, table: false, para }); text = ''; break; }
       const h = HEADINGS.find(([, re]) => re.test(text));
-      if (h) { const m = /^[^\s].*?(?=\s|$)/.exec(text); const full = text.match(h[1])[0]; out.push({ kind: 'h:' + h[0], text: full, page: p.page, table: false, para }); text = text.slice(full.length).trim(); continue; }
+      if (h) { const m = /^[^\s].*?(?=\s|$)/.exec(text); const full = (text.match(h[1]) || [''])[0]; out.push({ kind: 'h:' + h[0], text: full, page: p.page, table: false, para }); text = text.slice(full.length).trim(); continue; }
       break;
     }
     if (text) out.push({ kind: p.table ? 'table' : /^eo SwimBETTER Analysis Report/i.test(text) ? 'title' : null, text, page: p.page, table: p.table, para });
@@ -163,7 +164,7 @@ export function extractAiReport(d, ctx = {}) {
     const sents = splitSentences(b.text);
     const sideIn = (t) => { const r = /\bright (?:side|arm)\b/i.test(t), l = /\bleft (?:side|arm)\b/i.test(t); return r && !l ? 'right' : l && !r ? 'left' : null; };
     const paraSide = sideIn(b.text);
-    let last = null;
+    /** @type {'left'|'right'|null} */ let last = null;
     for (const sn of sents) {
       const here = sideIn(sn); if (here) last = here;
       const hits = [...sn.matchAll(/lap\s+(\d+)\s*\((\d+(?:\.\d+)?)%/gi)];

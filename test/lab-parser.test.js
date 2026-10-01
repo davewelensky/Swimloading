@@ -220,11 +220,22 @@ test('vision: a printed lap title gives a labelled lap; unitless impulse goes to
   assert.equal(a.sourceIssues.some((i) => i.kind === 'UNLABELLED_LAP'), false);
 });
 
-test('vision: shares that do not sum to ~100 are AMBIGUOUS and flagged; panels with fewer than four printed shares are skipped; illegible panels are skipped', async () => {
+test('vision: shares that do not sum to ~100 are AMBIGUOUS and flagged; panels with fewer than three printed shares are skipped, three or more are kept as partial; illegible panels are skipped', async () => {
   const a = await fresh();
-  const rep = applyImageLabels(a, { force_field_panels: [ffPanel({ downward_pct: 70 }), ffPanel({ propulsive_pct: null, downward_pct: null, upward_pct: null }), ffPanel({ legible: false })], phase_panels: [] });
+  const rep = applyImageLabels(a, { force_field_panels: [ffPanel({ downward_pct: 70 }), ffPanel({ propulsive_pct: null, downward_pct: null, upward_pct: null, hand_drag_pct: null }), ffPanel({ legible: false })], phase_panels: [] });
   assert.equal(rep.forceField, 1); assert.equal(rep.skipped.length, 2);
   assert.equal(a.forceFieldReadings[0].shares.downwardPct.status, 'AMBIGUOUS'); assert.ok(a.sourceIssues.some((i) => /^ff-sum-/.test(i.id)));
+});
+
+test('vision: a partly legible panel (3+ shares) is kept with the rest EMPTY, never guessed, and flagged', async () => {
+  const a = await fresh();
+  const rep = applyImageLabels(a, { force_field_panels: [ffPanel({ upward_pct: null, hand_drag_pct: null, downward_pct: null })], phase_panels: [] });
+  assert.equal(rep.forceField, 1);
+  const s = a.forceFieldReadings[0].shares;
+  assert.deepEqual([s.propulsivePct.value, s.leftwardPct.value, s.rightwardPct.value], [40, 10, 8]);
+  assert.deepEqual([s.upwardPct.value, s.handDragPct.value, s.downwardPct.value], [null, null, null]); assert.equal(s.downwardPct.absence, 'EXTRACTION_FAILED');
+  assert.ok(a.sourceIssues.some((i) => /^ff-partial-/.test(i.id)));
+  assert.equal(a.sourceIssues.some((i) => /^ff-sum-/.test(i.id)), false, 'no sum check on a partial panel');
 });
 
 test('vision: lap-average panels go to lapAverages, single-stroke panels to individualStrokes, unclear scope is not stored', async () => {

@@ -36,7 +36,7 @@ POSSIBLE_TECHNICAL_OPPORTUNITY (always coach-confirmation-required unless hand-p
 `fixtures/test-swimmer-a-200m.js` (synthetic, full) and `fixtures/test-swimmer-b-sprint.js` (synthetic, thin source: proves graceful degradation).
 Fixtures are synthetic and anonymised: numeric test data plus short paraphrases. No EO prose and no real identity (enforced by `test/lab-fixture-hygiene.test.js` using hashed 6-word fingerprints). Fixture values are not thresholds for other swimmers.
 
-EO ingestion (Phase 5) is specified in `PARSER_FIELD_MAP.md`.
+EO ingestion: `parser/` (PDF + DOCX), specified in `PARSER_FIELD_MAP.md`. The coach workflow (upload, review, publish, PDF) is `aquasharks-lab-report-builder.html` + `report-builder/app.js` over `api/lab-report*.js`.
 
 ## Tests
 `test/lab-analysis-*.test.js`, run by `npm test`.

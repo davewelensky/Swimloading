@@ -55,10 +55,11 @@ export function applyImageLabels(a, v) {
   (v.force_field_panels || []).forEach((p, i) => {
     if (!p.legible && p.legible !== undefined) { report.skipped.push(`force-field panel ${i + 1} not legible`); return; }
     const present = SHARES.filter((k) => typeof p[k] === 'number');
-    if (present.length < 4) { report.skipped.push(`force-field panel ${i + 1}: fewer than four printed shares`); return; }
+    if (present.length < 3) { report.skipped.push(`force-field panel ${i + 1}: fewer than three printed shares`); return; }
+    const complete = present.length === SHARES.length;
     const sum = present.reduce((s, k) => s + p[k], 0);
     const where = { image: i + 1 };
-    const mk = (key, val) => (typeof val === 'number' ? num(val, '%', X.from('IMAGE', 'MODERATE', where, String(val), 'EO_IMAGE_LABEL'), { status: Math.abs(sum - 100) > 1.5 ? 'AMBIGUOUS' : 'COMPLETE' }) : missing('%', 'EXTRACTION_FAILED'));
+    const mk = (key, val) => (typeof val === 'number' ? num(val, '%', X.from('IMAGE', 'MODERATE', where, String(val), 'EO_IMAGE_LABEL'), { status: complete && Math.abs(sum - 100) > 1.5 ? 'AMBIGUOUS' : 'COMPLETE' }) : missing('%', 'EXTRACTION_FAILED'));
     const lapNum = /(?:lap)\s*(\d+)/i.exec(p.title_text || '');
     const lap = lapNum ? lapRef([+lapNum[1]], null, X.from('IMAGE', 'MODERATE', where, p.title_text, 'EO_IMAGE_LABEL')) : { laps: [], distanceM: null, status: /** @type {any} */ ('AMBIGUOUS'), provenance: X.from('IMAGE', 'LOW', where, undefined, 'EO_IMAGE_LABEL') };
     const unit = p.avg_impulse_unit || '';
@@ -66,7 +67,8 @@ export function applyImageLabels(a, v) {
     a.forceFieldReadings.push({ id: 'ff-' + (i + 1), image: i + 1, lap, provenance: X.from('IMAGE', 'MODERATE', where, undefined, 'EO_IMAGE_LABEL'),
       shares: { propulsivePct: mk('propulsive', p.propulsive_pct), downwardPct: mk('downward', p.downward_pct), upwardPct: mk('upward', p.upward_pct), leftwardPct: mk('leftward', p.leftward_pct), rightwardPct: mk('rightward', p.rightward_pct), handDragPct: mk('hand_drag', p.hand_drag_pct) },
       impulse: { left: imp(p.avg_impulse_left), right: imp(p.avg_impulse_right) } });
-    if (Math.abs(sum - 100) > 1.5) a.sourceIssues.push({ id: `ff-sum-${i + 1}`, severity: 'WARN', kind: 'UNRECONCILED_FIGURE', fields: [`forceFieldReadings.${a.forceFieldReadings.length - 1}`], message: `The force-field image ${i + 1} shares add to ${sum.toFixed(1)}%, not 100%.` });
+    if (!complete) a.sourceIssues.push({ id: `ff-partial-${i + 1}`, severity: 'INFO', kind: 'UNRECONCILED_FIGURE', fields: [`forceFieldReadings.${a.forceFieldReadings.length - 1}`], message: `Force-field image ${i + 1}: only ${present.length} of 6 shares were legible; the rest are left empty rather than guessed.` });
+    if (complete && Math.abs(sum - 100) > 1.5) a.sourceIssues.push({ id: `ff-sum-${i + 1}`, severity: 'WARN', kind: 'UNRECONCILED_FIGURE', fields: [`forceFieldReadings.${a.forceFieldReadings.length - 1}`], message: `The force-field image ${i + 1} shares add to ${sum.toFixed(1)}%, not 100%.` });
     if (!lapNum) a.sourceIssues.push({ id: `ff-lap-${i + 1}`, severity: 'INFO', kind: 'UNLABELLED_LAP', fields: [`forceFieldReadings.${a.forceFieldReadings.length - 1}`], message: `Force-field image ${i + 1} carries no lap label. A coach must say which lap it shows before it is used in a comparison.` });
     // per-arm impulse (first panel only populates the headline field; each reading keeps its own copy)
     if (!report.forceField) {
@@ -98,6 +100,6 @@ export async function readImageLabels(a, src, callModel) {
     return { ok: true, ...applyImageLabels(a, out || {}), notes: (out && out.notes) || [] };
   } catch (e) {
     a.sourceIssues.push({ id: 'vision-failed', severity: 'WARN', kind: 'UNRECONCILED_FIGURE', fields: ['forceFieldReadings'], message: 'The image-label step failed; per-arm figures and stroke-phase panels were not read. Enter them manually or retry.' });
-    return { ok: false, error: String(e && e.message || e), forceField: 0, phaseLap: 0, phaseStroke: 0, skipped: [] };
+    return { ok: false, error: String(/** @type {any} */ (e) && /** @type {any} */ (e).message || e), forceField: 0, phaseLap: 0, phaseStroke: 0, skipped: [] };
   }
 }
