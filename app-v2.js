@@ -36,8 +36,8 @@
         setTimeout(function () { location.href = location.pathname; }, 150);
     };
 
-    // Who may switch IN to v2 from the classic app: admins (profiles.is_admin), and anyone on the 'ui_v2_beta' flag
-    // (feature_flags: enabled_global, or the user id in allowed_user_ids). Fails closed. Anyone
+    // Who may switch IN to v2 from the classic app: admins (profiles.is_admin), and anyone covered by the 'ui_v2_beta'
+    // or 'ui_v2_default_all' flag (feature_flags: enabled_global, or the user id in allowed_user_ids). Fails closed. Anyone
     // already in v2 can always switch back, whatever the flag says.
     var _offer = null;
     window.V2.canOfferV2 = function () {
@@ -49,9 +49,10 @@
                     // directly (own-row select is allowed by RLS).
                     var me = await supabaseClient.from('profiles').select('is_admin').eq('id', currentUser.id).maybeSingle();
                     if (me && me.data && me.data.is_admin) return true;
-                    var r = await supabaseClient.from('feature_flags').select('enabled_global, allowed_user_ids').eq('key', 'ui_v2_beta').maybeSingle();
-                    var d = r && r.data;
-                    return !!(d && (d.enabled_global || (d.allowed_user_ids || []).indexOf(currentUser.id) >= 0));
+                    // ui_v2_default_all counts too: once v2 is the default for everyone, a person who chose Classic
+                    // must be able to come back (they previously saw no button, because only ui_v2_beta was checked).
+                    var r = await supabaseClient.from('feature_flags').select('key, enabled_global, allowed_user_ids').in('key', ['ui_v2_beta', 'ui_v2_default_all']);
+                    return ((r && r.data) || []).some(function (d) { return d.enabled_global || (d.allowed_user_ids || []).indexOf(currentUser.id) >= 0; });
                 } catch (e) { return false; }
             })();
         }
