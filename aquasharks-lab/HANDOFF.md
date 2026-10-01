@@ -50,8 +50,8 @@ More detail: `analysis/README.md` (model rules) and `analysis/PARSER_FIELD_MAP.m
 - Live site: builder, admin API lock (403), PDF endpoint (404 on bad token). 359 tests (2 gated), `tsc --strict` clean.
 
 **Not yet done**
-1. **The migration is NOT applied.** Until Dave types "apply" (MIGRATIONS.md step 4): saving, publishing and the public page do not work live.
-   The dry-run is clean. After applying, run the file's VERIFY queries and move it to `sql/applied/`.
+1. ~~Migration~~ **Applied 1 Oct 2026** (`sql/applied/2026-10-01_swim-lab-assessments.sql`); VERIFY queries passed (table empty, RLS on, no policies,
+   bucket `lab-evidence` private, 3 check constraints). Saving and publishing are now possible live; nothing has been published yet.
 2. **Chromium PDF on Vercel is unverified.** Works locally. First live check: publish a test report and open the Download PDF link. The function needs
    `includeFiles` for `@sparticuz/chromium` (set in `vercel.json`); if it fails, check function size/memory first.
 3. **EO-native PDF untested.** The PDF specimen was converted from the real DOCX with LibreOffice. Try one PDF straight from EO.
@@ -99,8 +99,7 @@ for slug `aqua-sharks-atlantic` (Britt's single login; never create a second acc
 
 ## Next steps, in order
 
-1. Dave: "apply" the migration; verify; move the file to `sql/applied/`.
-2. Publish a test report on the live site; confirm the web page and the PDF download (Chromium function).
-3. Have Britt run one real EO report end to end; try an EO-native PDF.
-4. File the GitHub Support request.
-5. Then: stroke-phase screenshot ingestion, retest/progress comparison (same swimmer, two assessments), the older numbered-PDF layout, drill library sign-off.
+1. Publish a test report on the live site; confirm the web page and the PDF download (Chromium function).
+2. Have Britt run one real EO report end to end; try an EO-native PDF.
+3. File the GitHub Support request.
+4. Then: stroke-phase screenshot ingestion, retest/progress comparison (same swimmer, two assessments), the older numbered-PDF layout, drill library sign-off.
