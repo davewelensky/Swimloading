@@ -155,3 +155,12 @@ test('helpers: tokens, file names, escaping', () => {
   const html = renderPublicPage({ snapshot: { model: { profile: { id: 'PERFORMANCE' }, sections: [] } }, name: '<script>alert(1)</script>', date: null, token: 't"x', print: false });
   assert.doesNotMatch(html, /<script>alert/); assert.match(html, /&lt;script&gt;/);
 });
+
+test('before the migration exists, public and PDF endpoints answer 404 (not 500) and the admin API says storage is not ready', async () => {
+  const broken = { getByToken: async () => { throw new Error('db 404 {"code":"PGRST205","message":"Could not find the table \'public.swim_lab_assessments\'"}'); }, list: async () => { throw new Error('db 404 PGRST205 swim_lab_assessments'); } };
+  const tok = newToken();
+  assert.equal((await call(makePublicHandler({ store: broken }), { method: 'GET', query: { t: tok } })).statusCode, 404);
+  assert.equal((await call(makePdfHandler({ store: broken, baseUrl: () => 'x', render: async () => Buffer.from('') }), { method: 'GET', query: { t: tok } })).statusCode, 404);
+  const a = await call(makeAdminHandler({ store: broken, auth: async () => 'a' }), { body: { action: 'list' } });
+  assert.equal(a.statusCode, 503); assert.equal(json(a).error, 'storage_not_ready');
+});

@@ -100,7 +100,7 @@ export function makePublicHandler({ store }) {
       const row = await store.getByToken(t);
       if (!row) { res.statusCode = 404; return res.end(notFoundPage()); }
       res.statusCode = 200; return res.end(renderPublicPage({ snapshot: row.published_report, name: row.swimmer_name, date: row.session_date, token: t, print }));
-    } catch (e) { console.error('lab-report-public', e.message); res.statusCode = 500; return res.end(notFoundPage()); }
+    } catch (e) { console.error('lab-report-public', e.message); res.statusCode = /swim_lab_assessments|PGRST205|42P01/.test(e.message) ? 404 : 500; return res.end(notFoundPage()); }
   };
 }
 
@@ -114,6 +114,6 @@ export function makePdfHandler({ store, baseUrl, render = renderPdf }) {
       const pdf = await render(`${baseUrl(req)}/aquasharks-lab/report/${t}?print=1`);
       res.statusCode = 200; res.setHeader('Content-Type', 'application/pdf'); res.setHeader('Content-Disposition', `attachment; filename="${pdfFileName(row.swimmer_name, row.session_date)}"`); res.setHeader('Cache-Control', 'no-store'); res.setHeader('X-Robots-Tag', 'noindex');
       return res.end(pdf);
-    } catch (e) { console.error('lab-report-pdf', e.message); res.statusCode = 500; return res.end('could not render the PDF'); }
+    } catch (e) { console.error('lab-report-pdf', e.message); res.statusCode = /swim_lab_assessments|PGRST205|42P01/.test(e.message) ? 404 : 500; return res.end(/swim_lab_assessments|PGRST205|42P01/.test(e.message) ? 'not found' : 'could not render the PDF'); }
   };
 }
