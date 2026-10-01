@@ -14,7 +14,26 @@ export type Confidence = 'HIGH' | 'MODERATE' | 'LOW';
 export type ProfileId = 'JUNIOR' | 'PERFORMANCE' | 'MASTERS_OPEN_WATER' | 'COACH';
 export type SwimmerProfileId = Exclude<ProfileId, 'COACH'>;
 
-export type Origin = 'EO_REPORT' | 'COACH_SUPPLIED' | 'DERIVED' | 'FIXTURE';
+/**
+ * Where a value came from.
+ *  EO_REPORT       printed in the report text or a table
+ *  EO_IMAGE_LABEL  printed text read out of an embedded image (vision/OCR)
+ *  CHART_READ      estimated from a plot with no data labels: never auto-filled, coach-entered only
+ *  COACH_SUPPLIED  entered or confirmed by a coach
+ *  DERIVED         computed by Aqua Sharks from other values
+ */
+export type Origin = 'EO_REPORT' | 'EO_IMAGE_LABEL' | 'CHART_READ' | 'COACH_SUPPLIED' | 'DERIVED' | 'FIXTURE';
+
+/** How a field was extracted and how sure the extractor is. Present on parser output. */
+export interface ExtractionInfo {
+  method: 'TEXT' | 'TABLE' | 'STRUCT' | 'IMAGE' | 'CHART' | 'MODEL' | 'RULE' | 'MANUAL';
+  confidence: 'HIGH' | 'MODERATE' | 'LOW';
+  /** Where in the document: section heading, paragraph index, table cell, image index, page. */
+  locator?: { section?: string; paragraph?: number; tableCell?: string; image?: number; page?: number };
+}
+
+/** Why a value is MISSING. Lets the debug view tell "this layout never has it" from "we failed to read it" from "that step has not run yet". */
+export type Absence = 'NOT_IN_SOURCE' | 'EXTRACTION_FAILED' | 'COACH_REQUIRED' | 'NOT_ATTEMPTED';
 
 export interface Provenance {
   origin: Origin;
@@ -23,6 +42,8 @@ export interface Provenance {
   /** A short label as printed (a field name or a number), never a sentence of source prose. */
   raw?: string;
   note?: string;
+  /** Present when a parser produced the value. */
+  extraction?: ExtractionInfo;
 }
 
 /** A numeric value. `value` is null when absent or when only a range is known. Never filled by inference. */
@@ -30,6 +51,8 @@ export interface Measured {
   value: number | null;
   unit?: string;
   status: DataStatus;
+  /** Set when status is MISSING. */
+  absence?: Absence;
   /** Source said "approximately" or similar. Caps confidence at MODERATE. */
   approximate?: boolean;
   /** Source gave a range instead of a point value. Never collapsed to a midpoint. */
@@ -49,6 +72,7 @@ export interface Measured {
 export interface Observed<T extends string = string> {
   value: T | null;
   status: DataStatus;
+  absence?: Absence;
   provenance: Provenance;
 }
 
@@ -121,11 +145,17 @@ export interface PowerSide {
  */
 export type ClaimType = 'MEASUREMENT_STATEMENT' | 'DIAGNOSTIC_INTERPRETATION' | 'RECOMMENDATION';
 export type EoArea =
-  | 'STROKE_RATE_POWER' | 'FORCE_FIELD' | 'HAND_PATH' | 'CONSISTENCY'
+  | 'OVERVIEW' | 'STROKE_RATE_POWER' | 'FORCE_FIELD' | 'HAND_PATH' | 'CONSISTENCY'
   | 'STROKE_PHASES' | 'POWER_VS_TIME' | 'HAND_PATH_AND_POWER';
 
 /** A SHORT PARAPHRASE of an EO statement. Verbatim EO prose is never stored in source control. */
-export interface EoObservation { id: string; area: EoArea; text: string; claimType: ClaimType; provenance: Provenance }
+export interface EoObservation {
+  id: string; area: EoArea; text: string; claimType: ClaimType;
+  /** How claimType was decided. Classification is not deterministic, so the basis is always recorded. */
+  claimTypeBasis: 'RULE' | 'MODEL' | 'COACH';
+  claimTypeConfidence: 'HIGH' | 'MODERATE' | 'LOW';
+  provenance: Provenance;
+}
 export interface EoRecommendation {
   id: string; area: EoArea | 'GENERAL'; text: string; provenance: Provenance;
   /** COACH_ONLY for clinical or sensitive advice (e.g. a referral). Never auto-surfaced to swimmers or parents. */
@@ -141,11 +171,34 @@ export interface SourceIssue {
 }
 export interface ReferenceRange { text: string; lo: number | null; hi: number | null; provenance: Provenance }
 
+export interface SourceDocument {
+  kind: 'EO_REPORT_DOCX' | 'EO_REPORT_PDF' | 'EO_APP_SCREENSHOT' | 'COACH_ENTRY' | 'FIXTURE';
+  filename: string | null;
+  sha256: string | null;
+  /** Which EO views this document supplies. */
+  views: EoArea[];
+}
+
+/** A printed item that has no home in the schema. Preserved, never interpreted. */
+export interface UnmappedItem { label: string; value: string; location: string }
+
+/** A force-field reading taken from an image. The lap it shows is often unlabelled, so it is held here until a coach assigns it. */
+export interface ForceFieldReading {
+  id: string;
+  image: number | null;
+  lap: LapRef;
+  shares: ForceShares;
+  impulse: { left: Measured; right: Measured };
+  provenance: Provenance;
+}
+
 export interface SwimAnalysis {
-  schemaVersion: 2;
+  schemaVersion: 3;
   swimmer: { name: string; age: Measured; communicationProfile: ProfileId };
   session: {
     date: Observed<string>;
+    /** Time of day as printed. No time-zone conversion is applied. */
+    startTime: Observed<string>;
     stroke: Observed<string>;
     distanceM: Measured;
     timeS: Measured;
@@ -156,8 +209,10 @@ export interface SwimAnalysis {
   };
   source: {
     provider: 'EO Labs'; product: 'SwimBETTER';
-    format: 'PDF' | 'DOCX' | 'FIXTURE';
-    filename: string | null;
+    /** Every input behind this analysis: a report, screenshots, coach entry. */
+    documents: SourceDocument[];
+    /** Detected report layout, e.g. EO_AI_DOCX_V1. Null when not parsed. */
+    layout: string | null;
     /** EO's own analysis context, e.g. "Distance". Context only, not an Aqua Sharks classification. */
     analysisContext: { swimmerType: string | null };
     extractedAt: string | null;
@@ -175,7 +230,8 @@ export interface SwimAnalysis {
   /** Whole-swim shares. Per-lap shares live inside lapComparisons. */
   forceDistribution: { overall: ForceShares };
   leftRight: {
-    avgPowerW: { left: Measured; right: Measured };
+    /** EO labels this per-arm figure "Avg Impulse" and gives watts. Whether it is per-arm power is unconfirmed, so it keeps EO's label. */
+    avgImpulseW: { left: Measured; right: Measured };
     impulse: { left: Measured; right: Measured };
     relativeOutput: { left: Observed<RelativeOutput>; right: Observed<RelativeOutput> };
     /** Did the gap persist across laps? As stated by EO or the coach. */
@@ -183,6 +239,8 @@ export interface SwimAnalysis {
   };
   /** Explicit lap comparisons. Empty when the source gives none. */
   lapComparisons: LapComparison[];
+  /** Force-field image readings awaiting a lap assignment. */
+  forceFieldReadings: ForceFieldReading[];
   handPath: { left: Observed<string>; right: Observed<string> };   // geometry descriptions only; no fault inference
   consistency: { left: Observed<string>; right: Observed<string>; withinLap: Observed<string>; betweenLaps: Observed<string> };
   strokePhases: { left: ArmPhases; right: ArmPhases };
@@ -193,6 +251,10 @@ export interface SwimAnalysis {
   eoRecommendations: EoRecommendation[];
   /** EO's own reference ranges, as printed. Source evidence only: Aqua Sharks does not adopt them as thresholds. */
   eoReferenceRanges: Record<string, ReferenceRange>;
+  /** The swimmer type and stroke EO's reference ranges are specific to. */
+  eoReferenceContext: { swimmerType: string | null; stroke: string | null };
+  /** Printed items with no schema field (e.g. an unexplained flag). Preserved, never interpreted. */
+  unmapped: UnmappedItem[];
   /** Contradictions, truncation and unreconciled figures found in the source itself. */
   sourceIssues: SourceIssue[];
 

@@ -35,7 +35,7 @@ export function allowedNumbers(a) {
   }
   for (const k of ['left', 'right']) { const s = a.powerProfile[k].doublePeakPctByLap; out.add(s.filter((m) => m.value > 0).length); out.add(s.length); }
   for (const k of ['left', 'right']) for (const x of a.strokePhases[k].lapAverages) { out.add(x.lap); }
-  const pl = g(a.leftRight.avgPowerW.left), pr = g(a.leftRight.avgPowerW.right);
+  const pl = g(a.leftRight.avgImpulseW.left), pr = g(a.leftRight.avgImpulseW.right);
   if (pl != null && pr != null) out.add(asymmetry(pl, pr).differencePctOfLower);
   return out;
 }

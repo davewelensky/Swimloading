@@ -4,7 +4,7 @@ import { extractTool, EXTRACT_SYSTEM, interpretTool, INTERPRET_SYSTEM, METRIC_KE
 
 export const MODEL = process.env.LAB_REPORT_MODEL || 'claude-sonnet-5-5';
 
-async function claude({ system, tool, content, maxTokens }) {
+export async function claude({ system, tool, content, maxTokens }) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw Object.assign(new Error('ANTHROPIC_API_KEY not set'), { status: 500 });
   // Newer models reject a forced tool_choice, so use auto, instruct, and retry once if no tool call came back.

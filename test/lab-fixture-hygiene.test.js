@@ -6,7 +6,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import path from 'node:path';
-import { hashes, SHINGLE } from '../scripts/lab-eo-fingerprints.mjs';
+import crypto from 'node:crypto';
+import { hashes, tokens, SHINGLE } from '../scripts/lab-eo-fingerprints.mjs';
 import A from '../aquasharks-lab/analysis/fixtures/test-swimmer-a-200m.js';
 import B from '../aquasharks-lab/analysis/fixtures/test-swimmer-b-sprint.js';
 
@@ -39,10 +40,15 @@ test('the detector itself works: a copied run of EO words would be caught', () =
   assert.equal([...hashes('totally unrelated words that were never in any report')].some((h) => EO.has(h)), false);
 });
 
+// Table column labels are interoperability vocabulary (the parser and its synthetic test documents must repeat them), not prose.
+const LABEL_VOCAB = new Set(['leftward', 'propulsive', 'rightward', 'upward', 'hand', 'drag', 'downward', 'actual', 'target']);
+const isLabelRun = (run) => run.split(' ').every((w) => LABEL_VOCAB.has(w) || /^[0-9%.<>-]+$/.test(w));
+
 test('no verbatim EO narrative (any 6-word run) in the lab code, fixtures, preview pages or lab tests', () => {
   assert.ok(SCANNED.length > 20, 'the scan covers real files');
   for (const file of SCANNED) {
-    const hits = [...hashes(readFileSync(file, 'utf8'))].filter((h) => EO.has(h));
+    const t = tokens(readFileSync(file, 'utf8')); const hits = [];
+    for (let i = 0; i + SHINGLE <= t.length; i++) { const run = t.slice(i, i + SHINGLE); if (EO.has(crypto.createHash('sha256').update(run.join(' ')).digest('hex').slice(0, 16)) && !isLabelRun(run.join(' '))) hits.push(run.join(' ')); }
     assert.equal(hits.length, 0, `${path.relative(ROOT, file)} contains ${hits.length} 6-word run(s) copied from an EO report`);
   }
 });

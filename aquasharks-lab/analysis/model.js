@@ -9,8 +9,8 @@
 /** @type {Provenance} */
 const NONE = { origin: 'EO_REPORT', note: 'not present in source' };
 
-/** @param {string} [unit] @returns {Measured} */
-export const missing = (unit) => ({ value: null, unit, status: 'MISSING', provenance: { ...NONE } });
+/** @param {string} [unit] @param {import('./types').Absence} [absence] @returns {Measured} */
+export const missing = (unit, absence) => ({ value: null, unit, status: 'MISSING', absence, provenance: { ...NONE } });
 
 /** @param {number} value @param {string} unit @param {Provenance} provenance
  *  @param {{approximate?: boolean, status?: DataStatus, alternates?: {value:number, location:string}[], selectionBasis?: string}} [o] @returns {Measured} */
@@ -22,7 +22,8 @@ export const rng = (range, unit, provenance) => ({ value: null, unit, range: /**
 
 /** @template {string} T @param {T} value @param {Provenance} provenance @param {DataStatus} [status] */
 export const obs = (value, provenance, status = 'COMPLETE') => ({ value, status, provenance });
-export const obsMissing = () => ({ value: null, status: /** @type {DataStatus} */ ('MISSING'), provenance: { ...NONE } });
+/** @param {import('./types').Absence} [absence] */
+export const obsMissing = (absence) => ({ value: null, status: /** @type {DataStatus} */ ('MISSING'), absence, provenance: { ...NONE } });
 
 export const P = {
   /** @param {string} location @param {string} [raw] @returns {Provenance} */
@@ -53,20 +54,21 @@ export const phaseSet = (glide, pull, recovery, provenance) => ({ glidePct: num(
 /** An analysis in which nothing is known. @param {string} name @returns {SwimAnalysis} */
 export function emptyAnalysis(name) {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     swimmer: { name, age: missing('years'), communicationProfile: 'PERFORMANCE' },
-    session: { date: obsMissing(), stroke: obsMissing(), distanceM: missing('m'), timeS: missing('s'), laps: missing(), strokeCount: missing(), poolLengthM: missing('m'), location: obsMissing() },
-    source: { provider: 'EO Labs', product: 'SwimBETTER', format: 'FIXTURE', filename: null, analysisContext: { swimmerType: null }, extractedAt: null, parserVersion: null, notes: [] },
+    session: { date: obsMissing(), startTime: obsMissing(), stroke: obsMissing(), distanceM: missing('m'), timeS: missing('s'), laps: missing(), strokeCount: missing(), poolLengthM: missing('m'), location: obsMissing() },
+    source: { provider: 'EO Labs', product: 'SwimBETTER', documents: [], layout: null, analysisContext: { swimmerType: null }, extractedAt: null, parserVersion: null, notes: [] },
     metrics: { strokeRate: missing('str/min'), distancePerStrokeM: missing('m'), avgForceN: missing('N'), avgPowerW: missing('W'), workKj: missing('kJ'), propulsivePct: missing('%') },
     forceDistribution: { overall: shares() },
-    leftRight: { avgPowerW: { left: missing('W'), right: missing('W') }, impulse: { left: missing(), right: missing() }, relativeOutput: { left: obsMissing(), right: obsMissing() }, persistence: obsMissing() },
+    leftRight: { avgImpulseW: { left: missing('W'), right: missing('W') }, impulse: { left: missing(), right: missing() }, relativeOutput: { left: obsMissing(), right: obsMissing() }, persistence: obsMissing() },
     lapComparisons: [],
+    forceFieldReadings: [],
     handPath: { left: obsMissing(), right: obsMissing() },
     consistency: { left: obsMissing(), right: obsMissing(), withinLap: obsMissing(), betweenLaps: obsMissing() },
     strokePhases: { left: arm(), right: arm() },
     powerProfile: { left: { shape: obsMissing(), doublePeakPctByLap: [] }, right: { shape: obsMissing(), doublePeakPctByLap: [] } },
     handPathAndPower: { status: 'MISSING' },
-    eoObservations: [], eoRecommendations: [], eoReferenceRanges: {}, sourceIssues: [],
+    eoObservations: [], eoRecommendations: [], eoReferenceRanges: {}, eoReferenceContext: { swimmerType: null, stroke: null }, unmapped: [], sourceIssues: [],
     aquaSharksFindings: [], priorities: [], coachNotes: [],
     coachReview: { findings: {} },
     baseline: { capturedOn: null, metrics: {} },
@@ -93,4 +95,18 @@ export function present(m) {
   if (!m || m.status === 'MISSING') return false;
   if ('range' in m && m.range) return true;
   return m.value !== null && m.value !== undefined;
+}
+
+/** Provenance builders for parser output: they carry extraction method, confidence and locator. */
+export const X = {
+  /** @param {import('./types').ExtractionInfo['method']} method @param {'HIGH'|'MODERATE'|'LOW'} confidence @param {import('./types').ExtractionInfo['locator']} [locator] @param {string} [raw] @param {import('./types').Origin} [origin] @returns {Provenance} */
+  from: (method, confidence, locator, raw, origin = 'EO_REPORT') => ({ origin, location: locator && (locator.section || locator.tableCell || (locator.image != null ? 'image ' + locator.image : undefined)), raw, extraction: { method, confidence, locator } }),
+};
+
+/** Set a nested value by dot path (creates nothing: the path must exist in the skeleton). */
+export function setPath(root, path, value) {
+  const keys = path.split('.'); let o = root;
+  for (let i = 0; i < keys.length - 1; i++) { o = o[keys[i]]; if (o == null) throw new Error('setPath: no such path ' + path); }
+  if (!(keys[keys.length - 1] in o)) throw new Error('setPath: no such field ' + path);
+  o[keys[keys.length - 1]] = value;
 }

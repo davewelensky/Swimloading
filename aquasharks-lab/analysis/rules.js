@@ -215,18 +215,18 @@ export function asymmetryProfile(a) {
 
   // dimension 1: output
   /** @type {ReturnType<typeof asymmetry>} */ let outputGap = null;
-  if (present(lr.avgPowerW.left) && present(lr.avgPowerW.right)) {
-    const l = lr.avgPowerW.left.value, r = lr.avgPowerW.right.value;
+  if (present(lr.avgImpulseW.left) && present(lr.avgImpulseW.right)) {
+    const l = lr.avgImpulseW.left.value, r = lr.avgImpulseW.right.value;
     outputGap = asymmetry(l, r);
     if (outputGap && outputGap.higher !== 'EQUAL') {
       const hi = outputGap.higher === 'RIGHT' ? R : L, lo = outputGap.higher === 'RIGHT' ? L : R;
-      hi.points.push(`Higher power (${f0(Math.max(l, r))} W)`); lo.points.push(`Lower power (${f0(Math.min(l, r))} W)`);
-      measurement.push(`Average power: left ${f0(l)} W, right ${f0(r)} W (${outputGap.higher.toLowerCase()} is ${f0(outputGap.differencePctOfLower)}% higher than the other; symmetry index ${signed(outputGap.symmetryIndexPct, 0)}%)`);
+      hi.points.push(`Higher output (${f0(Math.max(l, r))} W)`); lo.points.push(`Lower output (${f0(Math.min(l, r))} W)`);
+      measurement.push(`Average impulse (EO label, W): left ${f0(l)} W, right ${f0(r)} W (${outputGap.higher.toLowerCase()} is ${f0(outputGap.differencePctOfLower)}% higher than the other; symmetry index ${signed(outputGap.symmetryIndexPct, 0)}%)`);
     }
-    swimmerDims++; inputs.push(lr.avgPowerW.left, lr.avgPowerW.right); evidence.push('leftRight.avgPowerW');
+    swimmerDims++; inputs.push(lr.avgImpulseW.left, lr.avgImpulseW.right); evidence.push('leftRight.avgImpulseW');
   } else if (present(lr.relativeOutput.left) && present(lr.relativeOutput.right)) {
     const lv = lr.relativeOutput.left.value, rv = lr.relativeOutput.right.value;
-    if (lv !== rv) { (rv === 'HIGHER' ? R : L).points.push('Higher power'); (rv === 'HIGHER' ? L : R).points.push('Lower power'); swimmerDims++; evidence.push('leftRight.relativeOutput'); }
+    if (lv !== rv) { (rv === 'HIGHER' ? R : L).points.push('Higher output'); (rv === 'HIGHER' ? L : R).points.push('Lower output'); swimmerDims++; evidence.push('leftRight.relativeOutput'); }
   }
 
   // dimension 2: power shape
@@ -282,12 +282,12 @@ export function asymmetryProfile(a) {
   const multi = multiArms.length ? multiArms[0].toLowerCase() : null;
   const other = multi === 'right' ? 'left' : 'right';
   const opportunity = multi
-    ? `The ${multi} arm’s force delivery is less smooth than the ${other}. The opportunity is to bring that smoothness across to the ${multi}, and to understand the power gap between the arms. A difference between arms is not automatically a fault.`
+    ? `The ${multi} arm’s force delivery is less smooth than the ${other}. The opportunity is to bring that smoothness across to the ${multi}, and to understand the output gap between the arms. A difference between arms is not automatically a fault.`
     : 'The two arms differ. The opportunity is to understand why, and to see whether the gap matters for you. A difference between arms is not automatically a fault.';
   const text = {
     JUNIOR: multi ? `Your ${other} arm pushes more smoothly. Let’s help your ${multi} arm push as smoothly.` : 'Your two arms don’t push exactly the same. That’s normal. We’ll look at it together.',
-    PERFORMANCE: multi ? `Your ${multi} arm delivers its force less smoothly than your ${other}${outputGap ? `, and the two arms produce different power (${f0(lr.avgPowerW.left.value)} W left, ${f0(lr.avgPowerW.right.value)} W right)` : ''}.` : 'Your arms show different power patterns.',
-    MASTERS_OPEN_WATER: multi ? `The ${multi}-side force pattern is less smooth than the ${other}${outputGap ? `, with a ${f0(outputGap.differencePctOfLower)}% power gap between the arms` : ''}. Over a long swim, the ${multi}-side pattern is the one to watch.` : 'The two arms show different power patterns.',
+    PERFORMANCE: multi ? `Your ${multi} arm delivers its force less smoothly than your ${other}${outputGap ? `, and the two arms produce different output (${f0(lr.avgImpulseW.left.value)} W left, ${f0(lr.avgImpulseW.right.value)} W right)` : ''}.` : 'Your arms show different power patterns.',
+    MASTERS_OPEN_WATER: multi ? `The ${multi}-side force pattern is less smooth than the ${other}${outputGap ? `, with a ${f0(outputGap.differencePctOfLower)}% output gap between the arms` : ''}. Over a long swim, the ${multi}-side pattern is the one to watch.` : 'The two arms show different power patterns.',
     COACH: `Asymmetry profile. LEFT: ${[...L.points, ...L_t, ...L.coachOnly].join('; ') || 'no evidence'}. RIGHT: ${[...R.points, ...R_t, ...R.coachOnly].join('; ') || 'no evidence'}. ${persists ? 'Gap present across all laps (EO). ' : ''}Swimmer-usable dimensions: ${swimmerDims}. ${opportunity}`,
   };
   const classification = (outputGap || dp.left.length || dp.right.length) ? 'MEASURED' : 'OBSERVED';
@@ -296,10 +296,10 @@ export function asymmetryProfile(a) {
     classification, confidence, evidence, measurement, text,
     observation: multi ? `${multiArms.join(' and ')} shows multiple force peaks; the other side shows a simpler pattern.` : null,
     recommendation: 'Compare how each arm delivers force through the pull, with a coach watching.',
-    caveats: [...(swimmerDims < 2 ? ['Only one dimension of left/right evidence is available.'] : []), ...(outputGap && lr.avgPowerW.left.status !== 'COMPLETE' ? ['The lap behind the left/right power figures is not labelled in the source.'] : [])],
+    caveats: [...(swimmerDims < 2 ? ['Only one dimension of left/right evidence is available.'] : []), ...(outputGap && lr.avgImpulseW.left.status !== 'COMPLETE' ? ['The lap behind the left/right output figures is not labelled in the source.'] : [])],
     relationships: ['LEFT/RIGHT POWER + POWER SHAPE (+ TIMING, PATH) = ASYMMETRY PROFILE'],
     meta: { arms: { left: L, right: R }, timing: { left: L_t, right: R_t }, phases: { left: pe.left && [pe.left.first, pe.left.last].map((x) => ({ lap: x.lap, glide: x.phases.glidePct.value, pull: x.phases.pullPct.value, recovery: x.phases.recoveryPct.value })), right: pe.right && [pe.right.first, pe.right.last].map((x) => ({ lap: x.lap, glide: x.phases.glidePct.value, pull: x.phases.pullPct.value, recovery: x.phases.recoveryPct.value })) }, opportunity, multiArm: multi, outputGap, doublePeaks: { left: dp.left.map((m) => m.value), right: dp.right.map((m) => m.value) },
-      remeasure: [...(outputGap ? [{ label: 'Left vs right power', current: `${f0(lr.avgPowerW.left.value)} W vs ${f0(lr.avgPowerW.right.value)} W` }] : []), ...(multi && dp[multi].length ? [{ label: `${multi === 'left' ? 'Left' : 'Right'}-arm double peaks`, current: `${lapsWith(dp[multi])} of ${dp[multi].length} laps` }] : [])] },
+      remeasure: [...(outputGap ? [{ label: 'Left vs right output', current: `${f0(lr.avgImpulseW.left.value)} W vs ${f0(lr.avgImpulseW.right.value)} W` }] : []), ...(multi && dp[multi].length ? [{ label: `${multi === 'left' ? 'Left' : 'Right'}-arm double peaks`, current: `${lapsWith(dp[multi])} of ${dp[multi].length} laps` }] : [])] },
   });
 }
 

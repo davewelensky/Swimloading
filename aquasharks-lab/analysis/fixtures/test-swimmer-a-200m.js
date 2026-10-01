@@ -32,7 +32,7 @@ export const testSwimmerA = overlay(emptyAnalysis('Test Swimmer A'), {
     poolLengthM: num(25, 'm', P.eo(SUM, 'Pool type')),
     location: obs('Test pool', P.coach('Neutral test location')),
   },
-  source: { format: 'FIXTURE', filename: 'specimen-a', analysisContext: { swimmerType: 'Distance' }, notes: ['Synthetic fixture. Not produced by the parser.'] },
+  source: { documents: [{ kind: 'FIXTURE', filename: 'specimen-a', sha256: null, views: [] }], layout: null, analysisContext: { swimmerType: 'Distance' }, notes: ['Synthetic fixture. Not produced by the parser.'] },
   metrics: {
     strokeRate: num(29.53, 'str/min', P.eo(SUM, 'Avg Stroke rate')),
     distancePerStrokeM: num(2.82, 'm', P.eo(SUM, 'DPS')),
@@ -55,7 +55,7 @@ export const testSwimmerA = overlay(emptyAnalysis('Test Swimmer A'), {
     },
   },
   leftRight: {
-    avgPowerW: {
+    avgImpulseW: {
       left: num(67, 'W', P.eo(IMG, 'Avg Impulse, left'), { status: 'PARTIAL' }),
       right: num(101, 'W', P.eo(IMG, 'Avg Impulse, right'), { status: 'PARTIAL' }),
     },
@@ -115,7 +115,7 @@ export const testSwimmerA = overlay(emptyAnalysis('Test Swimmer A'), {
     ['STROKE_RATE_POWER', 'MEASUREMENT_STATEMENT', 'stroke-rate section', 'EO reports total power falling on both arms across laps.'],
     ['POWER_VS_TIME', 'MEASUREMENT_STATEMENT', 'power-vs-time section', 'EO lists right-side double-peak rates by lap and none on the left.'],
     ['POWER_VS_TIME', 'DIAGNOSTIC_INTERPRETATION', 'power-vs-time section', 'EO links double peaks to incomplete water engagement that worsens under effort.'],
-  ].map(([area, claimType, loc, text], i) => ({ id: 'eo-obs-' + (i + 1), area, text, claimType, provenance: P.eo(loc) })),
+  ].map(([area, claimType, loc, text], i) => ({ id: 'eo-obs-' + (i + 1), area, text, claimType, claimTypeBasis: 'COACH', claimTypeConfidence: 'HIGH', provenance: P.eo(loc) })),
   eoRecommendations: [
     { id: 'eo-rec-1', area: 'FORCE_FIELD', audience: 'SWIMMER', text: 'Forearm paddles to build catch feel; reduce hand drag during the glide.', provenance: P.eo('recommendations section, item 1') },
     { id: 'eo-rec-2', area: 'STROKE_RATE_POWER', audience: 'SWIMMER', text: 'Snorkel in catch-focused drills.', provenance: P.eo('recommendations section, item 2') },
@@ -126,8 +126,8 @@ export const testSwimmerA = overlay(emptyAnalysis('Test Swimmer A'), {
   ],
   sourceIssues: [
     { id: 'si-propulsive', severity: 'WARN', kind: 'CONFLICTING_VALUES', fields: ['metrics.propulsivePct', 'forceDistribution.overall.propulsivePct'], message: 'The propulsive share is printed as 35.16, 34.67 and 34.7 in different places. All three are preserved with their locations; none is established as correct.' },
-    { id: 'si-arm-gap', severity: 'WARN', kind: 'CONTRADICTION', fields: ['leftRight.avgPowerW'], message: 'The arm power gap is described as about 50% in one place and as 20.44% in another. The printed 67 W vs 101 W is consistent with about 50%. The 20.44% figure is unreconciled and not used.' },
-    { id: 'si-left-claim', severity: 'INFO', kind: 'CONTRADICTION', fields: ['leftRight.avgPowerW'], message: 'The left arm is described as 50% weaker while the right is described as 50% stronger. These are not equivalent statements.' },
+    { id: 'si-arm-gap', severity: 'WARN', kind: 'CONTRADICTION', fields: ['leftRight.avgImpulseW'], message: 'The arm power gap is described as about 50% in one place and as 20.44% in another. The printed 67 W vs 101 W is consistent with about 50%. The 20.44% figure is unreconciled and not used.' },
+    { id: 'si-left-claim', severity: 'INFO', kind: 'CONTRADICTION', fields: ['leftRight.avgImpulseW'], message: 'The left arm is described as 50% weaker while the right is described as 50% stronger. These are not equivalent statements.' },
     { id: 'si-dominant', severity: 'WARN', kind: 'CONTRADICTION', fields: ['powerProfile.left.shape'], message: 'One section calls the left side dominant while the report gives the right arm the higher power.' },
     { id: 'si-truncated', severity: 'WARN', kind: 'TRUNCATION', fields: ['eoRecommendations'], message: 'Recommendation priority 4 ends mid-sentence in the source.' },
     { id: 'si-handdrag', severity: 'INFO', kind: 'UNIT_AMBIGUITY', fields: ['forceDistribution.overall.handDragPct'], message: 'Hand drag appears as 1.23 with no unit in the narrative and as 1.2% in the table. Treated as 1.2%.' },

@@ -151,7 +151,7 @@ test('source contradictions are preserved as typed flags and never reconciled in
   const kinds = new Set(issues.map((i) => i.kind));
   for (const k of ['CONFLICTING_VALUES', 'CONTRADICTION', 'TRUNCATION', 'UNIT_AMBIGUITY', 'UNLABELLED_LAP']) assert.ok(kinds.has(k), k);
   assert.equal(issues.filter((i) => i.kind === 'CONTRADICTION').length >= 3, true);
-  assert.deepEqual(A.leftRight.avgPowerW.left.value, 67, 'the contradicting 20.44% figure was not used to overwrite measured power');
+  assert.deepEqual(A.leftRight.avgImpulseW.left.value, 67, 'the contradicting 20.44% figure was not used to overwrite measured power');
 });
 
 // ------------------------------------------------------------------ ranges
@@ -351,7 +351,7 @@ test('exact, complete inputs earn HIGH confidence (it is not capped for no reaso
 // ------------------------------------------------------------------ left / right
 test('asymmetry: arms are identified from the data, so swapping the values swaps the arms', () => {
   const a = clone(A);
-  [a.leftRight.avgPowerW.left, a.leftRight.avgPowerW.right] = [a.leftRight.avgPowerW.right, a.leftRight.avgPowerW.left];
+  [a.leftRight.avgImpulseW.left, a.leftRight.avgImpulseW.right] = [a.leftRight.avgImpulseW.right, a.leftRight.avgImpulseW.left];
   a.powerProfile = { left: A.powerProfile.right, right: A.powerProfile.left };
   a.strokePhases = { left: A.strokePhases.right, right: A.strokePhases.left };
   const as = by(analyse(a, 'COACH'), 'ASYMMETRY_PROFILE');
@@ -361,7 +361,7 @@ test('asymmetry: arms are identified from the data, so swapping the values swaps
 
 test('asymmetry: equal power and no other evidence produces no left/right finding', () => {
   const t = P.coach('t');
-  const a = overlay(emptyAnalysis('X'), { leftRight: { avgPowerW: { left: num(80, 'W', t), right: num(80, 'W', t) } } });
+  const a = overlay(emptyAnalysis('X'), { leftRight: { avgImpulseW: { left: num(80, 'W', t), right: num(80, 'W', t) } } });
   assert.equal(by(analyse(a, 'COACH'), 'ASYMMETRY_PROFILE'), undefined);
 });
 
@@ -369,7 +369,7 @@ test('asymmetry never labels an arm good/bad and never says a gap is a fault by 
   const as = by(analyse(A, 'COACH'), 'ASYMMETRY_PROFILE');
   assert.match(as.meta.opportunity, /not automatically a fault/);
   const left = as.meta.arms.left.points.join(' '), right = as.meta.arms.right.points.join(' ');
-  assert.match(left, /Lower power/); assert.match(left, /Simpler force-delivery/); assert.match(right, /Higher power/); assert.match(right, /Less smooth/);
+  assert.match(left, /Lower output/); assert.match(left, /Simpler force-delivery/); assert.match(right, /Higher output/); assert.match(right, /Less smooth/);
   assert.doesNotMatch(left + right, /\b(good|bad|efficient|inefficient|weak|dominant)\b/i);
 });
 
