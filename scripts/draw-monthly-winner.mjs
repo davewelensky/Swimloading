@@ -27,6 +27,12 @@ import { randomInt } from 'crypto';
 const SUPABASE_URL         = 'https://szgkzuswelntnevobnoh.supabase.co';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
 const ORGANISER_ID         = 'df137255-3add-4153-b368-32e06e2be188'; // DaveW — never eligible
+// Standing conflict-of-interest exclusions (see the winner-verification rule). Excluded BEFORE the ticket
+// pool is built, so they structurally cannot win — not just swapped out after the fact.
+const EXCLUDED_IDS = new Map([
+    [ORGANISER_ID, 'organiser (DaveW / KGB)'],
+    ['cff2fc33-4a55-451b-8c7f-20f12c1898ce', 'organiser\'s partner ("Ysie"): conflict of interest, standing exclusion since 1 Aug 2026'],
+]);
 
 const [, , startDateArg, endDateArg, labelArg] = process.argv;
 
@@ -83,11 +89,14 @@ async function main() {
     }
 
     const entrants = data.filter(r =>
-        r.user_id !== ORGANISER_ID &&
+        !EXCLUDED_IDS.has(r.user_id) &&
         r.qualified_for_draw === true &&
         !r.disqualified &&
         r.draw_entries > 0
     );
+
+    const excludedHere = data.filter(r => EXCLUDED_IDS.has(r.user_id));
+    excludedHere.forEach(r => console.log(`Excluded from the pool: ${r.display_name} (${r.draw_entries} tickets), ${EXCLUDED_IDS.get(r.user_id)}`));
 
     if (!entrants.length) {
         console.error('No eligible entrants (after excluding organiser/disqualified/zero-entry rows). Nothing to draw.');
