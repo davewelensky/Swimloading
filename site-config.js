@@ -126,6 +126,14 @@ window.SITE_CONFIG = {
       endDate:   '2026-09-30',
       winner:    'Deon Odendaal',   // drawn + approved 1 Oct 2026 (replacement draw, previous Maurten winners excluded) — see challenge_draw_results id c5214b2b-...
     },
+    '2026-10': {
+      title:     'October Challenge',
+      sponsor:   'Maurten',
+      prize:     'Box of Maurten Gel 100s',
+      startDate: '2026-10-01',
+      endDate:   '2026-10-31',
+      winner:    null,   // random draw after 31 October — leave null until drawn AND verified (Board tab panel, screenshot first)
+    },
   },
 
   /* ── SPONSOR CHALLENGE BLOCKS (partner pages) ──────────────────────────
@@ -139,7 +147,7 @@ window.SITE_CONFIG = {
   sponsorChallenges: {
     magic5:    { challengeMonth: '2026-06' },   // THEMAGIC5 sponsored June
     blusmooth: { challengeMonth: '2026-07' },   // Blu Smooth sponsored July (Winter Warrior)
-    maurten:   { challengeMonth: '2026-09' },   // Maurten sponsors September (also sponsored August — see challenges['2026-08'])
+    maurten:   { challengeMonth: '2026-10' },   // Maurten sponsors October (also Aug + Sep — see challenges['2026-08'] / ['2026-09'])
   },
 
 };
