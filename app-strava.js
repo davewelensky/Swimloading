@@ -315,13 +315,24 @@ function closeStravaImportModal() {
     if (modal) modal.style.display = 'none';
 }
 
+// The Log button used to embed the whole activity as JSON inside a single-quoted onclick. Any apostrophe in the
+// activity name or the GPS-matched spot (e.g. "Simon's Town Long Beach") ended the attribute early, so the click
+// threw a syntax error and did nothing. Keep the activity in a lookup and pass only a safe id.
+const _stravaActivityById = {};
+function _stravaKey(a) { return String(a && a.id != null ? a.id : '').replace(/[^\w-]/g, ''); }
+function openStravaLogFormById(key) {
+    const a = _stravaActivityById[key];
+    if (!a) { if (typeof showToast === 'function') showToast('Could not open that swim, please reopen the Strava list', 'error'); return; }
+    openStravaLogForm(a);
+}
+
 function renderActivityRow(a) {
     const date     = a.start_date_local ? new Date(a.start_date_local).toLocaleDateString('en-ZA', { weekday:'short', day:'numeric', month:'short' }) : '–';
     const distKm   = a.distance_m ? (a.distance_m / 1000).toFixed(1) + ' km' : '–';
     const duration = a.elapsed_time_seconds ? formatDuration(a.elapsed_time_seconds) : '–';
     const isPool   = !a.has_gps;
     const spot     = a.matched_spot_name
-        ? `<span style="color:#fc4c02;font-size:11px;">● ${a.matched_spot_name}</span>`
+        ? `<span style="color:#fc4c02;font-size:11px;">● ${escapeHtml(a.matched_spot_name)}</span>`
         : isPool
             ? `<span style="font-size:11px;color:var(--text-secondary);display:inline-flex;align-items:center;gap:4px;"><i data-lucide="waves" style="width:11px;height:11px;"></i> Pool · pick a location to log temp</span>`
             : `<span style="font-size:11px;color:var(--text-secondary);display:inline-flex;align-items:center;gap:4px;"><i data-lucide="map-pin-off" style="width:11px;height:11px;"></i> Open water · no spot matched</span>`;
@@ -352,6 +363,7 @@ function renderActivityRow(a) {
             </div>`;
     }
 
+    _stravaActivityById[_stravaKey(a)] = a;
     return `
         <div style="padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:12px;">
             <div style="flex:1;min-width:0;">
@@ -359,7 +371,7 @@ function renderActivityRow(a) {
                 <div style="font-size:12px;color:var(--text-secondary);">${date} · ${distKm} · ${duration}</div>
                 <div style="margin-top:3px;">${spot}</div>
             </div>
-            <button onclick='openStravaLogForm(${JSON.stringify(a).replace(/'/g, "\\'")})'
+            <button onclick="openStravaLogFormById('${_stravaKey(a)}')"
                 style="background:#fc4c02;color:white;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;flex-shrink:0;">
                 Log
             </button>
