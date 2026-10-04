@@ -1380,6 +1380,41 @@ const PARTNER_REPORTS = [
     { key:'sis',         name:'Science in Sport',homepage:'partner_sis_homepage_click',         page:'partner_sis_page_view',         shop:['partner_sis_shop_click'], newsletter:'partner_sis_newsletter_view' },
     { key:'trihard',     name:'TRIHARD',         homepage:null,                                 page:'trihard_page_view',             shop:['trihard_link_click'], newsletter:'trihard_newsletter_view', extraLabel:'UK Spot Challenge views', extraEvent:'uk_spot_challenge_viewed' },
 ];
+// The list above is only the BASE (partners whose events do not follow the naming convention exactly). The tabs are
+// built from the live partner_pages table, so a new partner row appears here without touching this file. A partner
+// that is in the table but not above gets the convention: partner_<key>_homepage_click / _page_view / _shop_click /
+// _newsletter_view, where <key> is the hero page slug without punctuation (/partners/blu-smooth -> blusmooth).
+const PARTNER_EVENT_OVERRIDES = {
+    jaked: { shop: ['partner_jaked_site_click', 'partner_jaked_outbound_click'] },   // its "go to the brand" clicks are named differently
+};
+let _partnerRegistryDone = false;
+async function ensurePartnerRegistry() {
+    if (_partnerRegistryDone) return;
+    _partnerRegistryDone = true;
+    try {
+        const { data, error } = await supabaseClient.from('partner_pages').select('name, hero_page, sort_order').order('sort_order');
+        if (error || !data || !data.length) return;           // unreadable (not the owner account) => keep the base list
+        const byKey = {};
+        PARTNER_REPORTS.forEach(p => { byKey[p.key] = p; });
+        const ordered = [];
+        data.forEach(row => {
+            const slug = String(row.hero_page || '').split('/').filter(Boolean).pop() || '';
+            const key = slug.replace(/[^a-z0-9]/gi, '').toLowerCase();
+            if (!key) return;
+            let entry = byKey[key];
+            if (!entry) {
+                const o = PARTNER_EVENT_OVERRIDES[key] || {};
+                entry = { key, name: row.name.replace(/\s*×.*$/, '').replace(/\s*\(.*\)$/, ''),
+                    homepage: `partner_${key}_homepage_click`, page: `partner_${key}_page_view`,
+                    shop: o.shop || [`partner_${key}_shop_click`], newsletter: `partner_${key}_newsletter_view` };
+                byKey[key] = entry;
+            }
+            if (!ordered.includes(entry)) ordered.push(entry);
+        });
+        PARTNER_REPORTS.forEach(p => { if (!ordered.includes(p)) ordered.push(p); });   // never drop one we already had
+        PARTNER_REPORTS.length = 0; ordered.forEach(p => PARTNER_REPORTS.push(p));
+    } catch (e) { /* keep the base list */ }
+}
 let _partnerDays = 30;
 let _partnerKey = 'eolab';
 
@@ -1389,6 +1424,7 @@ function selectPartner(k) { _partnerKey = k; loadPartnerReport(); }
 function _prFmtDate(d) { return d.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }); }
 
 async function loadPartnerReport() {
+    await ensurePartnerRegistry();
     // Window buttons
     [7,30,90].forEach(d => {
         const b = document.getElementById('prBtn'+d);
@@ -1405,7 +1441,7 @@ async function loadPartnerReport() {
         const on = p.key === _partnerKey;
         return `<button onclick="selectPartner('${p.key}')" style="font-size:12px;font-weight:700;padding:6px 12px;border-radius:50px;cursor:pointer;
             background:${on ? 'rgba(56,189,248,0.12)' : 'transparent'};border:1px solid ${on ? '#38bdf8' : 'var(--border)'};color:${on ? '#38bdf8' : 'var(--text-secondary)'};">${p.name}</button>`;
-    }).join('');
+    }).join('') + `<span style="font-size:11px;color:var(--text-secondary);align-self:center;margin-left:4px;">${PARTNER_REPORTS.length} partners</span>`;
 
     const partner = PARTNER_REPORTS.find(p => p.key === _partnerKey);
     const card = document.getElementById('partnerReportCard');
