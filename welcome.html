@@ -1990,10 +1990,49 @@
         var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
         var today = new Date().toISOString().slice(0, 10);
 
+        // ── Partner cards come from the partner_pages table (card columns, rows with show_on_home) ──────────
+        // The cards written in the HTML above are the FALLBACK: if the table cannot be read, is empty, or the
+        // network fails, they stay exactly as they are. A new partner appears by adding a row; no edit to this page.
+        function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]; }); }
+        function safeStyle(t) { return String(t || '').replace(/[^a-zA-Z0-9:;.%\s(),#\-]/g, ''); }
+        var LIVE_IDS = { '/partners/trihard': ['trihardPartnerCard', 'trihardPartnerChip'], '/partners/eolab': ['eoPartnerCard', 'eoPartnerChip'] };
+        function partnerCardHtml(r) {
+            var ids = LIVE_IDS[r.hero_page] || [];
+            var cls = 'partner-card' + (r.chip_state === 'soon' ? ' coming-soon' : '');
+            var logo = r.logo_url
+                ? '<img src="' + esc(r.logo_url) + '" alt="' + esc(r.logo_alt || r.name) + '"' + (r.logo_style ? ' style="' + esc(safeStyle(r.logo_style)) + '"' : '') + '>'
+                : '<span class="partner-name-text">' + esc(r.logo_text || r.name) + '</span>';
+            var chip = r.chip_label ? '<span class="partner-chip ' + esc(r.chip_state || 'soon') + '"' + (ids[1] ? ' id="' + ids[1] + '"' : '') + '>' + esc(r.chip_label) + '</span>' : '';
+            var inner = '<div style="display:flex;align-items:center;justify-content:space-between;width:100%;"><div class="partner-logo-wrap">' + logo + '</div>' + chip + '</div>' +
+                '<p class="partner-desc">' + esc(r.blurb || '') + '</p>' +
+                (r.hero_page && r.cta_label ? '<span class="partner-link">' + esc(r.cta_label) + ' <i data-lucide="arrow-right" style="width:13px;height:13px;"></i></span>' : '');
+            return r.hero_page
+                ? '<a href="' + esc(r.hero_page) + '" class="' + cls + '"' + (ids[0] ? ' id="' + ids[0] + '"' : '') + '>' + inner + '</a>'
+                : '<div class="' + cls + '">' + inner + '</div>';
+        }
+        async function renderPartnerCardsFromDb(rowsOverride) {
+            var rows = rowsOverride;
+            if (!rows) {
+                var res = await fetch(SB_URL + '/rest/v1/partner_pages?select=name,hero_page,logo_url,logo_alt,logo_style,logo_text,chip_state,chip_label,blurb,cta_label,home_order&order=home_order.asc', {
+                    headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+                });
+                if (!res.ok) return false;
+                rows = await res.json();
+            }
+            if (!Array.isArray(rows) || !rows.length) return false;
+            var grid = document.querySelector('.partner-grid');
+            if (!grid) return false;
+            grid.innerHTML = rows.map(partnerCardHtml).join('\n');
+            if (window.lucide && lucide.createIcons) lucide.createIcons();
+            return true;
+        }
+        window.renderPartnerCardsFromDb = renderPartnerCardsFromDb;   // also lets the page be tested with sample rows
+        try { await renderPartnerCardsFromDb(); } catch (e) { /* keep the built-in cards */ }
+
         // Brand Partners stat = the partner cards actually listed below, so the
         // headline number can never disagree with the grid (it said 6 while 9 were listed).
         var partnerStat = document.getElementById('stat-partners');
-        var partnerCount = document.querySelectorAll('.partner-card').length;
+        var partnerCount = document.querySelectorAll('a.partner-card[href]').length;   // partners with a page; the unnamed placeholder is not counted
         if (partnerStat && partnerCount) partnerStat.textContent = partnerCount;
 
         function setChip(cardId, chipId, state, chipText) {

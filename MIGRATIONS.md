@@ -34,7 +34,7 @@ per-call permission prompt is part of the production gate.
 
 3. **Backup** — if the migration contains DELETE / UPDATE / DROP / TRUNCATE,
    a backup table `_bak_YYYYMMDD_<table>` is created first
-   (`CREATE TABLE ... AS SELECT`). No backup, no apply — no exceptions.
+   (`CREATE TABLE ... AS SELECT`). No backup, no apply — no exceptions. **Then `ALTER TABLE _bak_... ENABLE ROW LEVEL SECURITY`** in the same transaction: new tables are readable through the public API by default, and a backup copies every column. (4 Oct 2026: two backups had been left open; the Supabase dashboard flags this too.)
    (History: 168-row wipe Jun 7 2026, import wipe Jun 26 2026.)
 
 4. **Approval gate** — Dave types **"apply"**. Not "ok", not "looks good" —

@@ -48,6 +48,7 @@ END $$;
 -- BACKUP — required before any DELETE / UPDATE / DROP / TRUNCATE.
 -- ----------------------------------------------------------------
 -- CREATE TABLE _bak_YYYYMMDD_tablename AS SELECT * FROM tablename WHERE ...;
+-- ALTER TABLE _bak_YYYYMMDD_tablename ENABLE ROW LEVEL SECURITY;   -- ALWAYS: a backup copies every column (incl. internal notes); without RLS the public API can read it
 
 -- ----------------------------------------------------------------
 -- MIGRATION — applied only after Dave types "apply".

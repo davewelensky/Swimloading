@@ -14,7 +14,7 @@ Every partner must have all of the following before going live:
 
 - [ ] Hero page at `/partners/<slug>.html`
 - [ ] Route in `vercel.json`
-- [ ] Card on `welcome.html` sponsors section
+- [ ] Homepage card: set the card fields on the partner's `partner_pages` row (`show_on_home = true`, `home_order`, `logo_url` + `logo_alt` + `logo_style` (or `logo_text` for a text logo), `chip_state` live/soon/done, `chip_label`, `blurb`, `cta_label`). welcome.html builds its cards from these rows; do NOT hand-write a card in welcome.html. (Cards written in the HTML are only the fallback if the table cannot be read; keep them in step when convenient.)
 - [ ] All facts on the page confirmed by partner or their official site
 - [ ] No fabricated product names, prices, or discount codes
 - [ ] Contact name on file (even if not published)
@@ -622,7 +622,7 @@ Current assessment:
 2. **Gather facts** — product names, correct URLs, discount code (test it), logo file
 3. **Build hero page** — `/partners/<slug>.html` using the SwimLoading brand template
 4. **Add route** to `vercel.json`
-5. **Add card** to `welcome.html` sponsors section
+5. **Fill the homepage card fields** on the partner's `partner_pages` row (see the checklist above); welcome.html reads them
 6. **Review before pushing** — no unconfirmed facts, no fabricated details
 7. **Record here** — fill in this document before the page goes live
 
