@@ -788,3 +788,11 @@ html.ui-v2 #profileModal {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
 }
+
+/* ── Forms must sit ABOVE the tab bar and the "+" button ────────────────────────────────────────────────────────
+   Every overlay form (I'm swimming, create swim, Strava, hazard ...) lives inside .container, and classic CSS gives
+   .container position:relative + z-index:1. That makes it a single stacking layer at level 1, so nothing inside it
+   can ever rise above the tab bar (level 90) whatever z-index it asks for: the Post / Create Swim buttons ended up
+   underneath the tab bar and the "+" (reported 4 Oct 2026). Let the container's children take part in the page-wide
+   stacking order instead. Scoped to the new design. */
+html.ui-v2 .container { z-index: auto; }
