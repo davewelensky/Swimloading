@@ -652,7 +652,7 @@
         <p style="font-size:13px;color:var(--text-sec);line-height:1.7;margin-bottom:16px;">This section supports sponsor tracking, prize partnerships, member benefits and regional growth opportunities.</p>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-          <div style="background:rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.15);border-radius:10px;padding:14px;">
+          <div id="ghActivePartners" style="background:rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.15);border-radius:10px;padding:14px;">
             <div style="font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Active Partners</div>
             <div style="font-size:13px;padding:5px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;flex-shrink:0;"></span>Maurten</div>
             <div style="font-size:13px;padding:5px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;flex-shrink:0;"></span>Science in Sport</div>
@@ -1244,8 +1244,34 @@ function countryFilter(q) {
 }
 
 // ── Load all ──────────────────────────────────────────────────────────
+// Partner list: built from the partner_pages table (the same rows that drive the homepage cards and the admin partner report),
+// so a new partner appears here without editing this file. The hand-written list in the HTML is the FALLBACK: it stays if the
+// table cannot be read (for example by a founder account that is not allowed to read it) or is empty.
+async function loadPartnerList() {
+  try {
+    const { data, error } = await sb.from('partner_pages').select('name, hero_page, section, status_note, sort_order').order('sort_order');
+    if (error || !data || !data.length) return;
+    const box = document.getElementById('ghActivePartners');
+    if (!box) return;
+    const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+    const label = box.firstElementChild;                       // keep the "Active Partners" heading
+    box.querySelectorAll('.gh-partner-row').forEach(n => n.remove());
+    [...box.children].forEach(n => { if (n !== label) n.remove(); });
+    const live = data.filter(p => p.section === 'active').length;
+    label.textContent = 'Active Partners · ' + live + ' live, ' + (data.length - live) + ' onboarding';
+    data.forEach((p, i) => {
+      const last = i === data.length - 1;
+      const dot = p.section === 'active' ? 'var(--green)' : 'var(--amber)';
+      const link = p.hero_page ? `<a href="https://www.swimloading.com${esc(p.hero_page)}" target="_blank" class="mi-link" style="margin-left:auto;">Open <i data-lucide="external-link" style="width:11px;height:11px;"></i></a>` : '';
+      const note = p.status_note ? ` <span style="font-size:11px;color:var(--text-sec);">${esc(p.status_note)}</span>` : '';
+      box.insertAdjacentHTML('beforeend', `<div class="gh-partner-row" style="font-size:13px;padding:5px 0;${last ? '' : 'border-bottom:1px solid var(--border);'}display:flex;align-items:center;gap:8px;"><span style="width:6px;height:6px;border-radius:50%;background:${dot};display:inline-block;flex-shrink:0;"></span><span>${esc(p.name)}${note}</span> ${link}</div>`);
+    });
+    if (window.lucide) lucide.createIcons();
+  } catch (e) { /* keep the hand-written list */ }
+}
+
 async function loadAll() {
-  await Promise.all([loadSponsors(), loadClubs(), loadMedia(), loadTasks(), loadIdeas(), loadTemplates(), loadFounders()]);
+  await Promise.all([loadSponsors(), loadClubs(), loadMedia(), loadTasks(), loadIdeas(), loadTemplates(), loadFounders(), loadPartnerList()]);
   renderDashboard();
   renderCharter();
 }

@@ -17,7 +17,7 @@ Any change that adds or removes something user-visible or strategic MUST update
 | You changed / added | Update this section |
 |---|---|
 | New public page or route | `#mi-core` Core Platform table (or the more specific section below) |
-| New partner page or partner going live | `#mi-sponsors` Active Partners list — AND the homepage partner grid in `welcome.html` |
+| New partner page or partner going live | A row in the `partner_pages` table (name, hero_page, section active/coming_soon, status_note + the homepage card fields). The `#mi-sponsors` Active Partners list, the `welcome.html` partner grid and the admin Partner Report all READ that table, so nothing is hand-edited. The lists written in the HTML are only the fallback. |
 | Partner prospect identified (UK) | `#mi-sponsors` UK Target Partners list (move to Active when signed) |
 | New club onboarded | `#mi-clubs` Club Admin + Public Club Pages tables |
 | New crossing / journey / intel page | `#mi-intel` Key Links card |
