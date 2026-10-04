@@ -15,23 +15,26 @@
     'use strict';
 
     var FLAG = 'instagram_story_v1';
+    var EDITOR_FLAG = 'instagram_story_editor_v1';   // the new editor; off => the simple card below is used
     var HANDLE = '@swimloading';
+    var TAG = '#swimloading';
     var W = 1080, H = 1920;
-    var _flag = null;
+    var _flags = {};
 
-    function enabled() {
+    function flagOn(key) {
         if (typeof currentUser === 'undefined' || !currentUser) return Promise.resolve(false);
-        if (!_flag) {
-            _flag = (async function () {
+        if (!_flags[key]) {
+            _flags[key] = (async function () {
                 try {
-                    var r = await supabaseClient.from('feature_flags').select('enabled_global, allowed_user_ids').eq('key', FLAG).maybeSingle();
+                    var r = await supabaseClient.from('feature_flags').select('enabled_global, allowed_user_ids').eq('key', key).maybeSingle();
                     if (r.error || !r.data) return false;
                     return !!r.data.enabled_global || (r.data.allowed_user_ids || []).indexOf(currentUser.id) !== -1;
                 } catch (e) { return false; }
             })();
         }
-        return _flag;
+        return _flags[key];
     }
+    function enabled() { return flagOn(FLAG); }
     // Self-contained button styles so the modal looks right on the classic screens too (v2 button classes
     // only exist under html.ui-v2).
     function ensureCss() {
@@ -151,7 +154,7 @@
 
     function isIOS() { return /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
 
-    function open(ctx, surface) {
+    function openSimple(ctx, surface) {
         ensureCss();
         var surf = surface || 'v2_logged';
         var state = { photo: null, showSpot: true, busy: false };
@@ -263,11 +266,19 @@
         try { ov.querySelector('#igFile').click(); } catch (e) { /* the button is right there */ }
     }
 
+    // Opens the editor when its flag is on (and the editor script loaded); otherwise the simple card above.
+    function open(ctx, surface) {
+        flagOn(EDITOR_FLAG).then(function (on) {
+            if (on && window.IGEditor) window.IGEditor.open(ctx, surface); else openSimple(ctx, surface);
+        }).catch(function () { openSimple(ctx, surface); });
+    }
+
     // Adds the button after `anchorEl` when the flag is on. `surface` names the screen (for analytics):
     // 'v2_logged' | 'passport_moment' | 'swim_card' | 'share_sheet'. Re-attaching replaces the old button.
     function attach(ctx, anchorEl, surface) {
         if (!anchorEl) return;
-        enabled().then(function (on) {
+        Promise.all([enabled(), flagOn(EDITOR_FLAG)]).then(function (flags) {
+            var on = flags[0], editor = flags[1] && !!window.IGEditor;
             if (!on || !anchorEl.isConnected) return;
             ensureCss();
             var old = anchorEl.nextElementSibling;
@@ -275,13 +286,20 @@
             var v2 = isV2();
             var b = document.createElement('button');
             b.type = 'button'; b.setAttribute('data-ig-attach', '1');
-            if (v2) { b.id = 'v2DoneIG'; b.className = 'v2-btn v2-btn-ghost'; b.style.marginTop = '10px'; b.innerHTML = '<i data-lucide="camera"></i>Share to Instagram story'; }
+            if (editor) {
+                // Instagram colours + glyph so it reads as "post to Instagram" at a glance
+                b.id = v2 ? 'v2DoneIG' : '';
+                b.className = v2 ? 'v2-btn' : 'ig-btn';
+                b.style.cssText = 'margin-top:10px;color:#fff;border:none;font-weight:700;background:linear-gradient(45deg,#f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%);';
+                b.innerHTML = (window.IGEditorGlyph || '') + '<span style="margin-left:8px;">Share to Instagram</span>';
+                b.style.display = 'flex'; b.style.alignItems = 'center'; b.style.justifyContent = 'center';
+            } else if (v2) { b.id = 'v2DoneIG'; b.className = 'v2-btn v2-btn-ghost'; b.style.marginTop = '10px'; b.innerHTML = '<i data-lucide="camera"></i>Share to Instagram story'; }
             else { b.className = 'ig-btn ig-btn-classic'; b.textContent = 'Share to Instagram story'; }
             b.addEventListener('click', function () { open(ctx, surface || (v2 ? 'v2_logged' : 'classic')); });
             anchorEl.insertAdjacentElement('afterend', b);
-            if (v2) { if (typeof initIcons === 'function') initIcons(); else if (window.lucide) window.lucide.createIcons(); }
+            if (v2 && !editor) { if (typeof initIcons === 'function') initIcons(); else if (window.lucide) window.lucide.createIcons(); }
         }).catch(function () { /* optional */ });
     }
 
-    window.IGStory = { attach: attach, open: open, enabled: enabled, _render: render };
+    window.IGStory = { attach: attach, open: open, openSimple: openSimple, enabled: enabled, flagOn: flagOn, _render: render };
 })();
