@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Partner engagement | SwimLoading</title>
+  <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg:#080f1a;--card:#0d1728;--cyan:#38bdf8;--text:#f1f5f9;--sec:#94a3b8;--dim:#64748b;--border:rgba(255,255,255,0.08);--green:#10b981;--amber:#f59e0b;--danger:#ef4444}
+    body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;line-height:1.55;min-height:100vh;padding-bottom:calc(40px + env(safe-area-inset-bottom,0px))}
+    body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;background:radial-gradient(18px circle at var(--mouse-x,-999px) var(--mouse-y,-999px),rgba(56,189,248,0.55),transparent 100%),radial-gradient(500px circle at var(--mouse-x,-999px) var(--mouse-y,-999px),rgba(56,189,248,0.07),transparent 70%)}
+    nav{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:rgba(8,15,26,0.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+    .brand{display:flex;align-items:center;gap:8px;text-decoration:none;font-size:20px;font-weight:800;letter-spacing:-0.5px;background:linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .brand img{height:22px;width:auto}
+    .wrap{max-width:980px;margin:0 auto;padding:24px 16px}
+    h1{font-family:'Bebas Neue',sans-serif;font-weight:400;font-size:44px;letter-spacing:1px;line-height:1.05}
+    .sub{color:var(--sec);margin-top:4px}
+    .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:18px 0}
+    select,input{background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:0 12px;min-height:44px;font:500 14px 'DM Sans',sans-serif}
+    .pill{min-height:44px;padding:0 16px;border-radius:50px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:var(--text);font:700 13px 'DM Sans',sans-serif;cursor:pointer}
+    .pill.on{background:var(--cyan);border-color:var(--cyan);color:#080f1a}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:16px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px}
+    .big{font-family:'Bebas Neue',sans-serif;font-size:46px;line-height:1;color:var(--cyan)}
+    .lbl{font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--dim)}
+    .note{font-size:12px;color:var(--dim);margin-top:6px}
+    h2{font-size:13px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--sec);margin:22px 0 10px}
+    table{width:100%;border-collapse:collapse}
+    td{padding:9px 0;border-bottom:1px solid var(--border);font-size:14px}
+    td.n{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+    .two{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+    .msg{padding:40px 16px;text-align:center;color:var(--sec)}
+    .msg a{color:var(--cyan)}
+    .link{display:flex;flex-direction:column;gap:10px}
+    .row{display:flex;flex-wrap:wrap;gap:8px}
+    .out{word-break:break-all;background:rgba(56,189,248,0.07);border:1px solid rgba(56,189,248,0.25);border-radius:10px;padding:10px 12px;font:500 13px 'DM Mono',monospace,sans-serif}
+    svg text{fill:#94a3b8;font:11px 'DM Sans',sans-serif}
+  </style>
+</head>
+<body>
+<nav>
+  <a class="brand" href="/"><img src="/icons/logo-wave.png" alt="">SwimLoading</a>
+  <a href="/growth-hub" style="color:var(--sec);text-decoration:none;font-size:13px;min-height:44px;display:flex;align-items:center;">Growth Hub</a>
+</nav>
+<div class="wrap" id="root"><div class="msg">Loading…</div></div>
+
+<script>
+  document.addEventListener('mousemove', e => { document.documentElement.style.setProperty('--mouse-x', e.clientX + 'px'); document.documentElement.style.setProperty('--mouse-y', e.clientY + 'px'); });
+  const sb = window.supabase.createClient('https://szgkzuswelntnevobnoh.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA');
+  const PARTNERS = [['jaked','JAKED'],['eolab','eo SwimBETTER'],['blusmooth','Blu Smooth'],['magic5','THEMAGIC5'],['maurten','Maurten'],['blueseventy','BlueSeventy'],['sis','Science in Sport'],['form','FORM'],['trihard','TRIHARD']];
+  const q = new URLSearchParams(location.search);
+  let partner = (q.get('partner') || 'jaked').toLowerCase(), days = [7, 14, 30, 90].includes(+q.get('days')) ? +q.get('days') : 14;
+  const root = document.getElementById('root');
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+  const pname = () => (PARTNERS.find(p => p[0] === partner) || [partner, partner])[1];
+
+  function chart(series) {
+    const w = 900, h = 190, pl = 34, pb = 26, pt = 12, max = Math.max(1, ...series.map(s => s.views)), bw = (w - pl) / series.length;
+    const nice = max <= 4 ? max : Math.ceil(max / 4) * 4;
+    let g = '';
+    [0, 0.5, 1].forEach(f => { const y = pt + (h - pt - pb) * (1 - f); g += `<line x1="${pl}" x2="${w}" y1="${y}" y2="${y}" stroke="rgba(255,255,255,0.07)"/><text x="${pl - 6}" y="${y + 4}" text-anchor="end">${Math.round(nice * f)}</text>`; });
+    series.forEach((s, i) => {
+      const bh = (h - pt - pb) * (s.views / nice), x = pl + i * bw + bw * 0.18, y = h - pb - bh;
+      g += `<rect x="${x}" y="${y}" width="${bw * 0.64}" height="${Math.max(bh, s.views ? 2 : 0)}" rx="3" fill="#38bdf8"><title>${s.day}: ${s.views} view${s.views === 1 ? '' : 's'}</title></rect>`;
+      if (series.length <= 16 || i % Math.ceil(series.length / 12) === 0) g += `<text x="${x + bw * 0.32}" y="${h - 8}" text-anchor="middle">${s.day.slice(5)}</text>`;
+    });
+    return `<svg viewBox="0 0 ${w} ${h}" width="100%" role="img" aria-label="Daily page views">${g}</svg>`;
+  }
+  const table = (rows, empty) => rows.length ? `<table>${rows.map(r => `<tr><td>${esc(r.key)}</td><td class="n">${r.count}</td></tr>`).join('')}</table>` : `<div class="note">${empty}</div>`;
+
+  function linkBuilder() {
+    return `<h2>Make a trackable link</h2><div class="card link">
+      <div class="note" style="margin:0">Use a tagged link wherever you share this page, and the report shows exactly which post or story brought the visit. For an Instagram story, add it as a Link sticker.</div>
+      <div class="row"><button class="pill on" data-preset="story">Instagram story</button><button class="pill" data-preset="bio">Instagram bio</button><button class="pill" data-preset="whatsapp">WhatsApp</button><button class="pill" data-preset="newsletter">Newsletter</button></div>
+      <div class="row"><input id="lbSource" placeholder="source" value="instagram" style="flex:1;min-width:120px"><input id="lbMedium" placeholder="medium" value="story" style="flex:1;min-width:120px"><input id="lbCamp" placeholder="campaign" value="carina-jaked-wetsuit" style="flex:2;min-width:160px"></div>
+      <div class="out" id="lbOut"></div>
+      <div class="row"><button class="pill on" id="lbCopy">Copy link</button><span class="note" id="lbMsg" style="align-self:center;margin:0"></span></div></div>`;
+  }
+  function wireBuilder() {
+    const base = location.origin + (partner === 'jaked' ? '/jaked' : '/partners/' + partner);
+    const upd = () => {
+      const p = new URLSearchParams(); const s = lbSource.value.trim(), m = lbMedium.value.trim(), c = lbCamp.value.trim();
+      if (s) p.set('utm_source', s); if (m) p.set('utm_medium', m); if (c) p.set('utm_campaign', c);
+      lbOut.textContent = base + (p.toString() ? '?' + p.toString() : '');
+    };
+    const PRE = { story: ['instagram', 'story'], bio: ['instagram', 'bio'], whatsapp: ['whatsapp', 'message'], newsletter: ['newsletter', 'email'] };
+    document.querySelectorAll('[data-preset]').forEach(b => b.addEventListener('click', () => {
+      const v = PRE[b.dataset.preset]; lbSource.value = v[0]; lbMedium.value = v[1];
+      document.querySelectorAll('[data-preset]').forEach(x => x.classList.toggle('on', x === b)); upd();
+    }));
+    [lbSource, lbMedium, lbCamp].forEach(i => i.addEventListener('input', upd));
+    lbCopy.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(lbOut.textContent); lbMsg.textContent = 'Copied'; } catch (e) { lbMsg.textContent = 'Press and hold the link to copy'; }
+    });
+    upd();
+  }
+
+  function render(d) {
+    const t = d.totals;
+    root.innerHTML = `
+      <h1>${esc(pname())} engagement</h1>
+      <div class="sub">Visits to the ${esc(pname())} page on SwimLoading, in South African time. Last ${d.days} days.</div>
+      <div class="bar">
+        <select id="selPartner" aria-label="Partner">${PARTNERS.map(p => `<option value="${p[0]}"${p[0] === partner ? ' selected' : ''}>${p[1]}</option>`).join('')}</select>
+        ${[7, 14, 30, 90].map(n => `<button class="pill${n === days ? ' on' : ''}" data-days="${n}">${n} days</button>`).join('')}
+      </div>
+      <div class="grid">
+        <div class="card"><div class="lbl">Views today</div><div class="big">${t.viewsToday}</div></div>
+        <div class="card"><div class="lbl">Views, ${d.days} days</div><div class="big">${t.views}</div><div class="note">${t.lifetimeViews} since tracking began</div></div>
+        <div class="card"><div class="lbl">Unique visitors</div><div class="big">${t.uniqueVisitors}</div><div class="note">${esc(d.note)}</div></div>
+        <div class="card"><div class="lbl">Clicks through</div><div class="big">${t.clicks}</div><div class="note">${t.views ? Math.round(t.clicks / t.views * 100) : 0} per 100 views</div></div>
+      </div>
+      <h2>Views per day</h2><div class="card">${chart(d.series)}</div>
+      <div class="two">
+        <div><h2>Where visits came from</h2><div class="card">${table(d.sources, 'No visits in this period yet.')}<div class="note">Tagged links show their source. Untagged links from Instagram or Facebook are grouped together.</div></div></div>
+        <div><h2>Campaigns</h2><div class="card">${table(d.campaigns, 'No tagged campaign links used yet. Make one below.')}</div></div>
+      </div>
+      <div class="two">
+        <div><h2>What people clicked</h2><div class="card">${table(d.clicks.map(c => ({ key: c.key.replace(/_/g, ' '), count: c.count })), 'No clicks yet.')}</div></div>
+        <div><h2>Pages opened on the partner site</h2><div class="card">${table(d.outboundTargets, 'None yet.')}</div></div>
+      </div>
+      <div class="two">
+        <div><h2>Phone or desktop</h2><div class="card">${table(d.devices, 'None yet.')}</div></div>
+        <div></div>
+      </div>
+      ${linkBuilder()}`;
+    document.getElementById('selPartner').addEventListener('change', e => { partner = e.target.value; load(); });
+    document.querySelectorAll('[data-days]').forEach(b => b.addEventListener('click', () => { days = +b.dataset.days; load(); }));
+    wireBuilder();
+    history.replaceState(null, '', '?partner=' + partner + '&days=' + days);
+  }
+
+  async function load() {
+    root.innerHTML = '<div class="msg">Loading…</div>';
+    const { data } = await sb.auth.getSession();
+    const session = data && data.session;
+    if (!session) { root.innerHTML = '<div class="msg">Please <a href="/app">sign in to SwimLoading</a> with your admin account, then come back to this page.</div>'; return; }
+    try {
+      const r = await fetch('/api/partner-stats?partner=' + encodeURIComponent(partner) + '&days=' + days, { headers: { Authorization: 'Bearer ' + session.access_token } });
+      const body = await r.json();
+      if (!r.ok) { root.innerHTML = '<div class="msg">' + esc(body.error || 'Could not load the report') + '</div>'; return; }
+      render(body);
+    } catch (e) { root.innerHTML = '<div class="msg">Could not load the report. Check your connection and refresh.</div>'; }
+  }
+  load();
+</script>
+</body>
+</html>

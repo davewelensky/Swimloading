@@ -384,6 +384,8 @@ Dave
 - Live B2B programme: **Sports Team Kits** — a quote-request form for sports clubs/companies, explicitly sized by Juniors/Youth/Masters roster counts
 - Do not publish prices — link to jaked.com/en
 
+**Engagement tracking (live 4 Oct 2026):** the JAKED page records page views (with source: tagged-link utm_*, or referring site, plus phone/desktop and an anonymous per-browser id) and every click out to jaked.com. Admin-only report: `/partner-stats?partner=jaked`. Short link for Instagram/WhatsApp: `swimloading.com/jaked` (add `?utm_source=instagram&utm_medium=story&utm_campaign=carina-jaked-wetsuit` to see which story drove visits). No names, emails or IP addresses are stored. This is the "engagement reporting" offered to JAKED in the 3 Aug pitch; share it as a screenshot/summary, not the live admin page.
+
 **Outstanding actions:**
 - [ ] Confirm formal commercial terms beyond the Carina sponsorship (what SwimLoading offers, what members get) — Dave's 3 Aug 2026 pitch is the working basis, not yet formally agreed
 - [ ] Confirm geography for a general member/commercial arrangement (Carina's own kit shipment is already resolved, see Notes)

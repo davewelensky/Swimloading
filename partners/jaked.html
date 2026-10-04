@@ -320,14 +320,50 @@
     } catch (e) { /* never block the page */ }
   }
 
+  // What we record about a visit: where it came from (a tagged link, or the referring site), phone or desktop,
+  // and a random anonymous id (stored only in this browser) so repeat views by one person are counted once.
+  // No name, email, IP address or location is stored. Tagged links look like /jaked?utm_source=instagram&utm_medium=story
+  function visitCtx() {
+    var p = {};
+    try {
+      var q = new URLSearchParams(location.search);
+      ['utm_source', 'utm_medium', 'utm_campaign'].forEach(function (k) { var v = q.get(k); if (v) p[k.slice(4)] = v.slice(0, 60); });
+      if (q.has('fbclid')) p.via = 'meta';   // Instagram / Facebook add this when a link is opened from their apps
+    } catch (e) { /* ignore */ }
+    try {
+      if (document.referrer) {
+        var h = new URL(document.referrer).hostname.replace(/^www\./, '');
+        if (h && h !== location.hostname.replace(/^www\./, '')) p.ref = h;
+      }
+    } catch (e) { /* ignore */ }
+    p.dev = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'mobile' : 'desktop';
+    try {
+      var vid = localStorage.getItem('sl_vid');
+      if (!vid) { vid = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now(); localStorage.setItem('sl_vid', vid); }
+      p.vid = vid;
+    } catch (e) { /* storage blocked: the view is still counted, just not de-duplicated */ }
+    return p;
+  }
+  const CTX = visitCtx();
+  const withCtx = (extra) => Object.assign({}, CTX, extra || {});
+
   document.getElementById('siteBtn').addEventListener('click', () => {
-    trackEvent('partner_jaked_site_click');
+    trackEvent('partner_jaked_site_click', withCtx());
   });
   document.getElementById('appBtn').addEventListener('click', () => {
-    trackEvent('partner_jaked_app_click');
+    trackEvent('partner_jaked_app_click', withCtx());
+  });
+  // every link out to jaked.com (range, collections, team kits), with where it went
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest && e.target.closest('a[href]');
+    if (!a) return;
+    let u; try { u = new URL(a.href); } catch (_) { return; }
+    if (/(^|\.)jaked\.com$/.test(u.hostname)) {
+      trackEvent('partner_jaked_outbound_click', withCtx({ to: (u.pathname || '/').slice(0, 80), label: (a.textContent || '').trim().slice(0, 40) }));
+    }
   });
 
-  trackEvent('partner_jaked_page_view');
+  trackEvent('partner_jaked_page_view', CTX);
 </script>
 </body>
 </html>
