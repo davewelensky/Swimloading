@@ -13,6 +13,7 @@
 import { dbGet, dbRpc, escapeHtml } from './seo-utils.js';
 import { countryBySlug, countryByCode } from './_countries.js';
 import { isPublicPageIndexable, robotsFor } from './_lib/indexability.js';
+import { buildSportsEvent, ldJsonScript } from './_lib/sports-event-schema.js';
 
 const SITE = 'https://www.swimloading.com';
 
@@ -101,7 +102,7 @@ async function loadEvent(slug) {
     'officially_claimed,is_indexable,entry_opens_on,entry_closes_on,' +
     'event_series(id,display_name,prominence,event_type,description,official_url,organiser_id),' +
     'event_venues(id,display_name,location_text,city,region,country_code,latitude,longitude,water_body_type,spot_id),' +
-    'event_distances(id,original_label,distance_metres,category,start_time,wetsuit_policy,qualification_required,registration_url)'
+    'event_distances(id,original_label,distance_metres,category,start_time,wetsuit_policy,qualification_required,registration_url,price_amount,price_currency)'
   );
   return Array.isArray(rows) && rows.length ? rows[0] : null;
 }
@@ -188,7 +189,7 @@ async function loadContext(ev) {
 // publish misleading structured data for provisional or incomplete events.
 // A rich result promising a date we are not sure of is worse than no rich
 // result, because Google will show it long after we have corrected it.
-function schemaOrg(ev, ctx) {
+export function schemaOrg(ev, ctx) {
   if (!ev.date_confirmed || !ev.start_date || ev.date_precision === 'month') return '';
   const venue = ev.event_venues;
   if (!venue || !venue.display_name) return '';
@@ -200,44 +201,50 @@ function schemaOrg(ev, ctx) {
     completed: 'https://schema.org/EventScheduled',
   };
 
-  const data = {
-    '@context': 'https://schema.org',
-    '@type': 'SportsEvent',
-    name: ev.title,
-    startDate: ev.start_date,
-    eventStatus: statusMap[ev.status] || 'https://schema.org/EventScheduled',
-    eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
-    url: `${SITE}/events/${ev.slug}`,
-    location: {
-      '@type': 'Place',
-      name: venue.display_name,
-      address: {
-        '@type': 'PostalAddress',
-        addressLocality: venue.city || undefined,
-        addressRegion: venue.region || undefined,
-        addressCountry: venue.country_code || undefined,
-      },
-      ...(venue.latitude != null && venue.longitude != null
-        ? { geo: { '@type': 'GeoCoordinates', latitude: venue.latitude, longitude: venue.longitude } }
-        : {}),
-    },
-  };
-
-  if (ev.end_date && ev.end_date !== ev.start_date) data.endDate = ev.end_date;
-  if (ev.description || ev.short_description) data.description = ev.short_description || ev.description;
-  if (ctx.organiser?.display_name) {
-    data.organizer = { '@type': 'Organization', name: ctx.organiser.display_name,
-                       ...(safeUrl(ctx.organiser.official_url) ? { url: safeUrl(ctx.organiser.official_url) } : {}) };
-  }
-  // offers only where there is a real registration URL AND entries are
-  // actually open — an offer element on a closed event is a lie Google
-  // will happily repeat.
+  // Offers only where entries are actually open AND there is a real
+  // registration URL — an offer on a closed event is a lie Google will
+  // happily repeat. Distances that carry their own price become one offer
+  // each; otherwise a single price-less offer pointing at the entry page.
   const reg = safeUrl(ev.registration_url);
-  if (reg && ev.registration_status === 'open') {
-    data.offers = { '@type': 'Offer', url: reg, availability: 'https://schema.org/InStock' };
+  let offers = [];
+  if (ev.registration_status === 'open' && reg) {
+    const priced = (ev.event_distances || []).filter((x) => x.price_amount != null && x.price_currency);
+    offers = priced.length
+      ? priced.map((x) => ({
+          name: x.original_label, url: safeUrl(x.registration_url) || reg,
+          price: x.price_amount, currency: x.price_currency,
+          availability: 'https://schema.org/InStock' }))
+      : [{ url: reg, availability: 'https://schema.org/InStock' }];
   }
 
-  return `<script type="application/ld+json">${JSON.stringify(data).replace(/</g, '\\u003c')}</script>`;
+  const data = buildSportsEvent({
+    name: ev.title,
+    url: `${SITE}/events/${ev.slug}`,
+    startDate: ev.start_date,
+    endDate: ev.end_date,
+    description: ev.short_description || ev.description || factualDescription(ev),
+    status: statusMap[ev.status],
+    venue: { name: venue.display_name, city: venue.city, region: venue.region,
+             country: venue.country_code, lat: venue.latitude, lng: venue.longitude },
+    // The real organising body only. Never SwimLoading; never the event's
+    // own page standing in for the organiser's site.
+    organizer: ctx.organiser?.display_name
+      ? { name: ctx.organiser.display_name, url: safeUrl(ctx.organiser.official_url) } : undefined,
+    offers,
+  });
+  return ldJsonScript(data);
+}
+
+// A description built only from stored facts, so it matches the visible page.
+// Used when the event has no written description (true of every event today).
+function factualDescription(ev) {
+  const venue = ev.event_venues;
+  const place = [venue?.city, venue?.region, venue?.country_code].filter(Boolean).join(', ');
+  const d = fmtLongDate(ev.start_date, ev.date_precision, ev.date_confirmed);
+  const dist = (ev.event_distances || []).map((x) => x.original_label).filter(Boolean).slice(0, 4);
+  return `${ev.title} is an open water swimming event at ${venue.display_name}` +
+    `${place ? `, ${place}` : ''}, on ${d.text}.` +
+    `${dist.length ? ` Distances: ${dist.join(', ')}.` : ''}`;
 }
 
 // Breadcrumb, organisation and FAQ — the same shapes the /spots pages carry.
@@ -245,7 +252,7 @@ function schemaOrg(ev, ctx) {
 // they describe the page and the answers are generated from what we actually
 // hold: an FAQ that says "we do not have a confirmed date" is still a true
 // answer, and truthful uncertainty is what this catalogue is for.
-function supportingSchema(ev, ctx) {
+export function supportingSchema(ev, ctx) {
   const venue = ev.event_venues;
   const place = [venue?.city, venue?.region, venue?.country_code].filter(Boolean).join(', ');
   const d = fmtLongDate(ev.start_date, ev.date_precision, ev.date_confirmed);

@@ -4,6 +4,7 @@
 // related swims (same pilot, same swimmer), and deep links back to the hub.
 
 import { dbRpc, escapeHtml } from './seo-utils.js';
+import { ldJsonScript } from './_lib/sports-event-schema.js';
 
 export default async function handler(req, res) {
   const path = (req.url || '').split('?')[0];
@@ -105,7 +106,7 @@ function renderSwimPage(s, pilotSwims, sameSwimmer) {
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap" rel="stylesheet">
-<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
+${jsonLd ? ldJsonScript(jsonLd) : ''}
 <style>
 :root {
   --bg:#0a1628; --bg-card:#111c30; --ocean:#0ea5e9; --ocean-light:#38bdf8;
@@ -278,14 +279,19 @@ function buildMetaDescription(s, timeStr, dirStr, wayStr, recordTag) {
   return parts.join(', ') + '.';
 }
 
-function buildSchemaOrg(s, timeStr, canonicalUrl) {
+// A SportsEvent is emitted only when the swim has a genuine departure date.
+// This used to fall back to `${year}-01-01`, which is an invented date; with
+// no real date the page simply carries no Event markup (it is still a valid
+// article page). Returns null in that case.
+export function buildSchemaOrg(s, timeStr, canonicalUrl) {
+  if (!(s.depart_date && /^\d{4}-\d{2}-\d{2}/.test(s.depart_date))) return null;
   const event = {
     '@context': 'https://schema.org',
     '@type': 'SportsEvent',
     name: `${s.full_name} · English Channel swim (${s.year})`,
     description: timeStr ? `Ratified solo crossing of the English Channel in ${timeStr}.` : 'Ratified solo crossing of the English Channel.',
     sport: 'Open water swimming',
-    startDate: s.depart_date && /^\d{4}/.test(s.depart_date) ? s.depart_date.slice(0,10) : `${s.year}-01-01`,
+    startDate: s.depart_date.slice(0,10),
     location: {
       '@type': 'Place',
       name: s.direction === 'F-E' ? 'Cap Gris-Nez, France → Dover, England' : 'Shakespeare Beach, Dover, England → Cap Gris-Nez, France',
