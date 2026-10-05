@@ -7,6 +7,7 @@
 <meta name="robots" content="noindex,nofollow">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="/sponsors-core.js?v=2"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -251,6 +252,73 @@ nav {
 .field-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
 
+
+/* ── Commercial layer: view tabs, brand drawer, ledger, rate card, deal builder ── */
+.view-tabs { display: flex; gap: 6px; padding: 10px 24px 0; border-bottom: 1px solid var(--border); }
+.view-tab { background: none; border: none; color: var(--text-sec); font: 600 13px 'DM Sans', sans-serif; padding: 10px 14px; cursor: pointer; border-bottom: 2px solid transparent; }
+.view-tab.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+.brand-name.is-link { cursor: pointer; }
+.brand-name.is-link:hover { color: var(--cyan); }
+.drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 450; display: none; justify-content: flex-end; }
+.drawer-overlay.open { display: flex; }
+.drawer { width: min(760px, 100%); height: 100%; overflow-y: auto; background: var(--bg-card); border-left: 1px solid var(--border-strong); padding: 22px 22px 60px; }
+.d-loading, .d-empty { color: var(--text-muted); font-size: 13px; padding: 8px 0; }
+.d-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 14px; }
+.d-title { font-family: 'Bebas Neue', sans-serif; font-size: 34px; letter-spacing: 0.5px; line-height: 1; }
+.d-sub { color: var(--text-sec); font-size: 12px; margin-top: 4px; }
+.d-links { display: flex; gap: 12px; margin-top: 8px; }
+.d-link { color: var(--cyan); font-size: 12px; text-decoration: none; }
+.d-head-right { display: flex; gap: 8px; align-items: center; }
+.d-close, .d-x { background: none; border: none; color: var(--text-sec); font-size: 22px; cursor: pointer; line-height: 1; }
+.d-x { font-size: 18px; }
+.d-next { display: grid; grid-template-columns: 1fr 150px 130px; gap: 10px; margin-bottom: 12px; }
+.d-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.d-field label { display: block; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+.d-field input, .d-field textarea, .d-notes, .d-section input, .d-section select, .d-section textarea, .deal-top select, #ratecard-body input, #ratecard-body select, #deal-body input, #deal-body select {
+  width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 7px 9px; color: var(--text); font: 13px 'DM Sans', sans-serif; outline: none; }
+.d-field textarea, .d-notes { resize: vertical; }
+.d-section { margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--border); }
+.d-h { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-sec); margin-bottom: 10px; display: flex; gap: 8px; align-items: center; }
+.d-count { background: var(--bg); border: 1px solid var(--border); border-radius: 50px; padding: 1px 8px; font-size: 10px; color: var(--text-muted); }
+.d-dim { color: var(--text-muted); font-size: 11px; font-weight: 400; letter-spacing: 0; text-transform: none; }
+.d-contact { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; font-size: 13px; padding: 4px 0; }
+.d-contact a { color: var(--cyan); text-decoration: none; }
+.d-inline { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-top: 8px; align-items: center; }
+.d-add-history { display: grid; gap: 8px; margin-bottom: 14px; }
+.d-add-history button { justify-self: start; }
+.d-hist { padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.d-hist.is-draft { opacity: 0.75; }
+.d-hist-meta { font-size: 11px; color: var(--text-muted); margin-bottom: 3px; }
+.d-hist-subject { font-weight: 600; margin-bottom: 3px; }
+.d-body { white-space: pre-wrap; color: var(--text-sec); }
+.d-hist details summary { cursor: pointer; color: var(--text-sec); }
+.d-pill { background: rgba(245,158,11,0.15); color: var(--amber); font-size: 10px; padding: 1px 7px; border-radius: 50px; text-transform: uppercase; letter-spacing: 0.04em; }
+.d-warn { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); color: var(--amber); border-radius: 8px; padding: 8px 10px; font-size: 12px; margin-top: 10px; }
+.d-commercial { border-top-color: rgba(56,189,248,0.35); }
+.bal-card { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 18px; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 10px; position: relative; }
+.bal-cur { position: absolute; top: 10px; right: 14px; font: 700 12px 'DM Sans', sans-serif; color: var(--cyan); letter-spacing: 0.1em; }
+.bal-h { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
+.bal-row { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; padding: 3px 0; }
+.bal-row b { font-variant-numeric: tabular-nums; }
+.bal-row.is-product span { color: var(--purple); }
+.bal-row.is-cash span { color: var(--green); }
+.bal-total { grid-column: 1 / -1; border-top: 1px solid var(--border); padding-top: 8px; }
+.bal-row.pos b { color: var(--green); } .bal-row.neg b { color: var(--danger); }
+.d-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin: 10px 0; }
+.d-table th { text-align: left; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); padding: 6px 6px; border-bottom: 1px solid var(--border-strong); }
+.d-table td { padding: 6px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.d-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.d-table tr.is-cancelled td { opacity: 0.45; }
+.d-ledger-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin: 10px 0; align-items: center; }
+.in-s { min-width: 70px; }
+.view-wrap { max-width: 1100px; margin: 0 auto; padding: 24px; }
+.view-title { font-family: 'Bebas Neue', sans-serif; font-size: 30px; letter-spacing: 0.5px; }
+.view-sub { color: var(--text-sec); font-size: 12px; margin: 4px 0 16px; }
+.deal-top { display: flex; gap: 10px; margin-bottom: 10px; max-width: 520px; }
+#deal-brand { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; color: var(--text); font: 13px 'DM Sans', sans-serif; width: 100%; }
+.rc-table td:first-child input { min-width: 190px; }
+@media (max-width: 640px) { .d-next, .d-grid, .bal-card { grid-template-columns: 1fr; } .drawer { padding: 16px 14px 60px; } .view-tabs { padding: 8px 12px 0; overflow-x: auto; } }
+
 @media (max-width: 640px) {
   .nav-stats { display: none; }
   .page-title { font-size: 32px; }
@@ -285,7 +353,13 @@ nav {
     </div>
   </nav>
 
-  <div class="container">
+  <div class="view-tabs">
+    <button class="view-tab active" data-view="pipeline" onclick="showView('pipeline')">Pipeline</button>
+    <button class="view-tab hidden" data-dave-only data-view="ratecard" onclick="showView('ratecard')">Rate card</button>
+    <button class="view-tab hidden" data-dave-only data-view="deal" onclick="showView('deal')">Deal builder</button>
+  </div>
+
+  <div class="container" id="view-pipeline">
     <div class="page-header">
       <div>
         <div class="page-title">Sponsor Pipeline</div>
@@ -303,6 +377,7 @@ nav {
       <button class="filter-btn" data-filter="priority" onclick="setFilter('priority', this)">Priority</button>
       <div class="filter-sep"></div>
       <button class="filter-btn" data-filter="Idea" onclick="setFilter('Idea', this)">Idea</button>
+      <button class="filter-btn" data-filter="Researching" onclick="setFilter('Researching', this)">Researching</button>
       <button class="filter-btn" data-filter="Contacted" onclick="setFilter('Contacted', this)">Contacted</button>
       <button class="filter-btn" data-filter="In Discussion" onclick="setFilter('In Discussion', this)">In Discussion</button>
       <button class="filter-btn" data-filter="Confirmed" onclick="setFilter('Confirmed', this)">Confirmed</button>
@@ -311,7 +386,25 @@ nav {
 
     <div id="sections-container"></div>
   </div>
+
+<div class="view-wrap hidden" id="view-ratecard">
+  <div class="view-title">Rate card</div>
+  <div class="view-sub">Internal valuation of what SwimLoading can offer. Dave only. Unpriced items stay blank until you set a price.</div>
+  <div id="ratecard-body"></div>
+  <button class="btn btn-ghost" style="margin-top:10px" onclick="addRateCardItem()">Add item</button>
 </div>
+
+<div class="view-wrap hidden" id="view-deal">
+  <div class="view-title">Deal builder</div>
+  <div class="view-sub">Price a request against the rate card and see the value balance with what the brand contributes. Dave only. Each currency is shown on its own; nothing is converted.</div>
+  <select id="deal-brand" style="max-width:320px;margin-bottom:12px" onchange="DEAL.label=null;loadDealLines()"></select>
+  <div id="deal-body"></div>
+</div>
+
+<div class="drawer-overlay" id="brandDrawer" onclick="if(event.target===this)closeBrand()"><div class="drawer" id="brandDrawerBody"></div></div>
+<datalist id="currency-codes"><option value="ZAR"><option value="GBP"><option value="USD"><option value="EUR"></datalist>
+</div>
+
 
 <div class="modal-overlay" id="addModalOverlay">
   <div class="modal">
@@ -321,7 +414,8 @@ nav {
     <div class="field-row-2">
       <div>
         <label class="field-label">Category</label>
-        <input class="field-input" id="add-category" placeholder="e.g. Swimwear & kit">
+        <input class="field-input" id="add-category" list="category-choices" placeholder="e.g. Swimwear & kit">
+        <datalist id="category-choices"></datalist>
       </div>
       <div>
         <label class="field-label">Country</label>
@@ -432,8 +526,10 @@ async function loadSponsors() {
     return;
   }
   SPONSORS = data || [];
+  document.getElementById('category-choices').innerHTML = SponsorsCore.categoryChoices(SPONSORS).map(c => `<option value="${escapeHtml(c)}">`).join('');
   document.getElementById('page-sub').textContent = 'Signed in as ' + currentUserEmail + ': live data, saves instantly.';
   render();
+  if (typeof initCommercial === 'function') initCommercial();
 }
 
 function normalizeStatusClass(status) {
@@ -461,7 +557,7 @@ function buildCard(s) {
   const priorityClass = s.priority ? 'is-priority' : '';
   const log = Array.isArray(s.conversation_log) ? s.conversation_log : [];
 
-  const statusOptions = ['Idea','Researching','Contacted','In Discussion','Confirmed','Passed'].map(opt =>
+  const statusOptions = SponsorsCore.STATUSES.map(opt =>
     `<option value="${opt}" ${s.status === opt ? 'selected' : ''}>${opt}</option>`
   ).join('');
 
@@ -493,7 +589,7 @@ function buildCard(s) {
      data-priority="${s.priority ? '1' : '0'}">
   <div class="card-top">
     <div>
-      <div class="brand-name">${escapeHtml(s.sponsor_name)}</div>
+      <div class="brand-name is-link" onclick="openBrand('${s.id}')">${escapeHtml(s.sponsor_name)}</div>
       <div class="brand-country">${escapeHtml(s.country || '')}</div>
     </div>
     <select class="status-select" data-status="${escapeHtml(s.status||'Idea')}" onchange="updateStatus('${s.id}', this)">
@@ -622,10 +718,12 @@ function closeAddModal() {
 async function submitAddSponsor() {
   const name = document.getElementById('add-name').value.trim();
   if (!name) { showToast('Sponsor name is required', true); return; }
+  const country = SponsorsCore.countryForWrite(document.getElementById('add-country').value);
+  if (!country) { showToast('Enter a 2-letter country code (e.g. SA, UK). "ALL" is not a country.', true); return; }
   const payload = {
     sponsor_name: name,
-    category: document.getElementById('add-category').value.trim() || null,
-    country: document.getElementById('add-country').value.trim() || 'SA',
+    category: SponsorsCore.canonicalCategory(document.getElementById('add-category').value, SponsorsCore.categoryChoices(SPONSORS)),
+    country,
     website: document.getElementById('add-website').value.trim() || null,
     contact_name: document.getElementById('add-contact-name').value.trim() || null,
     contact_email: document.getElementById('add-email').value.trim() || null,
@@ -657,5 +755,6 @@ function showToast(msg, isError) {
 
 initAuth();
 </script>
+<script src="/sponsors-commercial.js?v=2"></script>
 </body>
 </html>

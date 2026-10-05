@@ -20,6 +20,7 @@ Every partner must have all of the following before going live:
 - [ ] Contact name on file (even if not published)
 - [ ] **A row in the `partner_pages` table** (name, hero_page `/partners/<slug>`, section, sort_order). The admin Partner Report builds its tabs from this table, so a partner without a row never appears there (JAKED and FORM were missing until 4 Oct 2026 for exactly this reason). The page must also record `partner_<slug>_page_view` (copy the tracking block from `partners/jaked.html`).
 - [ ] Geography confirmed (SA-only / ships to UK / AUS / international)
+- [ ] **A `growth_sponsors` record in /Sponsors**, linked to the partner's `partner_pages` row (`partner_page_id`). That record is the relationship/commercial source of truth (contacts, history, ledger, deal); this file keeps the narrative and the confirmed-facts rules.
 
 ---
 

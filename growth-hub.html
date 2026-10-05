@@ -20,6 +20,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
+<script src="/sponsors-core.js?v=2"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -305,23 +306,23 @@
     <div id="dashContent"><div class="spinner"></div></div>
   </div>
 
-  <!-- SPONSORS -->
+  <!-- SPONSORS (read-only: /Sponsors owns sponsor relationships and commercial data) -->
   <div id="page-sponsors" class="page">
     <div class="page-toolbar">
       <input type="search" class="search-input" placeholder="Search sponsors…" oninput="renderSponsors()" id="sponsorSearch">
       <select class="filter-select" id="sponsorStatus" onchange="renderSponsors()">
         <option value="">All statuses</option>
-        <option>Idea</option><option>Contacted</option><option>Interested</option>
-        <option>In Discussion</option><option>Confirmed</option><option>Not Now</option>
+        <option>Idea</option><option>Researching</option><option>Contacted</option>
+        <option>In Discussion</option><option>Confirmed</option><option>Passed</option>
       </select>
       <select class="filter-select" id="sponsorSort" onchange="renderSponsors()">
         <option value="follow_up">Sort: Follow-up date</option>
         <option value="updated">Sort: Recently updated</option>
         <option value="name">Sort: Name</option>
       </select>
-      <button class="btn-add" onclick="openModal('sponsor')">
-        <i data-lucide="plus"></i> Add sponsor
-      </button>
+      <a class="btn-add" href="/Sponsors" target="_blank" rel="noopener">
+        <i data-lucide="external-link"></i> Manage in /Sponsors
+      </a>
     </div>
     <div id="sponsorsList" class="card-grid"><div class="spinner"></div></div>
   </div>
@@ -500,7 +501,7 @@
           <div class="mi-tr"><span class="mi-name">Content Calendar (/content-calendar)</span><span class="mi-purpose">Internal social content planner for Dave + Bella. Re-gated 13 Sept 2026: post content used to be baked into the static HTML (readable via curl regardless of any CSS hide), now served only after Supabase auth + a growth_founders check via /api/content-calendar-data. Part of the same Thalass.ai-prompted security pass as the Terms/Privacy pages above.</span><a href="https://www.swimloading.com/content-calendar" target="_blank" class="mi-link">Open <i data-lucide="external-link" style="width:11px;height:11px;"></i></a></div>
           <div class="mi-tr"><span class="mi-name">Partner engagement (/partner-stats)</span><span class="mi-purpose">Admin-only report on visits to each partner page: views per day, unique visitors, where they came from (tagged links like /jaked?utm_source=instagram), clicks through to the partner site, plus a trackable-link builder. Built 4 Oct 2026 for JAKED after Carina's wetsuit story. Data: analytics_events via /api/partner-stats (admin check on the session).</span></div>
           <div class="mi-tr"><span class="mi-name">Caption Agent (/caption-agent)</span><span class="mi-purpose">Internal AI caption generator for SwimLoading social posts: spot conditions, crossings, monthly challenges, partner features, club posts, hazard alerts, Strava, community stories, growth stats. Partner dropdown covers every active/coming-soon partner (incl. FORM and JAKED, added 13 Sept 2026). noindex, not yet behind real auth (see SECURITY_REGISTER.md §3).</span><a href="https://www.swimloading.com/caption-agent" target="_blank" class="mi-link">Open <i data-lucide="external-link" style="width:11px;height:11px;"></i></a></div>
-          <div class="mi-tr"><span class="mi-name">Sponsor Pipeline (/Sponsors)</span><span class="mi-purpose">Live sponsor-prospect CRM for Dave + Lindi: 93 brands across categories (gear, nutrition, recovery, travel, wearables), status pipeline (Idea → Researching → Contacted → In Discussion → Confirmed → Passed), notes, priority flag, conversation log. Backed by growth_sponsors (Supabase), real auth (magic link + growth_founders RLS). Routed live 16 Sept 2026, combined from two prior tools: a static 89-brand wishlist (Sponsors/index.html, local-file-only) and a separate live admin CRM (sponsors-admin_1.html) that already held 19 real rows of outreach history; the wishlist's remaining candidates were imported into the live table rather than lost.</span><a href="https://www.swimloading.com/Sponsors" target="_blank" class="mi-link">Open <i data-lucide="external-link" style="width:11px;height:11px;"></i></a></div>
+          <div class="mi-tr"><span class="mi-name">Sponsor Pipeline (/Sponsors)</span><span class="mi-purpose">Sponsor relationship and commercial record (owner of all sponsor data; Growth Hub shows it read-only) across categories (gear, nutrition, recovery, travel, wearables), status pipeline (Idea → Researching → Contacted → In Discussion → Confirmed → Passed), notes, priority flag, conversation log. Backed by growth_sponsors (Supabase), real auth (magic link + growth_founders RLS). Routed live 16 Sept 2026, combined from two prior tools: a static 89-brand wishlist (Sponsors/index.html, local-file-only) and a separate live admin CRM (sponsors-admin_1.html) that already held 19 real rows of outreach history; the wishlist's remaining candidates were imported into the live table rather than lost.</span><a href="https://www.swimloading.com/Sponsors" target="_blank" class="mi-link">Open <i data-lucide="external-link" style="width:11px;height:11px;"></i></a></div>
         </div>
       </div>
 
@@ -654,25 +655,11 @@
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
           <div id="ghActivePartners" style="background:rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.15);border-radius:10px;padding:14px;">
             <div style="font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Active Partners</div>
-            <div style="font-size:13px;padding:5px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;flex-shrink:0;"></span>Maurten</div>
-            <div style="font-size:13px;padding:5px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;flex-shrink:0;"></span>Science in Sport</div>
-            <div style="font-size:13px;padding:5px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;flex-shrink:0;"></span>The Magic5</div>
-            <div style="font-size:13px;padding:5px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;flex-shrink:0;"></span>BluSmooth</div>
-            <div style="font-size:13px;padding:5px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;flex-shrink:0;"></span>BlueSeventy UK <a href="https://www.swimloading.com/partners/blueseventy" target="_blank" class="mi-link" style="margin-left:auto;">Open <i data-lucide="external-link" style="width:11px;height:11px;"></i></a></div>
-            <div style="font-size:13px;padding:5px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;flex-shrink:0;"></span>eo SwimBETTER (Performance Challenge Aug 1 – Oct 31 2026, $1,349 prize) <a href="https://www.swimloading.com/partners/eolab" target="_blank" class="mi-link" style="margin-left:auto;">Open <i data-lucide="external-link" style="width:11px;height:11px;"></i></a></div>
-            <div style="font-size:13px;padding:5px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--amber);display:inline-block;flex-shrink:0;"></span>FORM (onboarding, details from Timmy) <a href="https://www.swimloading.com/partners/form" target="_blank" class="mi-link" style="margin-left:auto;">Open <i data-lucide="external-link" style="width:11px;height:11px;"></i></a></div>
-            <div style="font-size:13px;padding:5px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--amber);display:inline-block;flex-shrink:0;"></span>TRIHARD (onboarding, UK Swim Spot Challenge live August 2026 only, confirmed) <a href="https://www.swimloading.com/partners/trihard" target="_blank" class="mi-link" style="margin-left:auto;">Open <i data-lucide="external-link" style="width:11px;height:11px;"></i></a></div>
-            <div style="font-size:13px;padding:5px 0;display:flex;align-items:center;gap:8px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--amber);display:inline-block;flex-shrink:0;"></span>JAKED (onboarding, Italian swimwear brand, soon sponsoring Carina Bruwer) <a href="https://www.swimloading.com/partners/jaked" target="_blank" class="mi-link" style="margin-left:auto;">Open <i data-lucide="external-link" style="width:11px;height:11px;"></i></a></div>
+            <div class="gh-partner-row" style="font-size:12px;color:var(--text-sec);">Loading from partner pages and /Sponsors…</div>
           </div>
-          <div style="background:rgba(56,189,248,0.05);border:1px solid rgba(56,189,248,0.15);border-radius:10px;padding:14px;">
-            <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">UK Target Partners</div>
-            <div style="font-size:13px;padding:5px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;"><span style="width:6px;height:6px;border-radius:50%;background:rgba(56,189,248,0.4);display:inline-block;flex-shrink:0;"></span>Outdoor Swimming Society</div>
-            <div style="font-size:13px;padding:5px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;"><span style="width:6px;height:6px;border-radius:50%;background:rgba(56,189,248,0.4);display:inline-block;flex-shrink:0;"></span>Outdoor Swimmer</div>
-            <div style="font-size:13px;padding:5px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;"><span style="width:6px;height:6px;border-radius:50%;background:rgba(56,189,248,0.4);display:inline-block;flex-shrink:0;"></span>Styrkr</div>
-            <div style="font-size:13px;padding:5px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;"><span style="width:6px;height:6px;border-radius:50%;background:rgba(56,189,248,0.4);display:inline-block;flex-shrink:0;"></span>Otion</div>
-            <div style="font-size:13px;padding:5px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;"><span style="width:6px;height:6px;border-radius:50%;background:rgba(56,189,248,0.4);display:inline-block;flex-shrink:0;"></span>SwimTrek</div>
-            <div style="font-size:13px;padding:5px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;"><span style="width:6px;height:6px;border-radius:50%;background:rgba(56,189,248,0.4);display:inline-block;flex-shrink:0;"></span>UK lidos</div>
-            <div style="font-size:13px;padding:5px 0;display:flex;align-items:center;gap:8px;"><span style="width:6px;height:6px;border-radius:50%;background:rgba(56,189,248,0.4);display:inline-block;flex-shrink:0;"></span>UK clubs and swim groups</div>
+          <div id="ghTargetPartners" style="background:rgba(56,189,248,0.05);border:1px solid rgba(56,189,248,0.15);border-radius:10px;padding:14px;">
+            <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Sponsor leads in progress</div>
+            <div class="gh-partner-row" style="font-size:12px;color:var(--text-sec);">Loading from /Sponsors…</div>
           </div>
         </div>
       </div>
@@ -736,69 +723,6 @@
 </div><!-- /app -->
 
 <!-- ── MODALS ── -->
-
-<!-- Sponsor modal -->
-<div class="modal-overlay" id="sponsorModal">
-<div class="modal">
-  <div class="modal-head">
-    <div class="modal-title" id="sponsorModalTitle">Add Sponsor</div>
-    <button class="modal-close" onclick="closeModal('sponsor')">&times;</button>
-  </div>
-  <div class="modal-body">
-    <input type="hidden" id="sponsorId">
-    <div class="field-row">
-      <div class="field-group"><div class="field-label">Sponsor name *</div><input class="field-input" id="sName" placeholder="e.g. THEMAGIC5"></div>
-      <div class="field-group"><div class="field-label">Category</div>
-        <select class="field-input" id="sCategory">
-          <option value="">Select</option>
-          <option>Wetsuit / Gear</option><option>Goggles</option><option>Nutrition</option>
-          <option>Apparel</option><option>Tech / Wearables</option><option>Race / Event</option>
-          <option>Health / Recovery</option><option>Other</option>
-        </select>
-      </div>
-    </div>
-    <div class="field-group"><div class="field-label">Website</div><input class="field-input" id="sWebsite" placeholder="https://"></div>
-    <div class="field-row">
-      <div class="field-group"><div class="field-label">Contact name</div><input class="field-input" id="sContactName" placeholder="First Last"></div>
-      <div class="field-group"><div class="field-label">Contact email</div><input class="field-input" id="sContactEmail" type="email" placeholder="name@brand.com"></div>
-    </div>
-    <div class="field-row">
-      <div class="field-group"><div class="field-label">Instagram</div><input class="field-input" id="sInstagram" placeholder="@handle"></div>
-      <div class="field-group"><div class="field-label">LinkedIn</div><input class="field-input" id="sLinkedin" placeholder="linkedin.com/in/…"></div>
-    </div>
-    <div class="field-group"><div class="field-label">Proposed offer</div><input class="field-input" id="sOffer" placeholder="e.g. Discount code + co-post"></div>
-    <div class="field-row">
-      <div class="field-group"><div class="field-label">Status</div>
-        <select class="field-input" id="sStatus">
-          <option>Idea</option><option>Contacted</option><option>Interested</option>
-          <option>In Discussion</option><option>Confirmed</option><option>Not Now</option>
-        </select>
-      </div>
-      <div class="field-group"><div class="field-label">Owner</div>
-        <select class="field-input" id="sOwner">
-          <option value="">Assign</option>
-          <option>Dave</option><option>Lindi</option>
-        </select>
-      </div>
-    </div>
-    <div class="field-group"><div class="field-label">Next action</div><input class="field-input" id="sNextAction" placeholder="e.g. Send intro email"></div>
-    <div class="field-group"><div class="field-label">Follow-up date</div><input class="field-input" id="sFollowUp" type="date"></div>
-    <div class="field-group"><div class="field-label">Notes</div><textarea class="field-input field-textarea" id="sNotes" placeholder="General context, background, ideas…"></textarea></div>
-    <div class="field-group">
-      <div class="field-label" style="margin-bottom:8px;">Conversation log</div>
-      <div class="conv-thread" id="sConvThread"></div>
-      <div class="conv-add-row">
-        <textarea class="conv-input" id="sConvNew" placeholder="Add a conversation note: WhatsApp summary, call outcome, next step agreed…"></textarea>
-        <button class="conv-add-btn" onclick="addSponsorConvEntry()">Add entry</button>
-      </div>
-    </div>
-  </div>
-  <div class="modal-footer">
-    <button class="btn-cancel" onclick="closeModal('sponsor')">Cancel</button>
-    <button class="btn-save" id="sponsorSaveBtn" onclick="saveSponsor()">Save</button>
-  </div>
-</div>
-</div>
 
 <!-- Club modal -->
 <div class="modal-overlay" id="clubModal">
@@ -1244,30 +1168,63 @@ function countryFilter(q) {
 }
 
 // ── Load all ──────────────────────────────────────────────────────────
-// Partner list: built from the partner_pages table (the same rows that drive the homepage cards and the admin partner report),
-// so a new partner appears here without editing this file. The hand-written list in the HTML is the FALLBACK: it stays if the
-// table cannot be read (for example by a founder account that is not allowed to read it) or is empty.
+// Master Index partner panels. Both are GENERATED, nothing is hand-written here:
+//  - Active Partners: the partner_pages rows (the same rows that drive the homepage cards and the admin partner report),
+//    each shown with its relationship status from growth_sponsors (joined on partner_page_id) and a link to the record.
+//  - Sponsor leads in progress: growth_sponsors rows that are being worked (Researching / Contacted / In Discussion)
+//    and do not have a partner page yet. /Sponsors owns and edits that data; this is a read-only view of it.
 async function loadPartnerList() {
+  const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+  const row = (inner, last) => `<div class="gh-partner-row" style="font-size:13px;padding:5px 0;${last ? '' : 'border-bottom:1px solid var(--border);'}display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${inner}</div>`;
+  const dot = c => `<span style="width:6px;height:6px;border-radius:50%;background:${c};display:inline-block;flex-shrink:0;"></span>`;
+  const activeBox = document.getElementById('ghActivePartners');
+  const targetBox = document.getElementById('ghTargetPartners');
   try {
-    const { data, error } = await sb.from('partner_pages').select('name, hero_page, section, status_note, sort_order').order('sort_order');
-    if (error || !data || !data.length) return;
-    const box = document.getElementById('ghActivePartners');
-    if (!box) return;
-    const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
-    const label = box.firstElementChild;                       // keep the "Active Partners" heading
-    box.querySelectorAll('.gh-partner-row').forEach(n => n.remove());
-    [...box.children].forEach(n => { if (n !== label) n.remove(); });
-    const live = data.filter(p => p.section === 'active').length;
-    label.textContent = 'Active Partners · ' + live + ' live, ' + (data.length - live) + ' onboarding';
-    data.forEach((p, i) => {
-      const last = i === data.length - 1;
-      const dot = p.section === 'active' ? 'var(--green)' : 'var(--amber)';
-      const link = p.hero_page ? `<a href="https://www.swimloading.com${esc(p.hero_page)}" target="_blank" class="mi-link" style="margin-left:auto;">Open <i data-lucide="external-link" style="width:11px;height:11px;"></i></a>` : '';
-      const note = p.status_note ? ` <span style="font-size:11px;color:var(--text-sec);">${esc(p.status_note)}</span>` : '';
-      box.insertAdjacentHTML('beforeend', `<div class="gh-partner-row" style="font-size:13px;padding:5px 0;${last ? '' : 'border-bottom:1px solid var(--border);'}display:flex;align-items:center;gap:8px;"><span style="width:6px;height:6px;border-radius:50%;background:${dot};display:inline-block;flex-shrink:0;"></span><span>${esc(p.name)}${note}</span> ${link}</div>`);
-    });
+    const [pp, sp] = await Promise.all([
+      sb.from('partner_pages').select('id, name, hero_page, section, status_note, sort_order').order('sort_order'),
+      sb.from('growth_sponsors').select('id, sponsor_name, status, priority, partner_page_id, country, follow_up_date').order('priority', { ascending: false }),
+    ]);
+    if (pp.error || sp.error) throw (pp.error || sp.error);
+    const sponsorsAll = sp.data || [];
+    const byPage = new Map(sponsorsAll.filter(s => s.partner_page_id).map(s => [s.partner_page_id, s]));
+
+    if (activeBox) {
+      const pages = (pp.data || []).filter(p => p.hero_page);
+      const live = pages.filter(p => p.section === 'active').length;
+      const label = activeBox.firstElementChild;
+      [...activeBox.children].forEach(n => { if (n !== label) n.remove(); });
+      label.textContent = 'Active Partners · ' + live + ' live, ' + (pages.length - live) + ' onboarding';
+      pages.forEach((p, i) => {
+        const rec = byPage.get(p.id);
+        const status = rec ? (SponsorsCore.canonicalStatus(rec.status) || rec.status) : null;
+        const page = `<a href="https://www.swimloading.com${esc(p.hero_page)}" target="_blank" class="mi-link">Page <i data-lucide="external-link" style="width:11px;height:11px;"></i></a>`;
+        const record = rec ? `<a href="/Sponsors?brand=${encodeURIComponent(rec.id)}" target="_blank" class="mi-link">Sponsor record</a>` : '';
+        activeBox.insertAdjacentHTML('beforeend', row(
+          `${dot(p.section === 'active' ? 'var(--green)' : 'var(--amber)')}<span>${esc(p.name)}</span>` +
+          (status ? `<span style="font-size:11px;color:var(--text-sec);">${esc(status)}</span>` : '') +
+          `<span style="margin-left:auto;display:flex;gap:10px;">${record}${page}</span>`, i === pages.length - 1));
+      });
+    }
+
+    if (targetBox) {
+      const rank = { 'In Discussion': 0, 'Contacted': 1, 'Researching': 2 };
+      const leads = sponsorsAll.filter(s => !s.partner_page_id && rank[SponsorsCore.canonicalStatus(s.status)] !== undefined)
+        .sort((a, b) => (b.priority - a.priority) || (rank[SponsorsCore.canonicalStatus(a.status)] - rank[SponsorsCore.canonicalStatus(b.status)]));
+      const shown = leads.slice(0, 12);
+      const label = targetBox.firstElementChild;
+      [...targetBox.children].forEach(n => { if (n !== label) n.remove(); });
+      label.textContent = 'Sponsor leads in progress · ' + leads.length;
+      shown.forEach((s, i) => targetBox.insertAdjacentHTML('beforeend', row(
+        `${dot('rgba(56,189,248,0.6)')}<a href="/Sponsors?brand=${encodeURIComponent(s.id)}" target="_blank" style="color:inherit;text-decoration:none;">${esc(s.sponsor_name)}</a>` +
+        `<span style="font-size:11px;color:var(--text-sec);">${esc(SponsorsCore.canonicalStatus(s.status) || s.status)}${s.country ? ' · ' + esc(s.country) : ''}</span>`, i === shown.length - 1)));
+      if (leads.length > shown.length) targetBox.insertAdjacentHTML('beforeend', `<div style="font-size:12px;margin-top:8px;"><a href="/Sponsors" target="_blank" class="mi-link">All ${leads.length} in /Sponsors</a></div>`);
+      if (!leads.length) targetBox.insertAdjacentHTML('beforeend', '<div style="font-size:12px;color:var(--text-sec);">No leads in progress.</div>');
+    }
     if (window.lucide) lucide.createIcons();
-  } catch (e) { /* keep the hand-written list */ }
+  } catch (e) {
+    const msg = '<div class="gh-partner-row" style="font-size:12px;color:var(--amber);">Could not load. Open /Sponsors for the live list.</div>';
+    [activeBox, targetBox].forEach(b => { if (b) { [...b.children].forEach((n, i) => { if (i) n.remove(); }); b.insertAdjacentHTML('beforeend', msg); } });
+  }
 }
 
 async function loadAll() {
@@ -1307,6 +1264,7 @@ function statusBadge(s) {
   const map = {
     'Idea': 'idea', 'Contacted': 'contacted', 'Interested': 'interested',
     'In Discussion': 'discussion', 'Confirmed': 'confirmed', 'Not Now': 'notnow',
+    'Researching': 'idea', 'Passed': 'notnow',
     'To Do': 'todo', 'In Progress': 'inprogress', 'Done': 'done',
     'High': 'high', 'Medium': 'medium', 'Low': 'low',
   };
@@ -1430,15 +1388,15 @@ function renderSponsors() {
     return a.follow_up_date.localeCompare(b.follow_up_date);
   });
   const el = document.getElementById('sponsorsList');
-  if (!rows.length) { el.innerHTML = emptyState('package', 'No sponsors yet', 'Add your first sponsor or partner idea.'); return; }
+  if (!rows.length) { el.innerHTML = emptyState('package', 'No sponsors for this country', 'Sponsors are added and edited in /Sponsors.'); return; }
   el.innerHTML = rows.map(r => `
-    <div class="card" onclick="editSponsor('${r.id}')">
+    <a class="card" href="/Sponsors?brand=${encodeURIComponent(r.id)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;display:block;">
       <div class="card-header">
         <div>
           <div class="card-name">${esc(r.sponsor_name)}${r.category ? ` <span style="font-size:11px;font-weight:400;color:var(--text-sec);">${esc(r.category)}</span>` : ''}</div>
           ${r.contact_name ? `<div class="card-sub">${esc(r.contact_name)}${r.contact_email ? ` · ${esc(r.contact_email)}` : ''}</div>` : ''}
         </div>
-        ${statusBadge(r.status)}
+        ${statusBadge(SponsorsCore.canonicalStatus(r.status) || r.status)}
       </div>
       ${r.proposed_offer ? `<div style="font-size:12px;color:var(--text-sec);margin-bottom:4px;">${esc(r.proposed_offer)}</div>` : ''}
       ${r.next_action ? `<div class="next-action">${esc(r.next_action)}</div>` : ''}
@@ -1447,12 +1405,9 @@ function renderSponsors() {
           ${r.owner ? `<span class="card-owner">${esc(r.owner)}</span>` : ''}
           ${r.follow_up_date ? `<span class="card-date ${isOverdue(r.follow_up_date)?'overdue':''}">${isOverdue(r.follow_up_date)?'Overdue · ':''}${fmtDate(r.follow_up_date)}</span>` : ''}
         </div>
-        <div class="card-actions" onclick="event.stopPropagation()">
-          ${r.website ? `<a href="${esc(r.website)}" target="_blank" class="btn-icon"><i data-lucide="external-link"></i></a>` : ''}
-          <button class="btn-icon danger" onclick="confirmDelete('growth_sponsors','${r.id}',loadSponsors)"><i data-lucide="trash-2"></i></button>
-        </div>
+        <span style="font-size:11px;color:var(--cyan);">Open in /Sponsors</span>
       </div>
-    </div>`).join('');
+    </a>`).join('');
   lucide.createIcons();
 }
 
@@ -1622,16 +1577,6 @@ function renderIdeas() {
 
 // ── Modal helpers ─────────────────────────────────────────────────────
 function openModal(type) {
-  if (type === 'sponsor') {
-    document.getElementById('sponsorModalTitle').textContent = 'Add Sponsor';
-    document.getElementById('sponsorId').value = '';
-    document.getElementById('sponsorModal').querySelectorAll('input:not([type=hidden]),select,textarea').forEach(el => { el.value = el.tagName === 'SELECT' ? el.options[0].value : ''; });
-    document.getElementById('sStatus').value = 'Idea';
-    _sConvPending = [];
-    renderSponsorConvThread([]);
-    document.getElementById('sponsorModal').classList.add('open');
-    return;
-  }
   document.getElementById(type + 'Modal').classList.add('open');
   document.getElementById(type + 'ModalTitle').textContent = 'Add ' + type.charAt(0).toUpperCase() + type.slice(1).replace('media','Media Contact');
   document.getElementById(type + 'Id').value = '';
@@ -1642,95 +1587,6 @@ function openModal(type) {
 
 function closeModal(type) {
   document.getElementById(type + 'Modal').classList.remove('open');
-}
-
-// ── Sponsor save/edit ─────────────────────────────────────────────────
-async function saveSponsor() {
-  const id  = document.getElementById('sponsorId').value;
-  const btn = document.getElementById('sponsorSaveBtn');
-  const name = document.getElementById('sName').value.trim();
-  if (!name) { alert('Sponsor name is required.'); return; }
-  // capture any typed-but-not-yet-added entry
-  const pendingText = document.getElementById('sConvNew').value.trim();
-  if (pendingText) {
-    const owner = document.getElementById('sOwner').value || 'Dave';
-    _sConvPending.push({ date: new Date().toISOString(), author: owner, text: pendingText });
-  }
-  btn.disabled = true; btn.textContent = 'Saving…';
-  const row = {
-    country:        currentCountry === 'ALL' ? 'UK' : currentCountry,
-    sponsor_name:   name,
-    website:        document.getElementById('sWebsite').value.trim() || null,
-    contact_name:   document.getElementById('sContactName').value.trim() || null,
-    contact_email:  document.getElementById('sContactEmail').value.trim() || null,
-    instagram:      document.getElementById('sInstagram').value.trim() || null,
-    linkedin:       document.getElementById('sLinkedin').value.trim() || null,
-    category:       document.getElementById('sCategory').value || null,
-    proposed_offer: document.getElementById('sOffer').value.trim() || null,
-    status:         document.getElementById('sStatus').value,
-    owner:          document.getElementById('sOwner').value || null,
-    next_action:    document.getElementById('sNextAction').value.trim() || null,
-    follow_up_date: document.getElementById('sFollowUp').value || null,
-    notes:          document.getElementById('sNotes').value.trim() || null,
-    conversations:  _sConvPending,
-  };
-  if (id) await sb.from('growth_sponsors').update(row).eq('id', id);
-  else    await sb.from('growth_sponsors').insert(row);
-  btn.disabled = false; btn.textContent = 'Save';
-  closeModal('sponsor');
-  await loadSponsors();
-}
-
-// pending conversation entries for the currently open sponsor modal
-let _sConvPending = [];
-
-function renderSponsorConvThread(entries) {
-  const el = document.getElementById('sConvThread');
-  if (!entries.length) {
-    el.innerHTML = '<div class="conv-empty">No conversation entries yet. Add one below.</div>';
-    return;
-  }
-  // newest first
-  el.innerHTML = [...entries].reverse().map(e => {
-    const d = new Date(e.date);
-    const label = d.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
-    return `<div class="conv-entry">
-      <div class="conv-meta"><span>${label}</span>${e.author ? `· ${esc(e.author)}` : ''}</div>
-      <div class="conv-body">${esc(e.text)}</div>
-    </div>`;
-  }).join('');
-}
-
-function addSponsorConvEntry() {
-  const text = document.getElementById('sConvNew').value.trim();
-  if (!text) return;
-  const owner = document.getElementById('sOwner').value || 'Dave';
-  _sConvPending.push({ date: new Date().toISOString(), author: owner, text });
-  document.getElementById('sConvNew').value = '';
-  renderSponsorConvThread(_sConvPending);
-}
-
-function editSponsor(id) {
-  const r = sponsors.find(s => s.id === id); if (!r) return;
-  document.getElementById('sponsorModalTitle').textContent = 'Edit Sponsor';
-  document.getElementById('sponsorId').value = id;
-  document.getElementById('sName').value         = r.sponsor_name || '';
-  document.getElementById('sWebsite').value      = r.website || '';
-  document.getElementById('sContactName').value  = r.contact_name || '';
-  document.getElementById('sContactEmail').value = r.contact_email || '';
-  document.getElementById('sInstagram').value    = r.instagram || '';
-  document.getElementById('sLinkedin').value     = r.linkedin || '';
-  document.getElementById('sCategory').value     = r.category || '';
-  document.getElementById('sOffer').value        = r.proposed_offer || '';
-  document.getElementById('sStatus').value       = r.status || 'Idea';
-  document.getElementById('sOwner').value        = r.owner || '';
-  document.getElementById('sNextAction').value   = r.next_action || '';
-  document.getElementById('sFollowUp').value     = r.follow_up_date || '';
-  document.getElementById('sNotes').value        = r.notes || '';
-  _sConvPending = Array.isArray(r.conversations) ? [...r.conversations] : [];
-  renderSponsorConvThread(_sConvPending);
-  document.getElementById('sConvNew').value = '';
-  document.getElementById('sponsorModal').classList.add('open');
 }
 
 // ── Club save/edit ────────────────────────────────────────────────────
@@ -2063,14 +1919,15 @@ function renderDashboard() {
   const country = currentCountry === 'ALL' ? '' : currentCountry;
 
   const totalSponsors  = sponsors.length;
-  const confirmed      = sponsors.filter(s => s.status === 'Confirmed').length;
-  const inDiscussion   = sponsors.filter(s => s.status === 'In Discussion' || s.status === 'Interested').length;
+  const sponsorStats   = SponsorsCore.sponsorStats(sponsors, today);
+  const confirmed      = sponsorStats.confirmed;
+  const inDiscussion   = sponsorStats.inDiscussion;
   const totalClubs     = clubs.length;
   const totalTasks     = tasks.length;
   const openTasks      = tasks.filter(t => t.status !== 'Done').length;
   const doneTasks      = tasks.filter(t => t.status === 'Done').length;
 
-  const overdueSponsors = sponsors.filter(s => s.follow_up_date && s.follow_up_date < today && s.status !== 'Confirmed' && s.status !== 'Not Now');
+  const overdueSponsors = sponsorStats.overdue;
   const overdueMedia    = media.filter(m => m.follow_up_date && m.follow_up_date < today);
   const overdueTasks    = tasks.filter(t => t.due_date && t.due_date < today && t.status !== 'Done');
   const upcomingTasks   = tasks.filter(t => t.due_date && t.due_date >= today && t.status !== 'Done').sort((a,b) => a.due_date.localeCompare(b.due_date)).slice(0,5);
