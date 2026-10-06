@@ -16,7 +16,7 @@ test('Test Swimmer A: findings, classifications and confidence come from the dat
   const r = analyse(A, 'PERFORMANCE');
   assert.deepEqual(r.findings.map((f) => f.ruleId), ['POWER_EFFECTIVENESS', 'LAP_COMPARISON', 'ASYMMETRY_PROFILE', 'POSSIBLE_TECHNICAL_OPPORTUNITY', 'OUTPUT_SUMMARY']);
   const pe = by(r, 'POWER_EFFECTIVENESS'), lc = by(r, 'LAP_COMPARISON'), as = by(r, 'ASYMMETRY_PROFILE'), to = by(r, 'POSSIBLE_TECHNICAL_OPPORTUNITY');
-  assert.equal(pe.title, "Force direction is off EO's target on 6 of 6 measures", 'EO prints targets for this swimmer, so the finding is a comparison with them');
+  assert.equal(pe.title, "Force direction is off EO's target on 5 of 6 measures", 'EO prints targets for this swimmer, so the finding is a comparison with them');
   assert.equal(pe.classification, 'MEASURED'); assert.equal(pe.confidence, 'MODERATE', 'the propulsive share is printed three ways, so it cannot be HIGH');
   assert.equal(lc.title, 'Propulsive power falls more than stroke rhythm, lap 1 to lap 8');
   assert.equal(lc.classification, 'MEASURED'); assert.equal(lc.confidence, 'MODERATE', 'approximate / ranged inputs cap at MODERATE');

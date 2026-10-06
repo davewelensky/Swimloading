@@ -29,7 +29,7 @@ export function baselineFrom(prev) {
   for (const [key] of PROGRESS_METRICS) { const v = currentValue(prev, key); if (v != null) metrics[key] = v; }
   return {
     capturedOn: prev.session && prev.session.date && prev.session.date.value ? prev.session.date.value : null, metrics,
-    context: { stroke: present(prev.session.stroke) ? prev.session.stroke.value : null, distanceM: present(prev.session.distanceM) ? prev.session.distanceM.value : null },
+    context: { stroke: present(prev.session.stroke) ? prev.session.stroke.value : null, distanceM: present(prev.session.distanceM) ? prev.session.distanceM.value : null, poolLengthM: present(prev.session.poolLengthM) ? prev.session.poolLengthM.value : null },
   };
 }
 
@@ -39,6 +39,7 @@ export function comparability(a) {
   if (!c) return out;
   if (c.stroke && present(a.session.stroke) && c.stroke.toLowerCase() !== a.session.stroke.value.toLowerCase()) out.push(`The earlier swim was ${c.stroke.toLowerCase()} and this one is ${a.session.stroke.value.toLowerCase()}. Stroke changes the numbers, so this is not a like-for-like comparison.`);
   if (c.distanceM != null && present(a.session.distanceM) && c.distanceM !== a.session.distanceM.value) out.push(`The earlier swim was ${c.distanceM} m and this one is ${a.session.distanceM.value} m.`);
+  if (c.poolLengthM != null && present(a.session.poolLengthM) && c.poolLengthM !== a.session.poolLengthM.value) out.push(`The earlier swim was in a ${c.poolLengthM} m pool and this one is ${a.session.poolLengthM.value} m. Turns change the numbers, so compare like with like.`);
   return out;
 }
 

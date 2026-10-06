@@ -53,6 +53,7 @@ function plan(sec, m) {
   const d = sec.data, simple = m.profile.showNumbers === 'MINIMAL';
   return `<section class="pg rv-sec rv-plan" data-sec="PLAN"><header class="rv-sechead"><p class="eyebrow">Until your retest</p><h2 class="rv-h2">${esc(d.headline)}</h2></header>
     <ol class="rv-steps">${d.steps.map((x) => `<li class="rv-step rv-step-${x.kind.toLowerCase()}"><span class="rv-stepwk">${esc(x.weeks)}</span><div><strong>${esc(x.title)}</strong>${x.drill ? `<p>Add <em>${esc(x.drill.name)}</em> to your warm-up (how it goes is on the focus page).</p>` : x.kind === 'TOGETHER' ? '<p>Swim your normal sets and bring the cues with you. Then come back and we measure what changed.</p>' : ''}${x.cue ? `<p class="rv-stepcue">Cue: &ldquo;${esc(x.cue)}&rdquo;</p>` : ''}</div></li>`).join('')}</ol>
+    ${d.tip ? `<p class="rv-tip">${esc(d.tip)}</p>` : ''}
     ${d.check ? `<div class="rv-pull"><i data-lucide="hash"></i><div><p class="lbl">A number you can check yourself</p><p><strong>${simple ? '' : esc(d.check.perLength)}</strong>${simple ? 'Count your strokes on one length.' : ` strokes per length today. ${esc(d.check.text)}`}</p></div></div>` : ''}</section>`;
 }
 

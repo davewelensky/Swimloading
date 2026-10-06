@@ -158,3 +158,16 @@ test('report: swimmers with no focuses get no plan and no invented weeks; storag
 });
 import { emptyAnalysis } from '../aquasharks-lab/analysis/model.js';
 function emptyAnalysisFor() { return emptyAnalysis('Nobody'); }
+
+// ------------------------------------------------------------------ value added from EO's Technical Error Index
+test('upward force under 3% is negligible (EO guidance): on target, not a miss; 3% and over still counts', () => {
+  const a = clone(A); a.forceDistribution.overall.upwardPct.value = 2.9;
+  assert.equal(analyse(a, 'COACH').findings.find((f) => f.ruleId === 'POWER_EFFECTIVENESS').meta.targetRows.find((r) => r.key === 'upwardPct').status, 'ON_TARGET');
+  a.forceDistribution.overall.upwardPct.value = 3.4;
+  assert.equal(analyse(a, 'COACH').findings.find((f) => f.ruleId === 'POWER_EFFECTIVENESS').meta.targetRows.find((r) => r.key === 'upwardPct').status, 'ABOVE');
+});
+test('progress: a different pool length is flagged like stroke and distance, and the plan carries EO\'s one-thing-at-a-time, slow-it-down advice', () => {
+  const a = clone(A); a.baseline = baselineFrom(earlier((p) => { p.session.poolLengthM.value = 50; }));
+  assert.ok(comparability(a).some((x) => /50 m pool/.test(x)));
+  assert.match(sec(analyse(A, 'PERFORMANCE'), 'PLAN').data.tip, /One thing at a time\. Slow it down/);
+});

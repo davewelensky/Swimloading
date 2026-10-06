@@ -177,7 +177,7 @@ export function buildReport(a, findings, priorities, quality, profile) {
   const steps = buildPlan(included.map((p) => ({ title: p.title, cue: p.cue, drill: p.drill })), weeks);
   const pulls = pullCount(a);
   sections.push({ id: 'PLAN', status: steps.length ? 'COMPLETE' : 'MISSING', data: steps.length ? {
-    headline: 'YOUR PRACTICE PLAN', weeks, steps,
+    headline: 'YOUR PRACTICE PLAN', weeks, steps, tip: 'One thing at a time. Slow it down: build each change at an easy pace first, then pick up the pace once it holds.',
     check: pulls != null ? { perLength: pulls, text: 'Count your strokes on any length, in any session, with no sensors. When that number drops, it is working.' } : null } : null });
 
   // NEXT

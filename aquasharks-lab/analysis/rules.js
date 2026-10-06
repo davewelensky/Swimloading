@@ -52,6 +52,8 @@ function conflictCaveat(m, label) {
 
 // ---------------------------------------------------------------------------------------------
 // EO's own target ranges. They are read from the report (never hardcoded here) and compared with the swimmer's value.
+/** EO's own guidance on a value too small to matter (Technical Error Index, Feb 2026: "<3-4%"). */
+export const UPWARD_NEGLIGIBLE_PCT = 3;
 const TARGET_KEYS = [['propulsivePct', 'Forward', 'forward share'], ['downwardPct', 'Downward', 'downward force'], ['handDragPct', 'Hand drag', 'hand drag'], ['upwardPct', 'Upward', 'upward force'], ['leftwardPct', 'Left', 'sideways force to the left'], ['rightwardPct', 'Right', 'sideways force to the right']];
 /** "70–75%", "under 4%", "0%". */
 export function targetText(r) {
@@ -67,7 +69,9 @@ export function targetRows(a) {
     const ref = a.eoReferenceRanges[key], m = o[key];
     if (!ref || (ref.lo == null && ref.hi == null) || !present(m)) continue;
     const v = m.value;
-    const status = ref.lo != null && v < ref.lo ? 'BELOW' : ref.hi != null && v > ref.hi ? 'ABOVE' : 'ON_TARGET';
+    // EO's Technical Error Index (Feb 2026): upward force under 3-4% at the hand exit is negligible. The lower bound is used.
+    const negligible = key === 'upwardPct' && v < UPWARD_NEGLIGIBLE_PCT;
+    const status = negligible ? 'ON_TARGET' : ref.lo != null && v < ref.lo ? 'BELOW' : ref.hi != null && v > ref.hi ? 'ABOVE' : 'ON_TARGET';
     const gap = status === 'BELOW' ? ref.lo - v : status === 'ABOVE' ? v - ref.hi : 0;
     out.push({ key, label, plain, value: v, target: targetText(ref), lo: ref.lo, hi: ref.hi, status, gap: round(gap, 1) });
   }

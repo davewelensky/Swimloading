@@ -113,6 +113,12 @@ every report** (Dave, 2 Oct; named by first name only), and the sample card uses
 `https://www.swimloading.com/aquasharks-lab`; it prints on exactly one A5 page (print at 100%, no "fit to page"). **When the report changes, re-check both pages**
 against `analysis/report-model.js` and `analysis/profiles.js`; do not promise hand path, "good for your age" or other judgements the rules do not produce.
 
+**6 Oct (later): sales surfaces rewritten for the simple report.** `/aquasharks-lab` and the A5 card now describe: going well first, numbers against EO's target range, three things at most (one at a time),
+a practice plan, a note from Britt, a retest date and progress. The card's old "first lap to last lap" line was removed (the report only has that when lap data is entered). The sample card still uses only
+the real August 2025 swimmer's numbers; rows without a number describe what every report contains. Two FAQs added ("Why only three things?", "Is this only for squad swimmers?": open water, triathletes, masters).
+EO guidance used (from EO's Technical Error Index, Feb 2026, paraphrased, never copied): fix the dominant issue first, slow changes down, upward force under 3-4% is negligible (code uses 3), like-for-like comparison.
+Not sold, deliberately: EO's "emerging shoulder dysfunction" early-warning idea (clinical; coach-only).
+
 ## Known limits
 
 - Layout detected: `EO_AI_REPORT_V1` only. The older numbered-section EO PDF is reported "not recognised", nothing extracted.

@@ -286,7 +286,7 @@ export interface SwimAnalysis {
   baseline: {
     capturedOn: string | null; metrics: Record<string, number>;
     /** Set when the baseline is an earlier session of the same swimmer (see progress.js). Drives the "since last time" section. */
-    context?: { stroke: string | null; distanceM: number | null };
+    context?: { stroke: string | null; distanceM: number | null; poolLengthM?: number | null };
   };
 }
 
