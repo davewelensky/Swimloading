@@ -135,6 +135,6 @@ test('the lab\'s many small modules are never pinned by the service worker or th
   assert.ok(sw.indexOf("startsWith('/aquasharks-lab/')") < sw.indexOf('// Cache-first for static assets'), 'and does so before its cache-first rule');
   const r = v.routes.find((x) => x.src && x.src.includes('aquasharks-lab/.+'));
   assert.ok(r && r.headers['Cache-Control'] === 'no-cache', 'vercel.json serves the lab scripts and styles no-cache');
-  for (const f of ['aquasharks-lab/analysis/model.js', 'aquasharks-lab/report-builder/app.js', 'aquasharks-lab/analysis/report-view.css']) assert.ok(new RegExp(r.src).test(f), f);
-  assert.equal(new RegExp(r.src).test('aquasharks-lab/HANDOFF.md'), false);
+  for (const f of ['aquasharks-lab/analysis/model.js', 'aquasharks-lab/report-builder/app.js', 'aquasharks-lab/analysis/report-view.css']) assert.ok(new RegExp(r.src).test('/' + f), f);
+  assert.equal(new RegExp(r.src).test('/aquasharks-lab/HANDOFF.md'), false);
 });
