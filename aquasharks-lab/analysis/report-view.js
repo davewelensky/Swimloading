@@ -4,6 +4,7 @@
  * and omits any section whose status is MISSING (no placeholders, no fake values).
  */
 import { f0, f1, signed, span } from './language.js';
+import { squaresSVG, fansSVG, handPathSVG, progressSVG, rulerSVG } from './visuals.js';
 
 /** Arrows are drawn, not typed: Bebas Neue and DM Sans have no arrow glyph, and a server without system fonts (Vercel's Chromium) prints a box. */
 const ARR = '<svg class="rv-arr" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15M13 5l7 7-7 7"/></svg>';
@@ -45,7 +46,10 @@ function progress(sec) {
   const chipOf = (v) => (v === 'BETTER' ? '<span class="rv-pv rv-pv-better">Better</span>' : v === 'SAME' ? '<span class="rv-pv rv-pv-same">Same</span>' : '<span class="rv-pv rv-pv-not">Not yet</span>');
   return `<section class="pg rv-sec rv-progress" data-sec="PROGRESS"><header class="rv-sechead"><p class="eyebrow">${d.since ? `Compared with ${esc(d.since)}` : 'Compared with your last session'}</p><h2 class="rv-h2">${esc(d.headline)}</h2></header>
     <p class="rv-big">${esc(d.summary)}</p>
-    <div class="rv-prog">${d.rows.map((r) => `<div class="rv-progrow"><span class="rv-progl">${esc(r.label)}</span><span class="rv-progn">${r.then.toFixed(r.dp)}<small>${esc(r.unit)}</small> \u2192 <strong>${r.now.toFixed(r.dp)}<small>${esc(r.unit)}</small></strong></span>${chipOf(r.verdict)}</div>`).join('')}</div>
+    ${d.chart ? `<figure class="rv-fig">${progressSVG(d.chart)}<figcaption><span class="rv-key rv-key-f"></span>forward <span class="rv-key rv-key-d"></span>pressed downward, as a share of your force</figcaption></figure>` : ''}
+    ${d.tiles && d.tiles.length ? `<div class="rv-statrow">${d.tiles.map((t) => `<div class="rv-stat"><strong>${esc(t.value)}</strong><span>${esc(t.label)}</span></div>`).join('')}</div>` : ''}
+    ${d.ruler ? `<figure class="rv-fig"><p class="lbl">How far one stroke takes you</p>${rulerSVG(d.ruler)}</figure>` : ''}
+    ${d.chart ? '' : `<div class="rv-prog">${d.rows.map((r) => `<div class="rv-progrow"><span class="rv-progl">${esc(r.label)}</span><span class="rv-progn">${r.then.toFixed(r.dp)}<small>${esc(r.unit)}</small> \u2192 <strong>${r.now.toFixed(r.dp)}<small>${esc(r.unit)}</small></strong></span>${chipOf(r.verdict)}</div>`).join('')}</div>`}
     <p class="muted small">Two swims are a small sample, and pool, effort and rest all change the numbers. Look for a pattern over several sessions.</p></section>`;
 }
 
@@ -63,7 +67,7 @@ function power(sec, m, isCoach) {
   const bar = d.categories.map((c) => `<i class="rv-seg rv-seg-${c.id}" style="width:${(c.pct / Math.max(total, 100)) * 100}%" title="${esc(c.label)}"></i>`).join('');
   const legend = d.categories.map((c) => `<div class="rv-cat rv-cat-${c.id}"><strong>${fmt(c.pct)}<small>%</small></strong><span class="rv-catlbl">${esc(c.label)}</span>${c.detail ? `<span class="rv-catdet">${esc(c.detail)}</span>` : ''}</div>`).join('');
   return `<section class="pg rv-sec rv-power-join" data-sec="POWER">${head(sec, 'Force direction', isCoach, d.headline)}
-    <div class="rv-bar" role="img" aria-label="Share of force by direction">${bar}</div>
+    ${d.squares != null ? `<figure class="rv-fig">${squaresSVG(d.squares)}<figcaption><span class="rv-key rv-key-f"></span>moves you forward <span class="rv-key rv-key-o"></span>pressed down and sideways</figcaption></figure><p class="rv-sqcap"><strong>${d.squares}</strong> of every 100 units of force move you forward.</p>` : `<div class="rv-bar" role="img" aria-label="Share of force by direction">${bar}</div>`}
     <div class="rv-cats">${legend}</div>
     ${targets(d, m)}
     <div class="rv-means"><p class="lbl">What this means</p><p class="rv-big">${esc(d.whatThisMeans)}</p>${d.explanations && d.explanations.length ? `<ul class="rv-why">${d.explanations.map((x) => `<li>${esc(x)}</li>`).join('')}</ul><p class="muted small">From the EO analysis, checked by your coach.</p>` : ''}</div>
@@ -81,9 +85,17 @@ function hands(sec) {
   const word = (r) => (r.status === 'ON_TARGET' ? 'on target' : r.status === 'BELOW' ? 'a bit low' : 'a bit high');
   const card = (h) => `<article class="rv-hand rv-hand-${h.id}"><h3>${esc(h.label)}</h3>${h.rows.map((r) => `<div class="rv-hrow${r.status ? ' rv-t-' + r.status.toLowerCase() : ''}"><span class="rv-hlabel">${esc(r.label)}</span>${d.simple ? (r.status ? `<span class="rv-tword">${word(r)}</span>` : '') : `<span class="rv-hval">${(Math.round(r.value * 10) / 10).toFixed(1)}<small>%</small></span>${r.target ? `<span class="rv-htarget"><small>Target</small>${esc(r.target)}</span>` : ''}`}</div>`).join('')}</article>`;
   return `<section class="pg rv-sec rv-hands" data-sec="HANDS"><header class="rv-sechead"><p class="eyebrow">${d.context ? esc(d.context) : 'Left and right'}</p><h2 class="rv-h2">${esc(d.headline)}</h2></header>
+    ${d.fans ? `<figure class="rv-fig">${fansSVG(d.fans.left, d.fans.right)}<figcaption>Each fan shows where one hand sent the water, and how much of it there was.</figcaption></figure>` : ''}
     <div class="rv-handgrid">${d.hands.map(card).join('')}</div>
     ${d.trend && d.trend.length ? `<ul class="rv-trend">${d.trend.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}
     <p class="muted small">Where each hand sends its force, as a share of that hand's force, averaged over the laps. EO's own figures.</p></section>`;
+}
+
+function handpath(sec) {
+  const d = sec.data;
+  return `<section class="pg rv-sec rv-handpath" data-sec="HANDPATH"><header class="rv-sechead"><p class="eyebrow">Your stroke, drawn from your own data</p><h2 class="rv-h2">${esc(d.headline)}</h2></header>
+    <figure class="rv-fig">${handPathSVG(d.left, d.right)}<figcaption>Six real strokes per hand. Orange is your left hand, blue is your right.</figcaption></figure>
+    <ul class="rv-facts">${d.facts.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></section>`;
 }
 
 function comparison(sec, m, isCoach) {
@@ -207,7 +219,7 @@ function source(sec) {
   </section>`;
 }
 
-const RENDER = { HERO: hero, NOTE: noteSec, STRENGTHS: strengths, PROGRESS: progress, PLAN: plan, POWER: power, HANDS: hands, COMPARISON: comparison, ARMS: arms, FOCUS: focus, NEXT: next, EVIDENCE: evidence, DATA_QUALITY: quality, SOURCE: source };
+const RENDER = { HERO: hero, NOTE: noteSec, STRENGTHS: strengths, PROGRESS: progress, PLAN: plan, POWER: power, HANDS: hands, HANDPATH: handpath, COMPARISON: comparison, ARMS: arms, FOCUS: focus, NEXT: next, EVIDENCE: evidence, DATA_QUALITY: quality, SOURCE: source };
 
 /** @param {import('./types').ReportModel} model */
 export function renderReport(model) {

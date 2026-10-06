@@ -88,18 +88,29 @@ export async function parseEoExport(bytes, opts = {}) {
 
   // ---- hand path: per stroke, then statistics across strokes (cm)
   const hx = await open('handPath');
-  /** @type {Record<'left'|'right', { depth: number[], far: number[], near: number[], cross: number[], sweep: number[], byLap: any[] }>} */
-  const hp = { left: { depth: [], far: [], near: [], cross: [], sweep: [], byLap: [] }, right: { depth: [], far: [], near: [], cross: [], sweep: [], byLap: [] } };
+  /** @type {Record<'left'|'right', { depth: number[], far: number[], near: number[], cross: number[], sweep: number[], byLap: any[], paths: any[] }>} */
+  const hp = { left: { depth: [], far: [], near: [], cross: [], sweep: [], byLap: [], paths: [] }, right: { depth: [], far: [], near: [], cross: [], sweep: [], byLap: [], paths: [] } };
+  /** Resample a series to n points by index (the path shape is what matters, not its timing). */
+  const resample = (a, n) => Array.from({ length: n }, (_, i) => a[Math.round((i * (a.length - 1)) / (n - 1))]);
   for (const name of hx.names) {
     const lap = lapNo(name), rows = hx.sheet(name); if (lap == null || !rows || rows.length < 2) continue;
     const hdr = rows[0], data = rows.slice(1);
-    /** @type {Map<string, {hand: 'left'|'right', depth?: number, lat?: number}>} */ const cols = new Map();
-    hdr.forEach((h, ci) => { const m = /^(Left|Right) (Depth|Lateral) (\d+) \[m\]$/.exec(String(h || '')); if (m) { const key = m[1] + m[3]; const e = cols.get(key) || { hand: /** @type {'left'|'right'} */ (m[1].toLowerCase()) }; e[m[2] === 'Depth' ? 'depth' : 'lat'] = ci; cols.set(key, e); } });
+    /** @type {Map<string, {hand: 'left'|'right', depth?: number, lat?: number, fwd?: number}>} */ const cols = new Map();
+    hdr.forEach((h, ci) => { const m = /^(Left|Right) (Depth|Lateral|Fwd) (\d+) \[m\]$/.exec(String(h || '')); if (m) { const key = m[1] + m[3]; const e = cols.get(key) || { hand: /** @type {'left'|'right'} */ (m[1].toLowerCase()) }; e[m[2] === 'Depth' ? 'depth' : m[2] === 'Fwd' ? 'fwd' : 'lat'] = ci; cols.set(key, e); } });
     /** @type {Record<'left'|'right', {depth: number[], far: number[]}>} */ const lapAcc = { left: { depth: [], far: [] }, right: { depth: [], far: [] } };
     for (const e of cols.values()) {
       if (e.depth == null || e.lat == null) continue;
       const depth = data.map((r) => num(r[/** @type {number} */ (e.depth)])).filter((v) => v != null), lat = data.map((r) => num(r[/** @type {number} */ (e.lat)])).filter((v) => v != null);
       if (depth.length < 5 || lat.length < 5) continue;
+      const fwd = e.fwd != null ? data.map((r) => num(r[/** @type {number} */ (e.fwd)])).filter((v) => v != null) : [];
+      if (fwd.length === depth.length && depth.length === lat.length) {
+        // the underwater pull only: from where the hand goes below the surface to where it comes out (the recovery above the water is not drawn)
+        let lo = depth.indexOf(Math.min(...depth)), hi = lo;
+        while (lo > 0 && /** @type {number} */ (depth[lo - 1]) < 0) lo--;
+        while (hi < depth.length - 1 && /** @type {number} */ (depth[hi + 1]) < 0) hi++;
+        const cut = (a) => a.slice(Math.max(0, lo - 1), Math.min(a.length, hi + 2));
+        if (hi - lo >= 5) hp[e.hand].paths.push({ lap, lateral: resample(cut(lat), 24).map((v) => r1(/** @type {number} */ (v) * 100)), fwd: resample(cut(fwd), 24).map((v) => r1(/** @type {number} */ (v) * 100)), depth: resample(cut(depth), 24).map((v) => r1(/** @type {number} */ (v) * 100)) });
+      }
       const maxDepth = -Math.min(...depth) * 100, lo = Math.min(...lat) * 100, hi = Math.max(...lat) * 100;
       const sign = e.hand === 'left' ? -1 : 1, far = e.hand === 'left' ? -lo : hi, near = e.hand === 'left' ? -hi : lo;   // distance from the centreline: widest and closest point
       const t = hp[e.hand]; t.depth.push(maxDepth); t.far.push(far); t.near.push(near); t.cross.push(Math.max(0, -near)); t.sweep.push(far - near);
@@ -107,7 +118,9 @@ export async function parseEoExport(bytes, opts = {}) {
     }
     for (const hand of /** @type {const} */ (['left', 'right'])) if (lapAcc[hand].depth.length) hp[hand].byLap.push({ lap, depthCm: r1(median(lapAcc[hand].depth)), widthCm: r1(median(lapAcc[hand].far)) });
   }
-  const handPath = (hand) => { const t = hp[hand]; return { strokes: t.depth.length, depthCm: stats(t.depth), widthCm: stats(t.far), nearestCm: stats(t.near), crossingCm: t.cross.length ? { median: r1(median(t.cross)), max: r1(Math.max(...t.cross)), strokesCrossing: t.cross.filter((c) => c > 0).length } : null, inwardSweepCm: stats(t.sweep), byLap: t.byLap.sort((a, b) => a.lap - b.lap) }; };
+  const handPath = (hand) => { const t = hp[hand]; return { strokes: t.depth.length, depthCm: stats(t.depth), widthCm: stats(t.far), nearestCm: stats(t.near), crossingCm: t.cross.length ? { median: r1(median(t.cross)), max: r1(Math.max(...t.cross)), strokesCrossing: t.cross.filter((c) => c > 0).length } : null, inwardSweepCm: stats(t.sweep), byLap: t.byLap.sort((a, b) => a.lap - b.lap),
+    // six real strokes spread evenly through the swim, for drawing (lateral and forward in cm, depth in cm below zero)
+    samples: (() => { const p = t.paths; if (p.length <= 6) return p; return Array.from({ length: 6 }, (_, i) => p[Math.round((i * (p.length - 1)) / 5)]); })() }; };
 
   // ---- phases: lap averages as a share of the whole stroke
   const phx = await open('phases');

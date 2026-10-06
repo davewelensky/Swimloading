@@ -17,17 +17,46 @@ export const PROGRESS_METRICS = [
   ['handDragPct', 'Hand drag', '%', 1, 'down'],
 ];
 
+/**
+ * The swimmer's combined share for one force direction. EO's report prints it; without the report, the two hands' own shares are combined weighted by
+ * each hand's force (this reproduced EO's printed downward share exactly on the test swim). Null when neither exists.
+ * @param {any} a @param {'propulsivePct'|'downwardPct'|'handDragPct'} key
+ */
+export function combinedShare(a, key) {
+  const m = key === 'propulsivePct' && !present(a.forceDistribution.overall.propulsivePct) ? a.metrics.propulsivePct : a.forceDistribution.overall[key];
+  if (present(m)) return m.value;
+  const ff = a.eoExport && a.eoExport.forceField, map = { propulsivePct: 'propulsive', downwardPct: 'downward', handDragPct: 'handDrag' };
+  if (!ff || !ff.left || !ff.right || !ff.left.mean || !ff.right.mean) return null;
+  const k = map[key], lv = ff.left.mean[k], rv = ff.right.mean[k], lw = ff.left.mean.fpsN, rw = ff.right.mean.fpsN;
+  if (lv == null || rv == null || !(lw > 0) || !(rw > 0)) return null;
+  return Math.round(((lv * lw + rv * rw) / (lw + rw)) * 10) / 10;
+}
+
 /** The current value of a progress metric in an analysis, or null. @param {any} a @param {string} key */
 export function currentValue(a, key) {
-  const m = key === 'distancePerStrokeM' ? a.metrics.distancePerStrokeM : key === 'propulsivePct' ? (present(a.forceDistribution.overall.propulsivePct) ? a.forceDistribution.overall.propulsivePct : a.metrics.propulsivePct) : a.forceDistribution.overall[key];
+  if (key === 'distancePerStrokeM') return present(a.metrics.distancePerStrokeM) ? a.metrics.distancePerStrokeM.value : null;
+  if (key === 'propulsivePct' || key === 'downwardPct' || key === 'handDragPct') return combinedShare(a, key);
+  const m = a.forceDistribution.overall[key];
   return present(m) ? m.value : null;
+}
+
+/** One point on the swimmer's line: what this session measured. @param {any} a */
+export function historyEntry(a) {
+  return {
+    date: a.session && a.session.date && a.session.date.value ? a.session.date.value : null,
+    forward: currentValue(a, 'propulsivePct'), down: currentValue(a, 'downwardPct'), handDrag: currentValue(a, 'handDragPct'),
+    dps: currentValue(a, 'distancePerStrokeM'), rate: present(a.metrics.strokeRate) ? a.metrics.strokeRate.value : null,
+  };
 }
 
 /** Build a baseline from an earlier SwimAnalysis. @param {any} prev */
 export function baselineFrom(prev) {
   /** @type {Record<string, number>} */ const metrics = {};
   for (const [key] of PROGRESS_METRICS) { const v = currentValue(prev, key); if (v != null) metrics[key] = v; }
+  // the swimmer's line so far: everything the earlier report already carried, then that session itself
+  const history = [...((prev.baseline && prev.baseline.history) || []), historyEntry(prev)].slice(-12);
   return {
+    history,
     capturedOn: prev.session && prev.session.date && prev.session.date.value ? prev.session.date.value : null, metrics,
     context: { stroke: present(prev.session.stroke) ? prev.session.stroke.value : null, distanceM: present(prev.session.distanceM) ? prev.session.distanceM.value : null, poolLengthM: present(prev.session.poolLengthM) ? prev.session.poolLengthM.value : null, swimmerType: (prev.eoReferenceContext && prev.eoReferenceContext.swimmerType) || (prev.source && prev.source.analysisContext && prev.source.analysisContext.swimmerType) || null },
   };

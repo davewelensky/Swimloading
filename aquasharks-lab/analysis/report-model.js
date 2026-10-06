@@ -6,7 +6,7 @@
  */
 import { present, getPath } from './model.js';
 import { f0, f1, f2, mmss, fmtDate, span } from './language.js';
-import { progressRows } from './progress.js';
+import { progressRows, historyEntry } from './progress.js';
 import { classifyAgainst } from './rules.js';
 import { buildPlan, retestWeeks, retestDate, pullCount, BOOK_URL } from './plan.js';
 
@@ -128,6 +128,7 @@ export function buildReport(a, findings, priorities, quality, profile) {
     const ctx = a.eoReferenceContext || {};
     const ctxText = [ctx.swimmerType, ctx.stroke].filter(Boolean).join(' ').toLowerCase();
     sections.push({ id: 'POWER', status: quality.sections.POWER, data: { headline: 'WHERE YOUR POWER GOES', categories: cats, whatThisMeans: pe.text[P], findingId: pe.id, kind: pe.kind,
+      squares: Math.round(c.forward),
       targets: miss.length ? { context: ctxText ? `EO's target for ${ctxText}` : 'EO’s target', rows: miss.map((r) => ({ id: r.key, label: r.label, value: r.value, target: r.target, status: r.status, gap: r.gap })), simple: P === 'JUNIOR' } : null,
       explanations: okClaims.filter((x) => !x.strength).map((x) => x.shown) } });
   }
@@ -147,7 +148,20 @@ export function buildReport(a, findings, priorities, quality, profile) {
       trend.push(`Inward force, lap ${first('left').lap} to lap ${last('left').lap}: left hand ${f(first('left').rightward)}% to ${f(last('left').rightward)}%, right hand ${f(first('right').leftward)}% to ${f(last('right').leftward)}%.`);
       trend.push(`Downward force, lap ${first('left').lap} to lap ${last('left').lap}: left hand ${f(first('left').downward)}% to ${f(last('left').downward)}%, right hand ${f(first('right').downward)}% to ${f(last('right').downward)}%.`);
     }
-    sections.push({ id: 'HANDS', status: 'COMPLETE', data: { headline: 'EACH HAND', context: refs.downwardPct && a.eoReferenceContext && (a.eoReferenceContext.swimmerType || a.eoReferenceContext.stroke) ? `EO's target for ${[a.eoReferenceContext.swimmerType, a.eoReferenceContext.stroke].filter(Boolean).join(' ').toLowerCase()}` : null, hands, trend: P === 'JUNIOR' ? [] : trend, simple: P === 'JUNIOR' } });
+    sections.push({ id: 'HANDS', status: 'COMPLETE', data: { fans: ffx.left.fan && ffx.right.fan ? { left: ffx.left.fan, right: ffx.right.fan } : null, headline: 'EACH HAND', context: refs.downwardPct && a.eoReferenceContext && (a.eoReferenceContext.swimmerType || a.eoReferenceContext.stroke) ? `EO's target for ${[a.eoReferenceContext.swimmerType, a.eoReferenceContext.stroke].filter(Boolean).join(' ').toLowerCase()}` : null, hands, trend: P === 'JUNIOR' ? [] : trend, simple: P === 'JUNIOR' } });
+  }
+
+  // HANDPATH: the real path of each hand under the water, from the export's hand coordinates (six real strokes per hand), with plain facts
+  const hpx = a.eoExport && a.eoExport.handPath;
+  if (!hpx || !hpx.left || !hpx.right || !(hpx.left.samples || []).length || !(hpx.right.samples || []).length) sections.push({ id: 'HANDPATH', status: 'MISSING', data: null });
+  else {
+    const facts = [], cross = ['left', 'right'].filter((k) => hpx[k].crossingCm && hpx[k].crossingCm.median > 0);
+    facts.push(cross.length ? cross.map((k) => `Your ${k} hand crosses the centre line by about ${f0(hpx[k].crossingCm.median)} cm in a typical stroke.`).join(' ') : 'Neither hand crosses the centre line.');
+    if (P !== 'JUNIOR') {
+      if (hpx.left.inwardSweepCm && hpx.right.inwardSweepCm) facts.push(`Each pull sweeps inward: your left hand by about ${f0(hpx.left.inwardSweepCm.median)} cm and your right by about ${f0(hpx.right.inwardSweepCm.median)} cm.`);
+      if (hpx.left.depthCm && hpx.right.depthCm) facts.push(`Your hands reach about ${f0(hpx.left.depthCm.median)} cm (left) and ${f0(hpx.right.depthCm.median)} cm (right) below the surface.`);
+    }
+    sections.push({ id: 'HANDPATH', status: 'COMPLETE', data: { headline: 'YOUR HANDS, UNDERWATER', left: hpx.left.samples, right: hpx.right.samples, facts } });
   }
 
   // COMPARISON (endpoint lap comparison; never called a trend or a fatigue response)
@@ -196,7 +210,23 @@ export function buildReport(a, findings, priorities, quality, profile) {
   // PROGRESS: since the last session, when an earlier session of this swimmer has been linked
   const prog = progressRows(a);
   const better = prog.filter((r) => r.verdict === 'BETTER').length;
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const short = (iso) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || ''); return m ? `${+m[3]} ${MON[+m[2] - 1]}` : 'earlier'; };
+  // the swimmer's line: every earlier session the chain of reports carries, then this one
+  const line = prog.length ? [...((a.baseline && a.baseline.history) || []), historyEntry(a)].filter((x) => x.forward != null && x.down != null) : [];
+  const chart = line.length >= 2 ? line.map((x, i) => ({ label: i === line.length - 1 ? short(x.date) || 'now' : short(x.date), forward: x.forward, down: x.down })) : null;
+  const tiles = [];
+  if (line.length >= 2) {
+    const x0 = line[0], x1 = line[line.length - 1], sgn = (n) => (n > 0 ? '+' : n < 0 ? '\u2212' : ''), rel = (u, v) => (u > 0 ? Math.round(((v - u) / u) * 100) : null);
+    const fr = rel(x0.forward, x1.forward); if (fr != null) tiles.push({ value: `${sgn(fr)}${Math.abs(fr)}%`, label: fr >= 0 ? 'more of your force going forward' : 'less of your force going forward' });
+    const dd = Math.round((x1.down - x0.down) * 10) / 10; tiles.push({ value: `${sgn(dd)}${Math.abs(dd)}`, label: dd <= 0 ? 'points of downward force removed' : 'points of downward force added' });
+    if (x0.handDrag != null && x1.handDrag != null) { const hd = rel(x0.handDrag, x1.handDrag); if (hd != null) tiles.push({ value: `${sgn(hd)}${Math.abs(hd)}%`, label: hd <= 0 ? 'hand drag cut' : 'hand drag up' }); }
+    if (x0.rate != null && x1.rate != null) { const sr = Math.round((x1.rate - x0.rate) * 10) / 10; tiles.push({ value: sr === 0 ? '0' : `${sgn(sr)}${Math.abs(sr)}`, label: 'change in stroke rate' }); }
+  }
+  const dpsNow = present(a.metrics.distancePerStrokeM) ? a.metrics.distancePerStrokeM.value : null;
+  const ruler = dpsNow != null && a.baseline && a.baseline.metrics && typeof a.baseline.metrics.distancePerStrokeM === 'number' ? { then: a.baseline.metrics.distancePerStrokeM, now: dpsNow, goal: dpsGoal } : null;
   sections.push({ id: 'PROGRESS', status: prog.length ? 'COMPLETE' : 'MISSING', data: prog.length ? {
+    chart, tiles: P === 'JUNIOR' ? tiles.slice(0, 2) : tiles, ruler,
     headline: 'SINCE LAST TIME', since: a.baseline.capturedOn ? fmtDate(a.baseline.capturedOn) : null,
     summary: better === prog.length ? 'Every number moved the right way.' : better === 0 ? 'No number has moved yet. That is normal early on: keep working on your focus.' : `${better} of ${prog.length} numbers moved the right way.`,
     rows: prog } : null });
@@ -216,8 +246,8 @@ export function buildReport(a, findings, priorities, quality, profile) {
   sections.push({ id: 'NEXT', status: quality.sections.NEXT, data: { headline: 'YOUR NEXT SESSION', retest: { weeks, date: present(a.session.date) ? retestDate(a.session.date.value, weeks) : null }, book: { url: BOOK_URL, label: 'Book your retest' }, baselineDate: a.baseline.capturedOn ? fmtDate(a.baseline.capturedOn) : null, baseline: prog.length ? [] : P === 'JUNIOR' ? baseline.slice(0, 2) : baseline, remeasure: isCoach ? remeasure : remeasure.slice(0, 3) } });
 
   // order of the story: where you are (going well, power, progress since last time), what to do (focus, plan), come back (next)
-  const pi = sections.findIndex((x) => x.id === 'PROGRESS'), wi = sections.findIndex((x) => x.id === 'POWER');
-  if (pi > -1 && wi > -1 && pi > wi) sections.splice(wi + 1, 0, sections.splice(pi, 1)[0]);
+  const pi = sections.findIndex((x) => x.id === 'PROGRESS'), fi = sections.findIndex((x) => x.id === 'FOCUS');
+  if (pi > -1 && fi > -1 && pi > fi) sections.splice(fi, 0, sections.splice(pi, 1)[0]);
   // left and right belong together: each hand's force, then the two arms' power, then how it changes first lap to last
   const ci = sections.findIndex((x) => x.id === 'COMPARISON'), ai = sections.findIndex((x) => x.id === 'ARMS');
   if (ci > -1 && ai > -1 && ai > ci) sections.splice(ci, 0, sections.splice(ai, 1)[0]);

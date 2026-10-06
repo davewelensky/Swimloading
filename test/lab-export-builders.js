@@ -40,7 +40,8 @@ export function buildExportZip({ id = SWIM_ID, omit = [] } = {}) {
   ] })));
   // hand path: two strokes per hand per lap. Coordinates in metres: depth negative below the surface, lateral negative = left of the centreline.
   const hdr = (h, i) => [`Time ${h}_00${i} [ms]`, `${h} Fwd 00${i} [m]`, `${h} Depth 00${i} [m]`, `${h} Lateral 00${i} [m]`, `${h} Hand Speed 00${i} [m/s]`];
-  const series = (h, depthMax, latFar, latNear) => { const d = [0, -depthMax / 2, -depthMax, -depthMax / 2, 0], l = [latFar, (latFar + latNear) / 2, latNear, latFar, latFar]; return d.map((x, k) => [k * 10, 0.1 * k, x, l[k], 1.0]); };
+  // a smooth underwater pull: 31 samples, depth a half sine to -depthMax, lateral from latFar in to latNear and back, forward from +0.6 m to -0.6 m
+  const series = (h, depthMax, latFar, latNear) => Array.from({ length: 31 }, (_, k) => { const t = Math.sin((Math.PI * k) / 30); return [k * 10, 0.6 - (1.2 * k) / 30, k === 0 || k === 30 ? 0 : -depthMax * t, latFar + (latNear - latFar) * t, 1.0]; });
   const hand = buildXlsx(laps.map((n) => {
     const strokes = [['Left', 0.70, -0.50, 0.05], ['Left', 0.80, -0.54, 0.05], ['Right', 0.74, 0.40, 0.10], ['Right', 0.78, 0.44, 0.10]];
     const cols = strokes.map(([h, dm, far, near], i) => series(h, dm, far, near));

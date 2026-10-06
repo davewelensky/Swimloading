@@ -146,6 +146,17 @@ for the same swim. Drop both in the builder (either alone also works). Review, w
 - Not read yet: `FPvsTime` (the 100 Hz force series: would give wrist pitch and double peaks from our own rule; EO publishes no double-peak rule, so EO's own statement is kept), the polar `fan` data (stored, not drawn), several efforts in one session (each export is one swim), a printable guide page (the guide is on the builder start screen).
 - The chart-reading step (`parser/hand-path-vision.js`, builder "Hand path" panel) remains for the case where only screenshots exist; with an export it is not needed.
 
+## The report's pictures (6 Oct): the Lab page's graphics, drawn from the swimmer's own data
+
+The sales page promises pictures, and an earlier simplification wrongly removed them. `analysis/visuals.js` draws them as inline SVG (pure functions, tested): **100 squares** (how many of every 100 units move you forward), **a force fan per hand**
+(from the export's force-field angles; 0 = up, clockwise; drawn the page's way: left hand fans left, right hand fans right, one common scale), **"Your hands, underwater"** (six real underwater strokes per hand, from above and from the side,
+cropped to the pull), **a progress line** (forward and pressed-down share, session by session) with **stat tiles** (e.g. +30% more force going forward, 0 change in stroke rate) and a **distance-per-stroke ruler** (last time, now, the coach's goal).
+- The swimmer's line grows by itself: `baseline.history` is carried from report to report (`baselineFrom` appends the earlier session to the earlier report's own history, last 12). One earlier session = two points.
+- Without EO's report the combined shares are rebuilt from the two hands, weighted by each hand's force (`combinedShare`; this reproduced EO's printed downward share exactly); with the report EO's own are used.
+- Facts printed with the hand-path picture are measured (crossing, inward sweep, depth) and never graded. Juniors get the pictures and only the crossing fact.
+- Section order: strengths, power (squares), each hand (fans), hands underwater, left/right, first-to-last lap, since last time (line), focus, plan, next session. About 7 pages for a full report.
+- Not drawn yet: the force-vs-time shape (needs the 100 Hz `FPvsTime` series), a fan per lap.
+
 ## Known limits
 
 - Layout detected: `EO_AI_REPORT_V1` only. The older numbered-section EO PDF is reported "not recognised", nothing extracted.

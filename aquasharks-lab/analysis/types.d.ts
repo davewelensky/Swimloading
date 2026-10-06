@@ -313,6 +313,8 @@ export interface SwimAnalysis {
   };
   baseline: {
     capturedOn: string | null; metrics: Record<string, number>;
+    /** The swimmer's earlier sessions, oldest first, for the progress line. Each is one session's headline numbers. */
+    history?: { date: string | null; forward: number | null; down: number | null; handDrag: number | null; dps: number | null; rate: number | null }[];
     /** Set when the baseline is an earlier session of the same swimmer (see progress.js). Drives the "since last time" section. */
     context?: { stroke: string | null; distanceM: number | null; poolLengthM?: number | null; /** EO's swimmer type (Distance or Sprinter) the earlier report was judged against. */ swimmerType?: string | null };
   };
@@ -401,7 +403,7 @@ export interface ProfileConfig {
 }
 
 export interface ReportSection {
-  id: 'HERO' | 'NOTE' | 'STRENGTHS' | 'PROGRESS' | 'PLAN' | 'POWER' | 'HANDS' | 'COMPARISON' | 'ARMS' | 'FOCUS' | 'NEXT' | 'EVIDENCE' | 'DATA_QUALITY' | 'SOURCE';
+  id: 'HERO' | 'NOTE' | 'STRENGTHS' | 'PROGRESS' | 'PLAN' | 'POWER' | 'HANDS' | 'HANDPATH' | 'COMPARISON' | 'ARMS' | 'FOCUS' | 'NEXT' | 'EVIDENCE' | 'DATA_QUALITY' | 'SOURCE';
   status: DataStatus;
   data: unknown;
 }
