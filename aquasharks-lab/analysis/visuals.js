@@ -45,12 +45,12 @@ export function handPathSVG(left, right) {
   const over = (p) => p.lateral.map((x, i) => `${f1(ox + x * S)},${f1(oy - p.fwd[i] * S)}`).join(' ');
   const side = (p) => p.fwd.map((x, i) => `${f1(sx + x * S)},${f1(sy - p.depth[i] * S)}`).join(' ');
   const lines = (arr, cls, fn) => arr.map((p) => `<polyline class="${cls}" points="${fn(p)}"/>`).join('');
-  return `<svg class="rv-path" viewBox="0 0 410 215" role="img" aria-label="The path of each hand, from above and from the side">
+  return `<svg class="rv-path" viewBox="0 0 440 215" role="img" aria-label="The path of each hand, from above and from the side">
     <text class="vp-title" x="100" y="14" text-anchor="middle">FROM ABOVE</text><text class="vp-title" x="305" y="14" text-anchor="middle">FROM THE SIDE</text>
     <line class="vp-centre" x1="${ox}" y1="24" x2="${ox}" y2="205"/><text class="vp-note" x="${ox + 4}" y="209">CENTRE LINE</text>
     ${lines(left, 'vp-left', over)}${lines(right, 'vp-right', over)}
     <line class="vp-surface" x1="${sx - 80}" y1="${sy}" x2="${sx + 80}" y2="${sy}"/><text class="vp-note" x="${sx - 80}" y="${sy - 5}">SURFACE</text>
-    <line class="vp-grid" x1="${sx - 80}" y1="${f1(sy + 50 * S)}" x2="${sx + 80}" y2="${f1(sy + 50 * S)}"/><text class="vp-note" x="${sx + 80}" y="${f1(sy + 50 * S - 4)}" text-anchor="end">50 cm DEEP</text>
+    <line class="vp-grid" x1="${sx - 80}" y1="${f1(sy + 50 * S)}" x2="${sx + 80}" y2="${f1(sy + 50 * S)}"/><text class="vp-note" x="${sx + 84}" y="${f1(sy + 50 * S + 3)}">50 cm</text>
     ${lines(left, 'vp-left', side)}${lines(right, 'vp-right', side)}
   </svg>`;
 }

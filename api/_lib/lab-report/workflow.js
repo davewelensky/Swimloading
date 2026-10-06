@@ -9,6 +9,8 @@ import { parseEoExport } from '../../../aquasharks-lab/analysis/parser/eo-export
 import { applyEoExport } from '../../../aquasharks-lab/analysis/export-apply.js';
 import { emptyAnalysis } from '../../../aquasharks-lab/analysis/model.js';
 
+/** Today's date in South Africa as YYYY-MM-DD, without toISOString (which shifts the day). */
+export const todaySAST = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Johannesburg', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 export const SWIMMER_PROFILES = ['JUNIOR', 'PERFORMANCE', 'MASTERS_OPEN_WATER'];
 export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 export const MAX_ANALYSIS_BYTES = 2 * 1024 * 1024;
@@ -68,6 +70,7 @@ export function cleanForStorage(analysis) {
   const name = a.swimmer && typeof a.swimmer.name === 'string' ? a.swimmer.name.trim() : '';
   if (!name) throw fail('swimmer_name_required');
   a.swimmer.name = name.slice(0, 120);
+  if (a.reportDate !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(String(a.reportDate))) delete a.reportDate;
   a.aquaSharksFindings = []; a.priorities = [];
   const rv = a.coachReview && typeof a.coachReview === 'object' ? a.coachReview : {};
   /** Which of EO's sentences the coach let through, and her edits. Only known statuses and bounded strings are kept. */
@@ -102,7 +105,7 @@ export function readiness(analysis, profile) {
 /** The swimmer-facing report, frozen at publish time. Never contains the coach view, conflicts or coach-only items. The only EO wording that can appear is a sentence the coach approved or rewrote. */
 export function buildSnapshot(analysis, profile) {
   const p = SWIMMER_PROFILES.includes(profile) ? profile : 'PERFORMANCE';
-  const report = analyse(analysis, p).report;
+  const report = analyse({ ...analysis, reportDate: todaySAST() }, p).report;   // the report is dated the day it is published
   return { model: report, profile: p };
 }
 

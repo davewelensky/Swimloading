@@ -311,6 +311,8 @@ export interface SwimAnalysis {
     /** The coach's next distance-per-stroke goal in metres. EO prints no target for it, so it is the coach's decision. */
     dpsGoalM?: number;
   };
+  /** The day the report is made or published (YYYY-MM-DD, SAST). The retest is counted from this, not from the swim date. */
+  reportDate?: string;
   baseline: {
     capturedOn: string | null; metrics: Record<string, number>;
     /** The swimmer's earlier sessions, oldest first, for the progress line. Each is one session's headline numbers. */

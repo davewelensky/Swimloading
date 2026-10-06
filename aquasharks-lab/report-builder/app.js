@@ -183,7 +183,7 @@ function openDraft(id) {
 /* ---------------------------------------------------------------- review model */
 const review = () => (S.analysis.coachReview = S.analysis.coachReview || { findings: {} });
 const fr = (id) => (review().findings[id] = review().findings[id] || { status: 'PENDING' });
-function compute() { S.R = analyse(S.analysis, 'COACH'); S.RS = analyse(S.analysis, SWIMMER_PROFILES.includes(S.profile) ? S.profile : 'PERFORMANCE'); }
+function compute() { S.analysis.reportDate = todayParts(); S.R = analyse(S.analysis, 'COACH'); S.RS = analyse(S.analysis, SWIMMER_PROFILES.includes(S.profile) ? S.profile : 'PERFORMANCE'); }
 const chip = (cls, t) => `<span class="rv-chip rv-${cls}">${esc(t)}</span>`;
 const CLASS_LABEL = { MEASURED: 'Measured', OBSERVED: 'Observed', INFERRED: 'Inferred', COACH_CONFIRMATION_REQUIRED: 'Coach confirmation required' };
 

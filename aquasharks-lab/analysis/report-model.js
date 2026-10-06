@@ -20,6 +20,8 @@ const HEADLINES = {
   ASYMMETRY_PROFILE: () => ['TWO ARMS.', 'TWO DIFFERENT POWER PATTERNS.'],
 };
 
+/** The retest is counted from when the swimmer gets the report (reportDate), never from an earlier swim date: a swim from weeks ago would give a date already past. */
+const retestBase = (a) => { const swim = present(a.session.date) ? a.session.date.value : null, rep = /^\d{4}-\d{2}-\d{2}$/.test(a.reportDate || '') ? a.reportDate : null; return rep && (!swim || rep > swim) ? rep : swim; };
 const KEYOF = { forward: 'propulsivePct', down: 'downwardPct', inward: 'leftwardPct' };
 const targetTextOf = (r) => { const n = (v) => String(Math.round(v * 10) / 10); return r.lo != null && r.hi != null ? (r.lo === r.hi ? `${n(r.lo)}%` : `${n(r.lo)}\u2013${n(r.hi)}%`) : r.hi != null ? `under ${n(r.hi)}%` : `over ${n(r.lo)}%`; };
 const METRIC = {
@@ -243,7 +245,7 @@ export function buildReport(a, findings, priorities, quality, profile) {
   const baseline = Object.keys(a.baseline.metrics).filter((k) => BASELINE_FMT[k]).map((k) => ({ label: BASELINE_LABELS[k], ...BASELINE_FMT[k](a.baseline.metrics[k]) }));
   const dpsRow = dpsGoal && present(a.metrics.distancePerStrokeM) ? [{ label: 'Distance per stroke', current: `${f2(a.metrics.distancePerStrokeM.value)} m`, target: `${f2(dpsGoal)} m` }] : [];
   const remeasure = [...dpsRow, ...included.flatMap((p) => /** @type {any} */ (live.find((f) => f.id === p.findingIds[0])).meta.remeasure || [])];
-  sections.push({ id: 'NEXT', status: quality.sections.NEXT, data: { headline: 'YOUR NEXT SESSION', retest: { weeks, date: present(a.session.date) ? retestDate(a.session.date.value, weeks) : null }, book: { url: BOOK_URL, label: 'Book your retest' }, baselineDate: a.baseline.capturedOn ? fmtDate(a.baseline.capturedOn) : null, baseline: prog.length ? [] : P === 'JUNIOR' ? baseline.slice(0, 2) : baseline, remeasure: isCoach ? remeasure : remeasure.slice(0, 3) } });
+  sections.push({ id: 'NEXT', status: quality.sections.NEXT, data: { headline: 'YOUR NEXT SESSION', retest: { weeks, date: retestBase(a) ? retestDate(retestBase(a), weeks) : null }, book: { url: BOOK_URL, label: 'Book your retest' }, baselineDate: a.baseline.capturedOn ? fmtDate(a.baseline.capturedOn) : null, baseline: prog.length ? [] : P === 'JUNIOR' ? baseline.slice(0, 2) : baseline, remeasure: isCoach ? remeasure : remeasure.slice(0, 3) } });
 
   // order of the story: where you are (going well, power, progress since last time), what to do (focus, plan), come back (next)
   const pi = sections.findIndex((x) => x.id === 'PROGRESS'), fi = sections.findIndex((x) => x.id === 'FOCUS');

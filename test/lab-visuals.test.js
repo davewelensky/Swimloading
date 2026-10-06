@@ -77,3 +77,20 @@ test('without the EO report the combined shares are rebuilt from the two hands, 
   assert.equal(v, Math.round(((a.eoExport.forceField.left.mean.downward * lw + a.eoExport.forceField.right.mean.downward * rw) / (lw + rw)) * 10) / 10);
   a.forceDistribution.overall = clone(A.forceDistribution.overall); assert.equal(combinedShare(a, 'downwardPct'), A.forceDistribution.overall.downwardPct.value);
 });
+
+test('retest is counted from the day the report is published, not from an earlier swim date', async () => {
+  const a = await importedAnalysis(); a.session.date.value = '2026-08-17';
+  const nxt = (x) => sec(analyse(x, 'PERFORMANCE'), 'NEXT').data.retest.date;
+  assert.equal(nxt(a), '28 September 2026', 'no report date: counted from the swim');
+  a.reportDate = '2026-10-06'; assert.equal(nxt(a), '17 November 2026', 'six weeks from publishing');
+  a.reportDate = '2026-08-01'; assert.equal(nxt(a), '28 September 2026', 'a report date before the swim is ignored');
+  a.reportDate = 'garbage'; assert.equal(nxt(a), '28 September 2026');
+});
+test('publishing dates the report today (South Africa), and a bad stored date is dropped', async () => {
+  const { buildSnapshot, cleanForStorage, todaySAST } = await import('../api/_lib/lab-report/workflow.js');
+  assert.match(todaySAST(), /^\d{4}-\d{2}-\d{2}$/);
+  const a = await importedAnalysis(); a.session.date.value = '2020-01-01'; a.swimmer.name = 'T';
+  const snap = buildSnapshot(a, 'PERFORMANCE'), next = snap.model.sections.find((s) => s.id === 'NEXT').data.retest.date;
+  assert.ok(!/2020|2019/.test(next), 'a swim from long ago does not give a retest date in the past: ' + next);
+  a.reportDate = 'not a date'; assert.equal(cleanForStorage(a).reportDate, undefined);
+});
