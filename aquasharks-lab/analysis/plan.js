@@ -39,9 +39,13 @@ export function buildPlan(focuses, weeks) {
   return steps;
 }
 
-/** Strokes per length: total strokes over the swim divided by its laps (EO's laps are pool lengths). Null unless both are printed. @param {any} a */
+/**
+ * Strokes per length, in EO's own sense: one stroke is a full cycle (left then right), which is how EO counts "strokes per lap" and
+ * "distance per stroke". The report prints "Strokes" as left plus right added together (Johann: 35 for 50 m, distance per stroke 2.78 m,
+ * 50 / 2.78 = 18 cycles), so strokes per length = strokes / 2 / laps. Null unless both were printed. @param {any} a
+ */
 export function pullCount(a) {
   const s = a.session;
   if (!present(s.strokeCount) || !present(s.laps) || !(s.laps.value > 0)) return null;
-  return round(s.strokeCount.value / s.laps.value, 1);
+  return round(s.strokeCount.value / 2 / s.laps.value, 1);
 }

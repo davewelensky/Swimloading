@@ -70,6 +70,9 @@ export function buildReport(a, findings, priorities, quality, profile) {
   const live = findings.filter((f) => f.review.status !== 'SUPPRESSED');
   const byRule = (id) => live.find((f) => f.ruleId === id);
   const included = priorities.filter((p) => p.included);
+  // the next distance-per-stroke goal is the coach's own decision (EO prints no target for it)
+  const rawGoal = a.coachReview && a.coachReview.dpsGoalM;
+  const dpsGoal = typeof rawGoal === 'number' && rawGoal > 0.5 && rawGoal < 5 ? rawGoal : null;
   /** @type {import('./types').ReportSection[]} */
   const sections = [];
 
@@ -77,6 +80,7 @@ export function buildReport(a, findings, priorities, quality, profile) {
   const lead = included[0] ? live.find((f) => f.id === included[0].findingIds[0]) : null;
   const head = lead && HEADLINES[lead.ruleId] ? HEADLINES[lead.ruleId](a, P, lead) : ['YOUR SWIM TODAY'];
   const metrics = profile.heroMetricOrder.map((k) => METRIC[k] && METRIC[k](a)).filter(Boolean).slice(0, profile.maxHeroMetrics);
+  if (dpsGoal && present(a.metrics.distancePerStrokeM)) { const dps = metrics.find((m) => m.label === 'DISTANCE PER STROKE'); if (dps) dps.goal = `Next goal ${f2(dpsGoal)} m`; }
   const sl = sessionLine(a);
   sections.push({ id: 'HERO', status: quality.sections.HERO, data: { name: a.swimmer.name, sessionLine: sl.line, date: sl.date, location: sl.location, headline: head, keyMetrics: metrics, headlineFinding: lead ? lead.id : null } });
 
@@ -142,8 +146,7 @@ export function buildReport(a, findings, priorities, quality, profile) {
 
   // ARMS
   const as = byRule('ASYMMETRY_PROFILE');
-  // a lap swap is already focus #2 on a swimmer's report, so its own page would only repeat it; the coach view keeps the detail
-  if (!as || (!isCoach && as.meta.lapSwap)) sections.push({ id: 'ARMS', status: 'MISSING', data: null });
+    if (!as) sections.push({ id: 'ARMS', status: 'MISSING', data: null });
   else {
     const arms = as.meta.arms;
     // JUNIOR gets the pattern, not the arithmetic: drop parenthetical figures such as "(67 W)" or "(5 of 8 laps, up to 44%)"
@@ -153,6 +156,8 @@ export function buildReport(a, findings, priorities, quality, profile) {
     const lapWord = (n) => `LAP ${n}`;
     sections.push({ id: 'ARMS', status: quality.sections.ARMS, data: {
       headline: 'YOUR TWO ARMS',
+      // the sales page promises "left against right": the two numbers, plainly (words only for juniors)
+      lr: as.meta.outputGap && a.leftRight.avgImpulseW.left.value != null && a.leftRight.avgImpulseW.right.value != null ? { left: a.leftRight.avgImpulseW.left.value, right: a.leftRight.avgImpulseW.right.value, higher: as.meta.outputGap.higher, gapW: Math.abs(a.leftRight.avgImpulseW.left.value - a.leftRight.avgImpulseW.right.value), simple: P === 'JUNIOR' } : null,
       left: { points: armsOut.left.points, timing: timing.left, coachOnly: isCoach ? armsOut.left.coachOnly : [], shape: a.powerProfile.left.shape.value },
       right: { points: armsOut.right.points, timing: timing.right, coachOnly: isCoach ? armsOut.right.coachOnly : [], shape: a.powerProfile.right.shape.value },
       phases: as.meta.phases.left && as.meta.phases.right ? { left: as.meta.phases.left, right: as.meta.phases.right, showNumbers: profile.showNumbers !== 'MINIMAL' } : null,
@@ -181,11 +186,12 @@ export function buildReport(a, findings, priorities, quality, profile) {
   const pulls = pullCount(a);
   sections.push({ id: 'PLAN', status: steps.length ? 'COMPLETE' : 'MISSING', data: steps.length ? {
     headline: 'YOUR PRACTICE PLAN', weeks, steps, tip: 'One thing at a time. Slow it down: build each change at an easy pace first, then pick up the pace once it holds.',
-    check: pulls != null ? { perLength: pulls, text: 'Count your strokes on any length, in any session, with no sensors. When that number drops, it is working.' } : null } : null });
+    check: pulls != null ? { perLength: pulls, text: 'Count how many times your right hand enters the water on one length, in any session, with no sensors. When that number drops, it is working.' } : null } : null });
 
   // NEXT
   const baseline = Object.keys(a.baseline.metrics).filter((k) => BASELINE_FMT[k]).map((k) => ({ label: BASELINE_LABELS[k], ...BASELINE_FMT[k](a.baseline.metrics[k]) }));
-  const remeasure = included.flatMap((p) => /** @type {any} */ (live.find((f) => f.id === p.findingIds[0])).meta.remeasure || []);
+  const dpsRow = dpsGoal && present(a.metrics.distancePerStrokeM) ? [{ label: 'Distance per stroke', current: `${f2(a.metrics.distancePerStrokeM.value)} m`, target: `${f2(dpsGoal)} m` }] : [];
+  const remeasure = [...dpsRow, ...included.flatMap((p) => /** @type {any} */ (live.find((f) => f.id === p.findingIds[0])).meta.remeasure || [])];
   sections.push({ id: 'NEXT', status: quality.sections.NEXT, data: { headline: 'YOUR NEXT SESSION', retest: { weeks, date: present(a.session.date) ? retestDate(a.session.date.value, weeks) : null }, book: { url: BOOK_URL, label: 'Book your retest' }, baselineDate: a.baseline.capturedOn ? fmtDate(a.baseline.capturedOn) : null, baseline: prog.length ? [] : P === 'JUNIOR' ? baseline.slice(0, 2) : baseline, remeasure: isCoach ? remeasure : remeasure.slice(0, 3) } });
 
   // order of the story: where you are (going well, power, progress since last time), what to do (focus, plan), come back (next)

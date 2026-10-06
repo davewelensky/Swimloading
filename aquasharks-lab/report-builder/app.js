@@ -286,6 +286,8 @@ function retestPanel() {
   const n = S.RS.priorities.filter((p) => p.included).length;
   return `<div class="panel"><h2>Retest and practice plan</h2><p class="hint">The report invites the swimmer back and gives a week-by-week plan built from the ${n} focus${n === 1 ? '' : 'es'} above and the drill chosen for each. Six weeks is a starting suggestion: change it to what you would tell this swimmer.</p>
     <label class="f">Retest in<select class="in" id="o-weeks">${RETEST_WEEKS.map((x) => `<option value="${x}"${w === x ? ' selected' : ''}>${x} weeks</option>`).join('')}</select></label>
+    <label class="f" style="margin-top:10px">Next distance-per-stroke goal, metres (your decision, optional)<input class="in" id="o-dps" inputmode="decimal" value="${a.coachReview && a.coachReview.dpsGoalM ? a.coachReview.dpsGoalM : ''}" placeholder="${a.metrics.distancePerStrokeM && a.metrics.distancePerStrokeM.value != null ? 'now ' + a.metrics.distancePerStrokeM.value + ' m' : 'e.g. 2.90'}"></label>
+    <p class="mini">EO prints no target for distance per stroke, so a goal appears on the report only if you set one.</p>
     <p class="mini">${d ? `Retest around ${esc(d)}.` : 'No session date, so the report says "in about ' + w + ' weeks".'}</p></div>`;
 }
 function notePanel() {
@@ -371,6 +373,7 @@ function bindReview() {
       else { const a = Number(lo === '' ? hi : lo), b = Number(hi === '' ? lo : hi); if (!setHandPathField(S.analysis, f, [Math.min(a, b), Math.max(a, b)])) S.err = 'Enter distances in cm, between 0 and 300.'; }
       return rerender();
     }
+    if (t.id === 'o-dps') { const v = Number(t.value); if (t.value.trim() === '') delete review().dpsGoalM; else if (isFinite(v) && v > 0.5 && v < 5) review().dpsGoalM = v; else S.err = 'Enter a distance per stroke in metres, for example 2.90.'; return rerender(); }
     if (t.id === 'o-weeks') { review().retestWeeks = Number(t.value); return rerender(); }
     if (t.id === 'o-note') { review().coachNote = t.value; return rerender(); }
     if (t.dataset.note !== undefined) { fr(t.dataset.note).note = t.value; return; }

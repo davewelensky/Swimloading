@@ -29,9 +29,10 @@ test('parser: one percentage quoted for every lap, and a stated clean side, give
 
 // ------------------------------------------------------------------ the arms: the stronger arm swapping between laps
 function withLaps(extra) { const a = clone(A); const base = { provenance: { origin: 'EO_REPORT' } }; a.leftRight.byLap = [1, 2].map((lap, i) => ({ lap, higher: { value: ['LEFT', 'RIGHT'][i], status: 'COMPLETE', ...base }, leftW: { value: null, status: 'MISSING', ...base }, rightW: { value: null, status: 'MISSING', ...base } })); return Object.assign(a, extra || {}); }
-test('a lap swap is one plain sentence in focus #2; the coach view keeps the detail; laps that agree add nothing', () => {
+test('a lap swap is chips plus one sentence and the two power numbers; the coach view keeps the detail; laps that agree add nothing', () => {
   const sw = analyse(withLaps(), 'PERFORMANCE'), co = analyse(withLaps(), 'COACH');
-  assert.equal(sec(sw, 'ARMS').status, 'MISSING', 'the swimmer report does not repeat focus #2 on its own page');
+  assert.deepEqual(sec(sw, 'ARMS').data.lapLeads.map((x) => x.higher), ['LEFT', 'RIGHT'], 'the swimmer sees the swap as two chips and one sentence');
+  assert.equal(sec(sw, 'ARMS').data.lr.left, 67); assert.equal(sec(sw, 'ARMS').data.lr.right, 101);
   const prio = sw.priorities.find((p) => p.ruleId === 'ASYMMETRY_PROFILE');
   assert.match(prio.why.PERFORMANCE, /stronger arm changes between laps: left arm in lap 1, right arm in lap 2/);
   assert.deepEqual(sec(co, 'ARMS').data.lapLeads.map((x) => [x.lap, x.higher]), [[1, 'LEFT'], [2, 'RIGHT']]);
@@ -136,15 +137,16 @@ test('plan: retest date is calendar maths on the session date, with no time-zone
   assert.equal(retestDate('2026-10-06', 6), '17 November 2026'); assert.equal(retestDate('2026-12-20', 4), '17 January 2027'); assert.equal(retestDate(null, 6), null);
   assert.deepEqual([retestWeeks(4), retestWeeks('8'), retestWeeks(5), retestWeeks(undefined)], [4, 8, 6, 6]);
 });
-test('plan: pull count is strokes over laps, and absent unless both were printed', () => {
-  const a = clone(A); a.session.strokeCount.value = 35; a.session.laps.value = 2; assert.equal(pullCount(a), 17.5);
+test('plan: strokes per length is in EO\'s sense (a stroke is a full cycle; the printed count is left plus right), absent unless both were printed', () => {
+  const a = clone(A); a.session.strokeCount.value = 35; a.session.laps.value = 2; assert.equal(pullCount(a), 8.8, '35 strokes in 2 lengths: 8.75 full cycles a length, not 17.5');
+  a.session.strokeCount.value = 132; a.session.laps.value = 8; assert.equal(pullCount(a), 8.3, 'EO shows 64 left and 68 right over 8 laps: about 8.25 a length');
   a.session.laps = { value: null, status: 'MISSING', provenance: { origin: 'EO_REPORT' } }; assert.equal(pullCount(a), null);
 });
 test('report: the plan uses only this report\'s focuses and drills; the retest, date and booking link close the report', () => {
   const a = clone(A); a.session.date = { value: '2026-10-06', status: 'COMPLETE', provenance: { origin: 'EO_REPORT' } };
   const r = analyse(a, 'PERFORMANCE'), plan = sec(r, 'PLAN').data, next = sec(r, 'NEXT').data, inc = r.priorities.filter((p) => p.included);
   assert.deepEqual(plan.steps.filter((s) => s.kind === 'FOCUS').map((s) => s.title), inc.map((p) => p.title));
-  assert.equal(plan.weeks, 6); assert.equal(plan.check.perLength, 17.1);
+  assert.equal(plan.weeks, 6); assert.equal(plan.check.perLength, 8.6);
   assert.equal(next.retest.date, '17 November 2026'); assert.equal(next.book.url, BOOK_URL); assert.ok(next.remeasure.length <= 3, 'three numbers to beat, not a list');
   a.coachReview.retestWeeks = 8; assert.equal(sec(analyse(a, 'PERFORMANCE'), 'PLAN').data.steps.at(-1).weeks, 'Week 8');
   const html = renderReport(r.report);
@@ -170,4 +172,21 @@ test('progress: a different pool length is flagged like stroke and distance, and
   const a = clone(A); a.baseline = baselineFrom(earlier((p) => { p.session.poolLengthM.value = 50; }));
   assert.ok(comparability(a).some((x) => /50 m pool/.test(x)));
   assert.match(sec(analyse(A, 'PERFORMANCE'), 'PLAN').data.tip, /One thing at a time\. Slow it down/);
+});
+
+// ------------------------------------------------------------------ what the sales page promises
+test('left against right is shown as two plain numbers (words only for juniors), whether or not the arm that leads changes', () => {
+  const a = clone(A), p = sec(analyse(a, 'PERFORMANCE'), 'ARMS').data, j = sec(analyse(a, 'JUNIOR'), 'ARMS').data;
+  assert.deepEqual([p.lr.left, p.lr.right, p.lr.higher, p.lr.gapW, p.lr.simple], [67, 101, 'RIGHT', 34, false]); assert.equal(j.lr.simple, true);
+  const html = text(renderReport(analyse(a, 'PERFORMANCE').report)); assert.match(html, /LEFT 67 W RIGHT 101 W/); assert.match(html, /Right is 34 W higher/);
+  assert.doesNotMatch(text(renderReport(analyse(a, 'JUNIOR').report)), /\b101\s*W/, 'juniors get words, not watts');
+});
+test('distance per stroke leads every swimmer report, juniors included, and a goal appears only if the coach set one', () => {
+  for (const p of ['JUNIOR', 'PERFORMANCE', 'MASTERS_OPEN_WATER']) assert.equal(sec(analyse(A, p), 'HERO').data.keyMetrics[0].label, 'DISTANCE PER STROKE', p);
+  assert.equal(sec(analyse(A, 'PERFORMANCE'), 'HERO').data.keyMetrics.some((m) => m.goal), false);
+  const a = clone(A); a.coachReview.dpsGoalM = 2.95;
+  const r = analyse(a, 'PERFORMANCE'); assert.equal(sec(r, 'HERO').data.keyMetrics[0].goal, 'Next goal 2.95 m');
+  assert.deepEqual(sec(r, 'NEXT').data.remeasure[0], { label: 'Distance per stroke', current: '2.82 m', target: '2.95 m' });
+  for (const bad of [0.1, 9, '2.9', NaN]) { const b = clone(A); b.coachReview.dpsGoalM = bad; assert.equal(sec(analyse(b, 'PERFORMANCE'), 'HERO').data.keyMetrics.some((m) => m.goal), false, String(bad)); }
+  const c = clone(A); c.swimmer.name = 'T'; c.coachReview = { findings: {}, dpsGoalM: 2.956 }; assert.equal(cleanForStorage(c).coachReview.dpsGoalM, 2.96); c.coachReview.dpsGoalM = 40; assert.equal(cleanForStorage(c).coachReview.dpsGoalM, undefined);
 });

@@ -302,6 +302,8 @@ export interface SwimAnalysis {
     coachNote?: string;
     /** Weeks until the suggested retest (4, 6 or 8). Defaults to 6. */
     retestWeeks?: number;
+    /** The coach's next distance-per-stroke goal in metres. EO prints no target for it, so it is the coach's decision. */
+    dpsGoalM?: number;
   };
   baseline: {
     capturedOn: string | null; metrics: Record<string, number>;

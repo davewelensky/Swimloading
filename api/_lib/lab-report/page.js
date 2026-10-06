@@ -21,7 +21,7 @@ export function renderPublicPage({ snapshot, name, date, token, print }) {
 <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/aquasharks-lab/report-builder/report.css?v=3"><link rel="stylesheet" href="/aquasharks-lab/analysis/report-view.css?v=16">
+<link rel="stylesheet" href="/aquasharks-lab/report-builder/report.css?v=3"><link rel="stylesheet" href="/aquasharks-lab/analysis/report-view.css?v=17">
 <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
 </head><body>
 ${print ? '' : `<div class="rvbar"><div class="grp"><strong>${esc(name)}</strong><span style="color:#94a3b8">${esc(fmtDate(date) || '')}</span></div>

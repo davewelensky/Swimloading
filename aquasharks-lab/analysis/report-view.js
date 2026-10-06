@@ -24,7 +24,7 @@ function hero(sec, m, isCoach) {
     <p class="rv-session">${esc(d.sessionLine)}</p>
     <p class="rv-sessionsub">${esc([d.date, d.location].filter(Boolean).join(' • '))}</p>
     <h2 class="rv-headline">${d.headline.map((l, i) => `<span class="${i === 0 ? '' : 'em'}">${esc(l)}</span>`).join('')}</h2>
-    ${d.keyMetrics.length ? `<div class="rv-tiles rv-tiles-${d.keyMetrics.length}">${d.keyMetrics.map((k) => `<div class="rv-tile"><span class="lbl">${esc(k.label)}</span><strong>${esc(k.value)}<small>${esc(k.unit)}</small></strong></div>`).join('')}</div>` : ''}
+    ${d.keyMetrics.length ? `<div class="rv-tiles rv-tiles-${d.keyMetrics.length}">${d.keyMetrics.map((k) => `<div class="rv-tile"><span class="lbl">${esc(k.label)}</span><strong>${esc(k.value)}<small>${esc(k.unit)}</small></strong>${k.goal ? `<span class="rv-goal">${esc(k.goal)}</span>` : ''}</div>`).join('')}</div>` : ''}
     <p class="rv-eoref">This report builds on your EO Labs SwimBETTER analysis. EO measures your stroke; Aqua Sharks turns it into what to work on.</p>
     ${isCoach ? `<div class="rv-secstat">${statusChip(sec.status)}</div>` : ''}
   </section>`;
@@ -54,7 +54,7 @@ function plan(sec, m) {
   return `<section class="pg rv-sec rv-plan" data-sec="PLAN"><header class="rv-sechead"><p class="eyebrow">Until your retest</p><h2 class="rv-h2">${esc(d.headline)}</h2></header>
     <ol class="rv-steps">${d.steps.map((x) => `<li class="rv-step rv-step-${x.kind.toLowerCase()}"><span class="rv-stepwk">${esc(x.weeks)}</span><div><strong>${esc(x.title)}</strong>${x.drill ? `<p>Add <em>${esc(x.drill.name)}</em> to your warm-up (how it goes is on the focus page).</p>` : x.kind === 'TOGETHER' ? '<p>Swim your normal sets and bring the cues with you. Then come back and we measure what changed.</p>' : ''}${x.cue ? `<p class="rv-stepcue">Cue: &ldquo;${esc(x.cue)}&rdquo;</p>` : ''}</div></li>`).join('')}</ol>
     ${d.tip ? `<p class="rv-tip">${esc(d.tip)}</p>` : ''}
-    ${d.check ? `<div class="rv-pull"><i data-lucide="hash"></i><div><p class="lbl">A number you can check yourself</p><p><strong>${simple ? '' : esc(d.check.perLength)}</strong>${simple ? 'Count your strokes on one length.' : ` strokes per length today. ${esc(d.check.text)}`}</p></div></div>` : ''}</section>`;
+    ${d.check ? `<div class="rv-pull"><i data-lucide="hash"></i><div><p class="lbl">A number you can check yourself</p><p><strong>${simple ? '' : esc(d.check.perLength)}</strong>${simple ? 'Count how many times your right hand enters the water on one length.' : ` strokes per length today (one stroke is left and right arm together). ${esc(d.check.text)}`}</p></div></div>` : ''}</section>`;
 }
 
 function power(sec, m, isCoach) {
@@ -123,7 +123,8 @@ function arms(sec, m, isCoach) {
   const d = sec.data;
   return `<section class="pg rv-sec" data-sec="ARMS">${head(sec, 'Left and right', isCoach, d.headline)}
     ${d.lapLeads && d.lapLeads.length ? `<div class="rv-lapleads"><p class="lbl">Stronger arm, lap by lap</p><div>${d.lapLeads.map((x) => `<span class="rv-lapchip rv-lap-${x.higher.toLowerCase()}"><small>LAP ${x.lap}</small><strong>${x.higher === 'LEFT' ? 'LEFT' : 'RIGHT'}</strong></span>`).join('')}</div></div>` : ''}
-    ${!isCoach && d.lapLeads && d.lapLeads.length ? '' : `<div class="rv-armgrid">${armCol('left', d.left, d.doublePeaks.left, isCoach)}${armCol('right', d.right, d.doublePeaks.right, isCoach)}</div>`}
+    ${d.lr && !isCoach ? `<div class="rv-lr"><p class="lbl">Average power, whole swim</p>${d.lr.simple ? `<p class="rv-big">${d.lr.higher === 'LEFT' ? 'Your left hand' : 'Your right hand'} does a bit more of the work.</p>` : `<div class="rv-lrnums"><div class="rv-lrcell rv-lrcell-left${d.lr.higher === 'LEFT' ? ' lead' : ''}"><small>LEFT</small><strong>${f0(d.lr.left)}<span>W</span></strong></div><div class="rv-lrcell rv-lrcell-right${d.lr.higher === 'RIGHT' ? ' lead' : ''}"><small>RIGHT</small><strong>${f0(d.lr.right)}<span>W</span></strong></div></div><p class="muted small">${d.lr.higher === 'LEFT' ? 'Left' : 'Right'} is ${f0(d.lr.gapW)} W higher over the swim.</p>`}</div>` : ''}
+    ${!isCoach && ((d.lapLeads && d.lapLeads.length) || d.lr) ? '' : `<div class="rv-armgrid">${armCol('left', d.left, d.doublePeaks.left, isCoach)}${armCol('right', d.right, d.doublePeaks.right, isCoach)}</div>`}
     ${d.phases ? phaseBars(d.phases) : ''}
     <div class="rv-means"><p class="lbl">Coaching opportunity</p><p class="rv-big">${esc(d.opportunity)}</p></div>
   </section>`;
