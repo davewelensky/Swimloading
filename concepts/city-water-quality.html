@@ -228,39 +228,7 @@
         .source-hint { font-size: 11px; color: var(--text-dim); }
         .wq.swap { animation: swapIn .22s ease-out; }
         @keyframes swapIn { from { opacity: .35; } to { opacity: 1; } }
-        @media (prefers-reduced-motion: reduce) { .wq.swap, .panel { animation: none; } .wind-arrow svg { transition: none; } }
-
-        /* ── Spot page: two layers instead of a stack of cards ──
-           Hierarchy: hero water temp → wind/swell → City water-quality
-           strip → detail on demand. Borders only where they carry meaning
-           (simulation outline, alert tint). */
-        .seg { scroll-margin-top: 72px; display: inline-flex; margin-top: 16px; padding: 3px; border-radius: 50px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); }
-        .seg-btn { border: 0; background: transparent; color: var(--text-sec); font: 700 13px 'DM Sans', sans-serif; padding: 8px 18px; min-height: 38px; border-radius: 50px; cursor: pointer; transition: background .15s, color .15s; }
-        .seg-btn:hover { color: var(--text); }
-        .seg-btn[aria-selected="true"] { background: var(--cyan); color: #080f1a; }
-        .seg-btn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
-        .panel { animation: swapIn .2s ease-out; }
-
-        .now { display: grid; grid-template-columns: minmax(0, 1fr); margin-top: 22px; }
-        .hero-val { font-family: 'Bebas Neue', sans-serif; font-size: 132px; line-height: .8; letter-spacing: -1px; background: linear-gradient(180deg, #e0f2fe 0%, #38bdf8 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; white-space: nowrap; }
-        .hero-val .deg { font-size: .55em; vertical-align: top; margin-left: 2px; }
-        .hero-val.na { font-size: 64px; -webkit-text-fill-color: var(--text-dim); }
-        .hero-lab { font-size: 12px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: var(--text-sec); margin-top: 10px; }
-        .hero-note { font-size: 13px; color: var(--text-dim); margin-top: 2px; }
-        .sec { display: grid; grid-template-columns: 1fr 1fr; margin-top: 22px; }
-        .sec-i { min-width: 0; }
-        .sec-i + .sec-i { border-left: 1px solid var(--border); padding-left: 18px; }
-        .sec-val { font-family: 'Bebas Neue', sans-serif; font-size: 40px; line-height: 1; color: var(--text); white-space: nowrap; display: flex; align-items: center; gap: 6px; }
-        .sec-val small { font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; color: var(--text-sec); margin-left: 3px; }
-        .sec-lab { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--text-sec); margin-top: 4px; }
-        .sec-note { display: block; font-size: 12px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--text-dim); margin-top: 1px; }
-        .wind-arrow { display: inline-flex; color: var(--cyan); }
-        .wind-arrow svg { width: 22px; height: 22px; stroke-width: 2.5; transition: transform .3s; }
-        @media (min-width: 600px) {
-            .now { grid-template-columns: auto minmax(0, 1fr); align-items: end; column-gap: 44px; }
-            .sec { grid-template-columns: 1fr; margin-top: 0; }
-            .sec-i + .sec-i { border-left: 0; padding-left: 0; border-top: 1px solid var(--border); padding-top: 14px; margin-top: 14px; }
-        }
+        @media (prefers-reduced-motion: reduce) { .wq.swap, }
 
         /* City water-quality strip */
         .wq { --wq: var(--green); margin-top: 26px; padding: 16px 0 2px; border-top: 1px solid var(--border); transition: background .2s; }
@@ -326,50 +294,40 @@
         .about[open] summary svg { transform: rotate(180deg); }
         .about p { font-size: 14px; color: var(--text-sec); line-height: 1.5; margin-bottom: 10px; }
 
-        /* ── "Organise a swim" action and sheet ── */
-        .swim-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 18px; min-height: 48px; padding: 13px 26px; border: 0; border-radius: 50px; background: var(--cyan); color: #080f1a; font: 700 15px 'DM Sans', sans-serif; cursor: pointer; }
-        .swim-btn:hover { background: #7dd3fc; }
-        .swim-btn:focus-visible, .sheet button:focus-visible, .sheet a:focus-visible { outline: 2px solid #f1f5f9; outline-offset: 2px; }
-        @media (min-width: 600px) { .swim-btn { width: auto; } }
-        .sheet-bg { position: fixed; inset: 0; z-index: 200; background: rgba(2,6,14,0.72); display: flex; align-items: flex-end; justify-content: center; animation: fadeBg .18s ease-out; }
-        .sheet-bg[hidden] { display: none; }
-        .sheet { width: 100%; max-width: 480px; max-height: 92vh; overflow-y: auto; background: var(--bg-card); border: 1px solid var(--border); border-bottom: 0; border-radius: 22px 22px 0 0; padding: 18px 18px 28px; animation: sheetUp .22s ease-out; }
-        @keyframes fadeBg { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes sheetUp { from { transform: translateY(40px); opacity: .6; } to { transform: none; opacity: 1; } }
-        @media (prefers-reduced-motion: reduce) { .sheet-bg, .sheet { animation: none; } }
-        @media (min-width: 600px) { .sheet-bg { align-items: center; } .sheet { border-radius: 22px; border-bottom: 1px solid var(--border); } }
-        .sheet-head { display: flex; align-items: center; justify-content: space-between; }
-        .sheet-head h2 { font-family: 'Bebas Neue', sans-serif; font-weight: 400; font-size: 30px; letter-spacing: .5px; line-height: 1; }
-        .sheet-x { width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; border: 0; background: none; color: var(--text-sec); cursor: pointer; border-radius: 50%; margin-right: -10px; }
-        .sheet-x svg { width: 20px; height: 20px; }
-        .sheet-where { display: flex; align-items: center; gap: 7px; font-size: 16px; font-weight: 700; margin-top: 10px; }
-        .sheet-where svg { color: var(--cyan); }
-        .sheet-where span { color: var(--text-sec); font-weight: 500; }
-        .haz { margin-top: 14px; padding: 12px 14px; border-radius: 14px; background: rgba(239,68,68,0.09); border: 1px solid rgba(239,68,68,0.45); }
-        .haz.sim { border-style: dashed; }
-        .haz-top { display: flex; align-items: center; gap: 8px; color: #fca5a5; font-size: 14px; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; }
-        .haz-top svg { color: var(--danger); width: 20px; height: 20px; }
-        .haz-body { font-size: 14px; color: var(--text); margin-top: 6px; line-height: 1.45; }
-        .haz-src { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px 12px; margin-top: 8px; font-size: 12px; color: var(--text-sec); }
-        .haz-src a { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; text-decoration: none; min-height: 32px; }
-        .haz-src a svg { width: 13px; height: 13px; }
-        .sheet-lab { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--text-sec); margin: 18px 0 8px; }
-        .chips { display: flex; flex-wrap: wrap; gap: 8px; }
-        .chip { min-height: 40px; padding: 8px 14px; border-radius: 50px; border: 1px solid rgba(255,255,255,0.14); background: transparent; color: var(--text-sec); font: 600 13px 'DM Sans', sans-serif; cursor: pointer; }
-        .chip[aria-pressed="true"] { border-color: var(--cyan); color: var(--text); background: rgba(56,189,248,0.1); }
-        .sheet-go { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; margin-top: 18px; border: 0; border-radius: 50px; background: var(--cyan); color: #080f1a; font: 700 15px 'DM Sans', sans-serif; cursor: pointer; }
-        .sheet-go.warn { background: var(--amber); margin-top: 0; }
-        .sheet-alt { flex: 1; min-height: 48px; border-radius: 50px; border: 1px solid rgba(255,255,255,0.15); background: transparent; color: var(--text); font: 700 14px 'DM Sans', sans-serif; cursor: pointer; }
-        .confirm { margin-top: 16px; }
-        .confirm-t { font-size: 17px; font-weight: 800; color: var(--amber); }
-        .confirm p { font-size: 14px; color: var(--text-sec); margin-top: 6px; line-height: 1.45; }
-        .confirm-btns { display: flex; gap: 10px; margin-top: 16px; }
-        .confirm-btns .sheet-go { flex: 1; }
-        .sheet-done { display: flex; align-items: center; gap: 8px; margin-top: 18px; font-size: 14px; color: var(--text-sec); }
-        .sheet-done svg { color: var(--green); }
-        .sheet-done[hidden] { display: none; }
-        .sheet .discuss { margin-top: 18px; }
-        body.sheet-open { overflow: hidden; }
+        /* ── The live Big Bay page, reproduced (styles mirror /spots/big-bay) ── */
+        .real { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; --r-bg: #0a1628; --r-card: #1e293b; --r-muted: #94a3b8; --r-subtle: #475569; --r-ocean: #38bdf8; background: var(--r-bg); border-radius: 14px; overflow: hidden; margin-top: 14px; }
+        .r-crumb { font-size: 13px; color: var(--r-subtle); padding: 10px 20px; }
+        .r-crumb a { color: var(--r-subtle); text-decoration: none; }
+        .r-hero { display: flex; align-items: center; gap: 32px; padding: 32px 20px 28px; background: linear-gradient(135deg,#0d1f38 0%,#0a1628 60%,rgba(2,132,199,0.08) 100%); border-top: 1px solid rgba(56,189,248,0.15); border-bottom: 1px solid rgba(56,189,248,0.15); }
+        .r-hero-text { flex: 1; min-width: 0; }
+        .r-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.25); border-radius: 100px; padding: 6px 16px; font-size: 12px; font-weight: 600; color: var(--r-ocean); margin-bottom: 16px; }
+        .r-dot { width: 7px; height: 7px; background: var(--r-ocean); border-radius: 50%; flex-shrink: 0; }
+        .r-h1 { font-size: 32px; font-weight: 800; line-height: 1.15; margin-bottom: 20px; color: var(--text); }
+        .r-label { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--r-muted); margin-bottom: 2px; }
+        .r-temp { font-size: 72px; font-weight: 900; color: var(--r-ocean); line-height: 1; text-shadow: 0 0 50px rgba(56,189,248,0.4); margin-bottom: 8px; }
+        .r-temp.na { font-size: 40px; color: var(--r-subtle); text-shadow: none; }
+        .r-meta { font-size: 13px; color: var(--r-subtle); margin-bottom: 10px; }
+        .r-btn { display: inline-block; background: var(--r-ocean); color: #0a1628; padding: 12px 24px; border-radius: 10px; font-weight: 700; font-size: 15px; text-decoration: none; margin-top: 16px; }
+        .r-phone { flex-shrink: 0; width: 160px; border-radius: 24px; overflow: hidden; border: 2px solid rgba(56,189,248,0.2); box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+        .r-phone img { width: 100%; display: block; }
+        .r-body { padding: 8px 20px 24px; }
+        .r-body section { margin: 28px 0; }
+        .r-h2 { font-size: 18px; font-weight: 700; margin: 0 0 14px; color: var(--text); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .r-none { color: var(--r-muted); font-size: 15px; padding: 8px 0; }
+        .r-rest { font-size: 13px; color: var(--r-subtle); border-top: 1px solid rgba(255,255,255,0.06); padding-top: 14px; }
+        .proposed-pill { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--cyan); border: 1px solid rgba(56,189,248,0.55); background: rgba(56,189,248,0.07); border-radius: 50px; padding: 3px 9px; }
+        body.demo .proposed-pill { display: none; }
+        .real .wq { margin-top: 0; padding: 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--r-card); }
+        .real .wq.sim { border: 1px dashed rgba(245,158,11,0.6); }
+        .real .wq.is-alert:not(.sim) { border: 1px solid rgba(239,68,68,0.45); }
+        .real .wq-more svg { transition: transform .15s; }
+        .real .wq-more[aria-expanded="true"] svg { transform: rotate(180deg); }
+        .real .d-state { display: none; }
+        .real .d-count { font-family: inherit; font-weight: 800; font-size: 44px; line-height: 1; }
+        .real .alert { margin-top: 0; margin-bottom: 8px; }
+        .real .lt { border: 0; border-radius: 0; }
+        .real .lt-row { background: none; padding: 11px 0; }
+        @media (max-width: 640px) { .r-hero { flex-direction: column; align-items: flex-start; } .r-phone { display: none; } .r-temp { font-size: 60px; } .r-h1 { font-size: 26px; } }
 
         /* ── Demo view: only the swimmer-facing Big Bay page ── */
         body.demo .explainer { display: none !important; }
@@ -442,14 +400,14 @@
     <div class="intro-head">
     <div class="intro-kicker">How this would work in SwimLoading</div>
     <h2 id="introTitle">City information, inside the swimmer's existing journey</h2>
-    <p class="intro-lead">A swimmer viewing a Cape Town swimming location would see the City's official coastal water-quality information alongside the water temperatures SwimLoading swimmers log there. The page below also proposes the next step for SwimLoading's spot pages: wind and swell for each spot. <strong>SwimLoading does not replace Beach Alerts.</strong> The City remains the authoritative source, clearly attributed and linked back to Beach Alerts.</p>
+    <p class="intro-lead">A swimmer viewing a Cape Town swimming location would see the City's official coastal water-quality information alongside the water temperatures SwimLoading swimmers log there. <strong>SwimLoading does not replace Beach Alerts.</strong> The City remains the authoritative source, clearly attributed and linked back to Beach Alerts.</p>
     </div>
     <ol class="journey" aria-label="Where the City information would appear">
         <li class="j-step"><div class="j-tag">SwimLoading today</div><div class="j-t">Swimmer opens Big Bay</div></li>
         <li class="j-arrow" aria-hidden="true"><i data-lucide="chevron-right"></i></li>
         <li class="j-step"><div class="j-tag">SwimLoading today</div><div class="j-t">Checks water temperature</div><div class="j-d">Logged by swimmers at Big Bay</div></li>
         <li class="j-arrow" aria-hidden="true"><i data-lucide="chevron-right"></i></li>
-        <li class="j-step proposed"><div class="j-tag">Proposed</div><div class="j-t">Sees City water quality</div><div class="j-d">Latest sample · Recent results · Long-term context · Alerts, with wind and swell</div></li>
+        <li class="j-step proposed"><div class="j-tag">Proposed</div><div class="j-t">Sees City water quality</div><div class="j-d">Latest sample · Recent results · Long-term context · Alerts</div></li>
         <li class="j-arrow" aria-hidden="true"><i data-lucide="chevron-right"></i></li>
         <li class="j-step"><div class="j-tag">City of Cape Town</div><div class="j-t">Full City information</div><div class="j-d"><a href="https://beachalerts.capetown.gov.za" target="_blank" rel="noopener noreferrer">View on Beach Alerts <i data-lucide="external-link"></i></a></div></li>
     </ol>
@@ -475,127 +433,115 @@
 </section>
 
 <main class="wrap">
-  <div class="frame">
-    <div class="frame-label"><i data-lucide="smartphone"></i>Proposed Big Bay page <span class="dim">· how SwimLoading's spot pages are evolving</span></div>
-    <div class="crumb"><a href="/">SwimLoading</a> › <a href="/spots/west-coast">West Coast</a> › Big Bay</div>
-    <h1 class="spot">Big Bay</h1>
-    <div class="spot-sub">West Coast · Cape Town</div>
+<div class="frame">
+    <div class="frame-label"><i data-lucide="smartphone"></i>Big Bay page on SwimLoading <span class="dim">· the live page, plus one proposed section: City water quality</span></div>
+    <div class="real">
+    <nav class="r-crumb" aria-label="Breadcrumb"><a href="/">SwimLoading</a> › <a href="/spots/west-coast">West Coast</a> › Big Bay</nav>
 
-    <!-- Two layers, not a stack of cards: "Now" answers the 2-second
-         questions; "Water quality" carries the City's full context. -->
-    <div class="seg" role="tablist" aria-label="Big Bay information">
-        <button class="seg-btn" role="tab" id="tabNow" aria-controls="panelNow" aria-selected="true">Now</button>
-        <button class="seg-btn" role="tab" id="tabWq" aria-controls="panelWq" aria-selected="false" tabindex="-1">Water quality</button>
+    <!-- Hero: same content as the live /spots/big-bay page (latest_spot_temps). -->
+    <div class="r-hero">
+        <div class="r-hero-text">
+            <div class="r-badge"><span class="r-dot"></span> Last recorded conditions</div>
+            <h1 class="r-h1">Big Bay Water Temperature</h1>
+            <div class="r-label">Last recorded water temperature</div>
+            <div class="r-temp num" id="cWater">…</div>
+            <div class="r-meta" id="cWaterNote">Loading</div>
+            <a class="r-btn" href="/app">Open SwimLoading Free →</a>
+        </div>
+        <div class="r-phone"><img src="/screenshots/temps.jpg" alt="" loading="lazy"></div>
     </div>
 
-    <!-- ── NOW: hero, essentials, water-quality signal ─────────────────── -->
-    <section class="panel" id="panelNow" role="tabpanel" aria-labelledby="tabNow">
-        <div class="now">
-            <div class="hero">
-                <div class="hero-val num" id="cWater">…</div>
-                <div class="hero-lab">Water</div>
-                <div class="hero-note" id="cWaterNote">Loading</div>
-            </div>
-            <div class="sec">
-                <div class="sec-i">
-                    <div class="sec-val num"><span id="cWindArrow" class="wind-arrow" aria-hidden="true"></span><span id="cWind">…</span></div>
-                    <div class="sec-lab">Wind <span class="sec-note" id="cWindNote"></span></div>
+    <div class="r-body">
+        <!-- PROPOSED: the only new section. ONE strip whose state changes;
+             warnings never stack on top of it, the strip itself becomes the
+             warning. Details expand in place. -->
+        <section class="wq-sec">
+            <h2 class="r-h2">City water quality <span class="proposed-pill">Proposed</span></h2>
+            <div class="wq" id="wq" aria-labelledby="wqK">
+                <div class="wq-top">
+                    <span class="wq-k" id="wqK">City of Cape Town · Beach Alerts</span>
+                    <span class="wq-prov" id="wqProv"></span>
                 </div>
-                <div class="sec-i">
-                    <div class="sec-val num" id="cSwell">…</div>
-                    <div class="sec-lab">Swell <span class="sec-note" id="cSwellNote"></span></div>
+                <div class="wq-state" id="wqState"></div>
+                <div class="wq-alert" id="wqAlert" hidden></div>
+                <div class="marks" id="marks" role="group"></div>
+                <div class="wq-line" id="wqLine"></div>
+                <div class="wq-foot">
+                    <span id="wqFresh"></span>
+                    <button class="wq-more" id="wqMore" aria-expanded="false" aria-controls="panelWq"><span id="wqMoreText">Details</span> <i data-lucide="chevron-down"></i></button>
                 </div>
-            </div>
-        </div>
 
-        <!-- City water quality: ONE strip whose state changes. Warnings never
-             stack on top of it; the strip itself becomes the warning. -->
-        <section class="wq" id="wq" aria-labelledby="wqK">
-            <div class="wq-top">
-                <span class="wq-k" id="wqK">City water quality</span>
-                <span class="wq-prov" id="wqProv"></span>
-            </div>
-            <div class="wq-state" id="wqState"></div>
-            <div class="wq-alert" id="wqAlert" hidden></div>
-            <div class="marks" id="marks" role="group"></div>
-            <div class="wq-line" id="wqLine"></div>
-            <div class="wq-foot">
-                <span id="wqFresh"></span>
-                <button class="wq-more" id="wqMore"><span id="wqMoreText">Details</span> <i data-lucide="chevron-right"></i></button>
+                <div id="panelWq" hidden>
+                    <div class="d-state" id="dState"></div>
+                    <div class="d-prov" id="dProv"></div>
+
+                    <div class="d-sec">Latest sample</div>
+                    <div class="d-latest">
+                        <span class="d-count num" id="latestCount"></span>
+                        <span class="d-unit">enterococci<br>cfu/100 ml</span>
+                    </div>
+                    <div class="d-date" id="latestDate"></div>
+                    <div class="stale-note" id="staleNote" hidden></div>
+
+                    <div class="d-sec">Recent samples <span class="d-sec-note">oldest → newest · tap a sample</span></div>
+                    <div class="chart" id="chart" role="group" aria-label="The 8 most recent City samples, oldest to newest"></div>
+                    <div class="chart-foot"><span><span class="band-key"></span>Single-sample guideline, 185–240 cfu/100 ml (to confirm with the City)</span><span>Log scale</span></div>
+                    <div class="readout" id="readout" aria-live="polite"></div>
+                    <button class="table-toggle" id="tableToggle" aria-expanded="false" aria-controls="sampleTable"><i data-lucide="table-2"></i><span>View as table</span></button>
+                    <table class="samples" id="sampleTable" hidden>
+                        <thead><tr><th>Sampled</th><th class="r">Enterococci (cfu/100 ml)</th><th>City result</th></tr></thead>
+                        <tbody id="sampleRows"></tbody>
+                    </table>
+
+                    <div class="d-sec">Long-term water quality</div>
+                    <div class="lt" id="longTerm"></div>
+
+                    <details class="about">
+                        <summary>About these results <i data-lucide="chevron-down"></i></summary>
+                        <p>Enterococci are bacteria found in the gut of people and animals. They are counted in seawater samples as an indicator of faecal pollution, reported as colony-forming units (cfu) per 100 ml of sample.</p>
+                        <p>Each result describes one sample on the date shown. It is not real-time water testing. The recent samples and the long-term classifications give the context for any single result.</p>
+                        <p>Sampling, guideline values and classifications are the City of Cape Town's. The full methodology is published on Beach Alerts.</p>
+                    </details>
+
+                    <div class="discuss explainer">
+                        <div class="discuss-k"><i data-lucide="message-circle-question"></i>For discussion with the City</div>
+                        <div class="discuss-q" id="discussQ"></div>
+                    </div>
+
+                    <!-- Only the main Beach Alerts address is known; no
+                         beach-specific URL is invented. -->
+                    <div class="source">
+                        <div class="source-text">Source: <strong>City of Cape Town · Beach Alerts</strong><br><span id="sourceMeta"></span></div>
+                        <div class="source-link">
+                            <a class="btn-ghost" id="cityLink" href="https://beachalerts.capetown.gov.za" target="_blank" rel="noopener noreferrer">View full information on Cape Town Beach Alerts <i data-lucide="external-link"></i></a>
+                            <span class="source-hint">Opens the City's site, beachalerts.capetown.gov.za</span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
 
-        <!-- The decision moment. Mirrors the app's existing group-swim
-             creation and its hazard check (activeHazardsBySpot → the
-             spotHazardWarning cue → the "Hazard at this location" confirm).
-             In the app that lives on the Events tab; starting it from the
-             spot page is part of the proposal. City alerts would join that
-             same path, attributed to the City, never re-worded or scored. -->
-        <button class="swim-btn" id="swimBtn"><i data-lucide="calendar-plus"></i>Organise a swim here</button>
-
-        <div class="cond-src">Water: SwimLoading swimmer logs · Wind and swell: Open-Meteo model · Water quality: City of Cape Town</div>
-    </section>
-
-    <!-- ── WATER QUALITY: the City's full context, on demand ──────────── -->
-    <section class="panel" id="panelWq" role="tabpanel" aria-labelledby="tabWq" hidden>
-        <div class="d-state" id="dState"></div>
-        <div class="d-prov" id="dProv"></div>
-
-        <div class="alert" id="alert" role="alert">
-            <i data-lucide="octagon-alert"></i>
-            <div>
-                <div class="alert-title" id="alertTitle"></div>
-                <div class="alert-body" id="alertBody"></div>
-                <div class="alert-meta" id="alertMeta"></div>
+        <!-- Hazards: the live page's section, unchanged. A City coastal alert
+             would appear here, attributed to the City, next to community
+             reports. It is never re-worded and never feeds a score. -->
+        <section>
+            <h2 class="r-h2">Hazards</h2>
+            <div class="alert" id="alert" role="alert">
+                <i data-lucide="octagon-alert"></i>
+                <div>
+                    <div class="alert-title" id="alertTitle"></div>
+                    <div class="alert-body" id="alertBody"></div>
+                    <div class="alert-meta" id="alertMeta"></div>
+                </div>
             </div>
-        </div>
+            <p class="r-none">No active hazards reported by the SwimLoading community.</p>
+        </section>
 
-        <div class="d-sec">Latest sample</div>
-        <div class="d-latest">
-            <span class="d-count num" id="latestCount"></span>
-            <span class="d-unit">enterococci<br>cfu/100 ml</span>
-        </div>
-        <div class="d-date" id="latestDate"></div>
-        <div class="stale-note" id="staleNote" hidden></div>
-
-        <div class="d-sec">Recent samples <span class="d-sec-note">oldest → newest · tap a sample</span></div>
-        <div class="chart" id="chart" role="group" aria-label="The 8 most recent City samples, oldest to newest"></div>
-        <div class="chart-foot"><span><span class="band-key"></span>Single-sample guideline, 185–240 cfu/100 ml (to confirm with the City)</span><span>Log scale</span></div>
-        <div class="readout" id="readout" aria-live="polite"></div>
-        <button class="table-toggle" id="tableToggle" aria-expanded="false" aria-controls="sampleTable"><i data-lucide="table-2"></i><span>View as table</span></button>
-        <table class="samples" id="sampleTable" hidden>
-            <thead><tr><th>Sampled</th><th class="r">Enterococci (cfu/100 ml)</th><th>City result</th></tr></thead>
-            <tbody id="sampleRows"></tbody>
-        </table>
-
-        <div class="d-sec">Long-term water quality</div>
-        <div class="lt" id="longTerm"></div>
-
-        <details class="about">
-            <summary>About these results <i data-lucide="chevron-down"></i></summary>
-            <p>Enterococci are bacteria found in the gut of people and animals. They are counted in seawater samples as an indicator of faecal pollution, reported as colony-forming units (cfu) per 100 ml of sample.</p>
-            <p>Each result describes one sample on the date shown. It is not real-time water testing. The recent samples and the long-term classifications give the context for any single result.</p>
-            <p>Sampling, guideline values and classifications are the City of Cape Town's. The full methodology is published on Beach Alerts.</p>
-        </details>
-
-        <!-- Presenter prompt: invites the City to correct the representation.
-             Explanatory material, so hidden in demo view. -->
-        <div class="discuss explainer">
-            <div class="discuss-k"><i data-lucide="message-circle-question"></i>For discussion with the City</div>
-            <div class="discuss-q" id="discussQ"></div>
-        </div>
-
-        <!-- Only the main Beach Alerts address is known; no beach-specific
-             URL is invented. -->
-        <div class="source">
-            <div class="source-text">Source: <strong>City of Cape Town · Beach Alerts</strong><br><span id="sourceMeta"></span></div>
-            <div class="source-link">
-                <a class="btn-ghost" id="cityLink" href="https://beachalerts.capetown.gov.za" target="_blank" rel="noopener noreferrer">View full information on Cape Town Beach Alerts <i data-lucide="external-link"></i></a>
-                <span class="source-hint">Opens the City's site, beachalerts.capetown.gov.za</span>
-            </div>
-        </div>
-    </section>
+        <p class="r-rest">The rest of the page is unchanged: recent logs, all-time community data, map, nearby spots and upcoming swims.</p>
+    </div>
+    </div>
   </div>
+
 
     <!-- ── Swimmer engagement (live SwimLoading activity) ────────────────── -->
     <section class="engage explainer" aria-labelledby="engageTitle">
@@ -625,7 +571,7 @@
         <div class="steps">
             <div class="step"><div class="step-n">01</div><div class="step-t">City publishes</div><div class="step-d">Water-quality results, classifications and coastal alerts are published through Beach Alerts.</div></div>
             <div class="step"><div class="step-n">02</div><div class="step-t">SwimLoading connects</div><div class="step-d">City monitoring locations are matched to the appropriate SwimLoading swimming locations. Published results are then kept up to date automatically.</div></div>
-            <div class="step"><div class="step-n">03</div><div class="step-t">Swimmers see it</div><div class="step-d">Shown on the spot page next to swimmer-logged water temperature, with wind and swell as proposed here.</div></div>
+            <div class="step"><div class="step-n">03</div><div class="step-t">Swimmers see it</div><div class="step-d">Shown on the spot page next to swimmer-logged water temperature, with City alerts alongside community hazard reports.</div></div>
         </div>
         <ul class="rules">
             <li><i data-lucide="check"></i><span>City results and classifications are presented without SwimLoading recalculating or reclassifying them.</span></li>
@@ -636,57 +582,10 @@
     </section>
 
     <footer>
-        Proof of concept prepared by SwimLoading for discussion with City of Cape Town Coastal Management. It does not represent a partnership with, or an endorsement by, the City. The Big Bay water-quality results and classifications are City of Cape Town data from Beach Alerts, captured on 25 Sep 2026 and not updated since. The failure, alert and no-recent-sample states are simulated for discussion and are not City results or alerts. Water-quality results describe samples taken on the dates shown; they are not real-time water testing and do not describe the water on the day. Water temperature is logged by SwimLoading swimmers; wind and swell come from the Open-Meteo forecast model. Per-spot wind and swell, the Now / Water quality layout and organising a swim from the spot page are proposed, not in the SwimLoading app today.
+        Proof of concept prepared by SwimLoading for discussion with City of Cape Town Coastal Management. It does not represent a partnership with, or an endorsement by, the City. The Big Bay water-quality results and classifications are City of Cape Town data from Beach Alerts, captured on 25 Sep 2026 and not updated since. The failure, alert and no-recent-sample states are simulated for discussion and are not City results or alerts. Water-quality results describe samples taken on the dates shown; they are not real-time water testing and do not describe the water on the day. The Big Bay frame is the live SwimLoading Big Bay page (water temperature logged by SwimLoading swimmers) with one section added: the City water-quality section, which is proposed and not on the live page today.
     </footer>
 </main>
 
-<!-- ── "Organise a group swim" sheet (demonstration; nothing is created) -->
-<div class="sheet-bg" id="sheet" hidden>
-    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
-        <div class="sheet-head">
-            <h2 id="sheetTitle">Organise a group swim</h2>
-            <button class="sheet-x" id="sheetClose" aria-label="Close"><i data-lucide="x"></i></button>
-        </div>
-        <div class="sheet-where"><i data-lucide="map-pin"></i>Big Bay <span>· West Coast</span></div>
-
-        <!-- Inline cue, shown as soon as the spot is chosen (as in the app). -->
-        <div class="haz" id="sheetHaz" hidden>
-            <div class="haz-top"><i data-lucide="octagon-alert"></i><span>City coastal alert at this spot</span></div>
-            <div class="haz-body" id="sheetHazBody"></div>
-            <div class="haz-src">
-                <span id="sheetHazSrc"></span>
-                <a href="https://beachalerts.capetown.gov.za" target="_blank" rel="noopener noreferrer">View on Beach Alerts <i data-lucide="external-link"></i></a>
-            </div>
-        </div>
-
-        <div id="sheetForm">
-            <div class="sheet-lab">When?</div>
-            <div class="chips" id="whenChips">
-                <button class="chip" aria-pressed="true">Now</button>
-                <button class="chip" aria-pressed="false">In an hour</button>
-                <button class="chip" aria-pressed="false">Tomorrow morning</button>
-            </div>
-            <button class="sheet-go" id="sheetPost">Create swim</button>
-        </div>
-
-        <!-- Confirm step: the app's "Hazard at this location" pattern. -->
-        <div class="confirm" id="sheetConfirm" hidden>
-            <div class="confirm-t">Active City coastal alert at Big Bay</div>
-            <p>Check the City's alert on Beach Alerts before you swim. Anyone joining your swim will see this warning too.</p>
-            <div class="confirm-btns">
-                <button class="sheet-alt" id="sheetOther">Choose another spot</button>
-                <button class="sheet-go warn" id="sheetAnyway">Create anyway</button>
-            </div>
-        </div>
-
-        <div class="sheet-done" id="sheetDone" tabindex="-1" role="status" hidden><i data-lucide="check"></i>Demonstration only: nothing was created.</div>
-
-        <div class="discuss explainer">
-            <div class="discuss-k"><i data-lucide="message-circle-question"></i>For discussion with the City</div>
-            <div class="discuss-q">Should an active City coastal alert appear at the moment a swimmer plans a swim here? Which City signals should trigger it: alerts only, or also consecutive samples above guideline?</div>
-        </div>
-    </div>
-</div>
 
 <script>
 document.addEventListener('mousemove', e => {
@@ -857,6 +756,7 @@ function selectState(key) {
     });
     selected = STATES[key].samples.length - 1;
     renderCity(STATES[key]);
+    setDetail(false);
     const card = document.getElementById('wq');
     card.classList.remove('swap'); void card.offsetWidth; card.classList.add('swap');
 }
@@ -922,7 +822,6 @@ function renderCity(s) {
     }).join('');
     document.getElementById('wqLine').textContent = st.line;
     document.getElementById('wqFresh').textContent = st.kind === 'failed' ? 'City · update failed' : `City · Sampled ${shortDate(latest.date)}`;
-    document.getElementById('wqMoreText').textContent = st.more || 'Details';
 
     // ── The detail layer (Water quality) ──
     const ds = document.getElementById('dState');
@@ -1020,105 +919,21 @@ document.getElementById('chart').addEventListener('click', e => {
     if (b) selectSample(+b.dataset.i);
 });
 
-// ─── LAYERS ───────────────────────────────────────────────────────────────
-const TABS = { now: ['tabNow', 'panelNow'], wq: ['tabWq', 'panelWq'] };
-function showLayer(key, focusTab) {
-    Object.entries(TABS).forEach(([k, [t, p]]) => {
-        const on = k === key;
-        const tab = document.getElementById(t);
-        tab.setAttribute('aria-selected', String(on));
-        tab.tabIndex = on ? 0 : -1;
-        document.getElementById(p).hidden = !on;
-        if (on && focusTab) tab.focus();
-    });
+// ─── DETAILS (expand in place; no tabs) ──────────────────────────────────
+const panelWq = document.getElementById('panelWq');
+const moreBtn = document.getElementById('wqMore');
+function setDetail(open) {
+    panelWq.hidden = !open;
+    moreBtn.setAttribute('aria-expanded', String(open));
+    document.getElementById('wqMoreText').textContent = open ? 'Hide details' : (STATES[current].alert ? 'View alert' : 'Details');
     drawIcons();
 }
-document.getElementById('tabNow').addEventListener('click', () => showLayer('now'));
-document.getElementById('tabWq').addEventListener('click', () => showLayer('wq'));
-document.querySelector('.seg').addEventListener('keydown', e => {
-    if (!['ArrowRight', 'ArrowLeft'].includes(e.key)) return;
-    showLayer(document.getElementById('tabNow').getAttribute('aria-selected') === 'true' ? 'wq' : 'now', true);
-    e.preventDefault();
-});
-// Details, or a tap on any mark, opens the water-quality layer on that sample.
-function openDetail(i) {
-    if (i != null) selectSample(i);
-    showLayer('wq');
-    document.querySelector('.seg').scrollIntoView({ block: 'start', behavior: 'smooth' });
-}
-document.getElementById('wqMore').addEventListener('click', () => openDetail(null));
+moreBtn.addEventListener('click', () => setDetail(panelWq.hidden));
 document.getElementById('marks').addEventListener('click', e => {
     const m = e.target.closest('.mk');
-    if (m) openDetail(+m.dataset.i);
-});
-
-// ─── "ORGANISE A GROUP SWIM" SHEET ─────────────────────────────────────────────────
-// The decision moment. An active City alert shows as an inline cue as soon
-// as the spot is chosen, and creating the swim asks for acknowledgement
-// first: the same two steps the app's group-swim form already uses for
-// swimmer-reported hazards. The
-// alert is the City's, attributed and linked, and never feeds a score.
-const sheet = document.getElementById('sheet');
-let acknowledged = false;
-function sheetStep(step) {
-    document.getElementById('sheetForm').hidden = step !== 'form';
-    document.getElementById('sheetConfirm').hidden = step !== 'confirm';
-    document.getElementById('sheetDone').hidden = step !== 'done';
-}
-function openSheet() {
-    const s = STATES[current];
-    const haz = document.getElementById('sheetHaz');
-    haz.hidden = !s.alert;
-    haz.classList.toggle('sim', !!s.simulated);
-    if (s.alert) {
-        document.getElementById('sheetHazBody').textContent = s.alert.short;
-        document.getElementById('sheetHazSrc').textContent = s.simulated
-            ? 'Simulated for discussion · not a City alert'
-            : 'Source: City of Cape Town · Beach Alerts';
-    }
-    acknowledged = false;
-    sheetStep('form');
-    sheet.hidden = false;
-    document.body.classList.add('sheet-open');
-    drawIcons();
-    document.getElementById('sheetClose').focus();
-}
-function closeSheet() {
-    sheet.hidden = true;
-    document.body.classList.remove('sheet-open');
-    document.getElementById('swimBtn').focus();
-}
-document.getElementById('swimBtn').addEventListener('click', openSheet);
-document.getElementById('sheetClose').addEventListener('click', closeSheet);
-sheet.addEventListener('click', e => { if (e.target === sheet) closeSheet(); });
-document.getElementById('whenChips').addEventListener('click', e => {
-    const c = e.target.closest('.chip');
-    if (!c) return;
-    document.querySelectorAll('#whenChips .chip').forEach(x => x.setAttribute('aria-pressed', String(x === c)));
-});
-function post() {
-    sheetStep('done');
-    document.getElementById('sheetDone').focus?.();
-    setTimeout(() => { if (!sheet.hidden) closeSheet(); }, 1600);
-}
-document.getElementById('sheetPost').addEventListener('click', () => {
-    if (STATES[current].alert && !acknowledged) {
-        sheetStep('confirm');
-        document.getElementById('sheetOther').focus();
-        return;
-    }
-    post();
-});
-document.getElementById('sheetOther').addEventListener('click', closeSheet);
-document.getElementById('sheetAnyway').addEventListener('click', () => { acknowledged = true; post(); });
-// Keep keyboard focus inside the open sheet.
-sheet.addEventListener('keydown', e => {
-    if (e.key !== 'Tab') return;
-    const f = [...sheet.querySelectorAll('button, a[href]')].filter(el => el.offsetParent !== null);
-    if (!f.length) return;
-    const first = f[0], last = f[f.length - 1];
-    if (e.shiftKey && document.activeElement === first) { last.focus(); e.preventDefault(); }
-    else if (!e.shiftKey && document.activeElement === last) { first.focus(); e.preventDefault(); }
+    if (!m) return;
+    selectSample(+m.dataset.i);
+    setDetail(true);
 });
 
 document.getElementById('tableToggle').addEventListener('click', e => {
@@ -1129,65 +944,24 @@ document.getElementById('tableToggle').addEventListener('click', e => {
     btn.querySelector('span').textContent = t.hidden ? 'View as table' : 'Hide table';
 });
 
-// ─── LIVE SWIMLOADING CONDITIONS ──────────────────────────────────────────
-// Same sources as the live spot page: latest_spot_temps for the swimmer
-// reading, spot_temp_estimate as the fallback. Wind and swell from Open-Meteo,
-// as on capepoint.html. Every value fails to "Unavailable", never to a guess.
+// ─── LIVE SWIMLOADING TEMPERATURE ─────────────────────────────────────────
+// Same source as the live spot page: latest_spot_temps. Fails to "Unavailable",
+// never to a guess.
 const sb = (path, extra = {}) => fetch(`${SB_URL}/rest/v1/${path}`, {
     headers: { apikey: SB_ANON, Authorization: `Bearer ${SB_ANON}`, ...extra },
 });
-const COMPASS = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
-const compass = deg => COMPASS[Math.round(((deg % 360) + 360) % 360 / 22.5) % 16];
-const setCond = (id, val, note) => {
-    document.getElementById(id).innerHTML = val;
-    document.getElementById(id + 'Note').textContent = note;
-};
-
 async function loadWater() {
+    const t = document.getElementById('cWater'), n = document.getElementById('cWaterNote');
     try {
         const r = await sb(`latest_spot_temps?spot_id=eq.${SPOT.id}&select=temp_c,updated_at&limit=1`);
         const row = (await r.json())[0];
-        if (row && row.temp_c != null) {
-            const at = new Date(row.updated_at);
-            setCond('cWater', `${Number(row.temp_c).toFixed(1)}<span class="deg">°</span>`, `Swimmer log · ${timeAgo(at)}`);
-            return;
-        }
-        const e = await sb(`spot_temp_estimate?spot_id=eq.${SPOT.id}&select=best_c,best_source&limit=1`);
-        const est = (await e.json())[0];
-        if (est && est.best_c != null) {
-            setCond('cWater', `${Number(est.best_c).toFixed(1)}<span class="deg">°</span>`, est.best_source === 'model' ? 'Modelled estimate, no swimmer log yet' : 'Estimate');
-            return;
-        }
-        throw new Error('no reading');
+        if (!row || row.temp_c == null) throw new Error('no reading');
+        t.textContent = `${Number(row.temp_c).toFixed(1)}°C`;
+        n.textContent = 'Recorded by SwimLoading member';
     } catch (err) {
-        setCond('cWater', '–', 'Water temperature unavailable right now');
-        document.getElementById('cWater').classList.add('na');
-    }
-}
-
-async function loadWind() {
-    try {
-        const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${SPOT.lat}&longitude=${SPOT.lon}&current=wind_speed_10m,wind_direction_10m,wind_gusts_10m&wind_speed_unit=kmh&timezone=Africa%2FJohannesburg`);
-        const c = (await r.json()).current;
-        if (!c || c.wind_speed_10m == null) throw new Error('no wind');
-        setCond('cWind', `${compass(c.wind_direction_10m)} ${Math.round(c.wind_speed_10m)}<small>km/h</small>`, c.wind_gusts_10m != null ? `Gusts to ${Math.round(c.wind_gusts_10m)} km/h` : 'Forecast model, now');
-        // Wind direction is where it blows FROM; the arrow shows where it goes.
-        document.getElementById('cWindArrow').innerHTML =
-            `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(${(c.wind_direction_10m + 180) % 360}deg)"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>`;
-    } catch (err) {
-        setCond('cWind', '<small>–</small>', 'Unavailable right now');
-    }
-}
-
-async function loadSwell() {
-    try {
-        const r = await fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${SPOT.lat}&longitude=${SPOT.lon}&current=swell_wave_height,swell_wave_period,wave_height&timezone=Africa%2FJohannesburg`);
-        const c = (await r.json()).current;
-        const h = c?.swell_wave_height ?? c?.wave_height;
-        if (h == null) throw new Error('no swell');
-        setCond('cSwell', `${h.toFixed(1)}<small>m</small>`, c.swell_wave_period != null ? `Period ${Math.round(c.swell_wave_period)} s` : 'Forecast model, now');
-    } catch (err) {
-        setCond('cSwell', '<small>–</small>', 'Unavailable right now');
+        t.textContent = 'Unavailable';
+        t.classList.add('na');
+        n.textContent = 'Water temperature unavailable right now';
     }
 }
 
@@ -1260,15 +1034,13 @@ function setDemo(on) {
     window.scrollTo({ top: 0 });
 }
 demoBtn.addEventListener('click', () => setDemo(!document.body.classList.contains('demo')));
-// Escape closes the sheet first, then leaves demo view.
+// Escape leaves demo view.
 document.addEventListener('keydown', e => {
-    if (e.key !== 'Escape') return;
-    if (!sheet.hidden) closeSheet();
-    else if (document.body.classList.contains('demo')) setDemo(false);
+    if (e.key === 'Escape' && document.body.classList.contains('demo')) setDemo(false);
 });
 
 selectState('city');
-loadWater(); loadWind(); loadSwell(); loadEngagement();
+loadWater(); loadEngagement();
 drawIcons();
 </script>
 </body>
