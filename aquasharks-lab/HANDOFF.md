@@ -1,6 +1,6 @@
 # Aquasharks Lab report builder: handoff
 
-Last updated 1 Oct 2026. Club: **Aquasharks only** (Britt). No shared UI code is touched. This repo is **public**: never commit EO report prose, EO images,
+Last updated 6 Oct 2026. Club: **Aquasharks only** (Britt). No shared UI code is touched. This repo is **public**: never commit EO report prose, EO images,
 sample report PDFs, or a real swimmer's identity (see "Rules that must not break").
 
 ## What it does
@@ -35,7 +35,9 @@ EO measures.  Aqua Sharks interprets (deterministic rules, no AI interpretation)
 | `api/lab-report.js` | Admin API: `parse save get list readiness publish unpublish` |
 | `api/lab-report-public.js`, `api/lab-report-pdf.js` | Public page and PDF (headless Chromium) |
 | `api/_lib/lab-report/` | `workflow.js`, `handlers.js` (factories), `store.js` (Supabase + memory), `page.js`, `pdf.js`, `service.js` |
-| `sql/2026-10-01_swim-lab-assessments.sql` | Migration (see "Status") |
+| `sql/applied/2026-10-01_swim-lab-assessments.sql` | Migration (applied 1 Oct 2026) |
+| `aquasharks-lab.html` (`/aquasharks-lab`) | Public sales page (copy rewritten 2 Oct to match the real report; see "Sales surfaces") |
+| `aquasharks-lab-card.html` (`/aquasharks-lab-card`) + `icons/aquasharks-lab-qr.svg` | A5 poolside card for the squad noticeboard (see "Sales surfaces") |
 | `scripts/lab-report-dev.mjs` | Local harness: real handlers, in-memory store, stub admin, real vision |
 | `scripts/lab-parse-eo.mjs` | Run the parser on a file and print debug rows (`--vision` for image labels) |
 | `scripts/lab-eo-fingerprints.mjs` | Rebuilds the hashed EO fingerprint file used by the hygiene test |
@@ -47,15 +49,46 @@ More detail: `analysis/README.md` (model rules) and `analysis/PARSER_FIELD_MAP.m
 **Verified**
 - Parser on the real EO report as DOCX and as PDF (gated acceptance tests).
 - Whole flow locally with the real report: upload -> review -> publish -> public page -> 7-page A4 PDF.
-- Live site: builder, admin API lock (403), PDF endpoint (404 on bad token). 359 tests (2 gated), `tsc --strict` clean.
+- Live site: builder, admin API lock, PDF endpoint (404 on bad token).
+- **Chromium PDF on Vercel works** (2 Oct 2026): a published report's `/api/lab-report-pdf?t=` returns HTTP 200, a 7-page PDF (~1.4 MB).
+- **Live admin API works for a real club admin session** (6 Oct): `action: list` returns 200 for Dave's account.
+- **PDF parsing works on Vercel** (6 Oct, after the worker fix below): a tiny made-up PDF posted to `action: parse` returns 200, `format: PDF`.
+- 417 tests (415 pass, 2 gated acceptance tests skip without the real EO files), `tsc --strict` clean.
 
 **Not yet done**
-1. ~~Migration~~ **Applied 1 Oct 2026** (`sql/applied/2026-10-01_swim-lab-assessments.sql`); VERIFY queries passed (table empty, RLS on, no policies,
-   bucket `lab-evidence` private, 3 check constraints). Saving and publishing are now possible live; nothing has been published yet.
-2. **Chromium PDF on Vercel is unverified.** Works locally. First live check: publish a test report and open the Download PDF link. The function needs
-   `includeFiles` for `@sparticuz/chromium` (set in `vercel.json`); if it fails, check function size/memory first.
-3. **EO-native PDF untested.** The PDF specimen was converted from the real DOCX with LibreOffice. Try one PDF straight from EO.
+1. ~~Migration~~ **Applied 1 Oct 2026** (`sql/applied/2026-10-01_swim-lab-assessments.sql`); VERIFY queries passed. Saving and publishing work live.
+2. ~~Chromium PDF on Vercel~~ **Verified** (see above).
+3. **An EO-native PDF has still not been read end to end on the live site.** Dave's first live attempt (6 Oct) hit the pdf.js worker bug (fixed, see
+   "Incidents"); the retry result is not recorded yet. Only a PDF converted from the real DOCX has ever parsed successfully (locally). If a real EO PDF comes
+   back "not recognised", it is probably another EO layout: get the layout described (never commit the file) and extend the parser.
 4. **GitHub Support request** to purge four orphaned commits still served by SHA (details are in a private note, not in this repo).
+5. **Sales-page follow-ups** (decisions for Dave): the real EO chart images `/icons/lab-forcefield.jpg` and `lab-forcetime.jpg` are in this public repo (against
+   rule 1); the line "wrecks a shoulder over a few seasons" on `/aquasharks-lab` is a health claim (EO clinical claims are coach-only); the swimmer PDF is
+   7 pages, so any "short report" claim should stay about plain language, not page count.
+
+## Incidents fixed (6 Oct 2026)
+
+**1. "This account is not an Aquasharks club admin" for a real admin.** Cause: `report-builder/app.js` read the Supabase access token once at page load
+and reused it. Tokens expire (~1 h), the API got an expired token, `/auth/v1/user` rejected it, and the handler answered 403 `not_an_admin`.
+Fix (`b7d9c30`): the UI reads a fresh token before every request (`freshToken()`, one forced-refresh retry); the API now answers **401 `session_expired`**
+when Supabase refuses the token, and keeps **403 `not_an_admin`** for no token or a valid user without a `club_admins` row. Test added. Check an admin
+session with: `POST /api/lab-report {"action":"list"}` using the stored `sb-*-auth-token` access token (200 = fine).
+
+**2. "Setting up fake worker failed ... pdf.worker.mjs" on every PDF upload (Vercel only).** Cause: pdf.js finds `pdf.worker.mjs` through a computed path
+Vercel's file tracer cannot see, so the file was missing from the `api/lab-report` function. It worked locally because the file is on disk.
+Fix (`ea5e197`): `analysis/parser/doc-text.js` imports the worker by a literal specifier and registers it on `globalThis.pdfjsWorker` (pdf.js uses that before
+looking for a file), plus `includeFiles` for `api/lab-report.js` in `vercel.json` as a backstop. Reproduce locally by setting
+`pdfjs.GlobalWorkerOptions.workerSrc` to a missing path and calling `pdfToDocText`: it failed before the fix and parses after.
+Lesson: anything the function loads by a computed path needs a literal import or `includeFiles`; local success proves nothing about Vercel's bundle.
+
+## Sales surfaces (keep in step with the report)
+
+`/aquasharks-lab` (landing) and `/aquasharks-lab-card` (A5 card) sell this report. On 2 Oct 2026 they were rewritten because they promised "one page, one focus,
+one drill, no wall of charts" while the report has hero metrics, where-your-power-goes, two arms, **2-3 focus areas each with a drill** (Junior 2, others 3) and
+a next-time baseline, with charts and a 7-page PDF. The pages now say: a short plain-English report, a private link plus a PDF within 24 hours, **Britt reviews
+every report** (Dave, 2 Oct; named by first name only), and the sample card uses only numbers already published on the page. The card's QR was verified to encode
+`https://www.swimloading.com/aquasharks-lab`; it prints on exactly one A5 page (print at 100%, no "fit to page"). **When the report changes, re-check both pages**
+against `analysis/report-model.js` and `analysis/profiles.js`; do not promise hand path, "good for your age" or other judgements the rules do not produce.
 
 ## Known limits
 
@@ -79,6 +112,7 @@ More detail: `analysis/README.md` (model rules) and `analysis/PARSER_FIELD_MAP.m
 8. **No unsupported equation** between pull power, force share and propulsive power. Independent signals are corroborated by direction only.
 9. Fail closed: unclear claim types are treated as diagnostic; unrecognised layouts extract nothing.
 10. Database changes go through MIGRATIONS.md (7 steps, Dave types "apply"). Ship changes update `growth-hub.html` in the same commit.
+11. **Sales copy must describe what the report actually contains** (see "Sales surfaces"). Never advertise a section, count or judgement the engine does not produce.
 
 ## How to run and test
 
@@ -99,7 +133,8 @@ for slug `aqua-sharks-atlantic` (Britt's single login; never create a second acc
 
 ## Next steps, in order
 
-1. Publish a test report on the live site; confirm the web page and the PDF download (Chromium function).
-2. Have Britt run one real EO report end to end; try an EO-native PDF.
-3. File the GitHub Support request.
-4. Then: stroke-phase screenshot ingestion, retest/progress comparison (same swimmer, two assessments), the older numbered-PDF layout, drill library sign-off.
+1. Dave retries the real EO PDF in the builder (worker bug is fixed); record the outcome here. If "not recognised", capture the layout and extend the parser.
+2. Have Britt run one real EO report end to end (upload -> review -> publish -> PDF) and confirm the web page and PDF on a phone.
+3. Decide the sales-page follow-ups (EO images in the public repo, the shoulder claim, report length).
+4. File the GitHub Support request.
+5. Then: stroke-phase screenshot ingestion, retest/progress comparison (same swimmer, two assessments), the older numbered-PDF layout, drill library sign-off.
