@@ -41,6 +41,12 @@ let pdfjs = null;
 export function setPdfjs(lib) { pdfjs = lib; }
 async function loadPdfjs() {
   if (pdfjs) return pdfjs;
+  // Node only (the browser injects its own pdf.js via setPdfjs). On Vercel, pdf.js looks for pdf.worker.mjs through a
+  // computed path the file tracer cannot see, so the file was missing from the function and every PDF failed with
+  // "Setting up fake worker failed". Importing the worker by a LITERAL specifier gets it bundled, and registering it on
+  // globalThis.pdfjsWorker hands it to pdf.js directly so it never has to locate the file at runtime.
+  const worker = await import(/* @vite-ignore */ 'pdfjs-dist/legacy/build/pdf.worker.mjs');
+  if (!globalThis.pdfjsWorker) globalThis.pdfjsWorker = worker;
   pdfjs = await import(/* @vite-ignore */ 'pdfjs-dist/legacy/build/pdf.mjs');
   return pdfjs;
 }
