@@ -14,20 +14,22 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    /* Printed card: dark text on white. A dark background prints muddy and the small grey type disappears,
+       so the card is light, the type is larger, and the brand colour is a deeper blue that holds on paper. */
     :root {
-      --bg:       #080f1a;
-      --bg-card:  #0d1728;
-      --cyan:     #38bdf8;
-      --text:     #f1f5f9;
-      --text-sec: #64748b;
-      --border:   rgba(255,255,255,0.08);
+      --ink:      #0b1424;
+      --ink-sec:  #334155;
+      --accent:   #0369a1;
+      --accent-2: #0284c7;
+      --rule:     rgba(11,20,36,0.16);
+      --z: 1;
     }
 
     body {
-      background: #020712;
-      color: var(--text);
+      background: #e2e8f0;
+      color: var(--ink);
       font-family: 'DM Sans', sans-serif;
-      line-height: 1.6;
+      line-height: 1.55;
       padding: 28px 20px 60px;
       -webkit-font-smoothing: antialiased;
     }
@@ -37,105 +39,101 @@
       display: flex; flex-wrap: wrap; gap: 12px;
       align-items: center; justify-content: space-between;
     }
-    .toolbar p { font-size: 13.5px; color: var(--text-sec); max-width: 380px; }
+    .toolbar p { font-size: 13.5px; color: var(--ink-sec); max-width: 380px; }
+    .toolbar .sizes { display: flex; gap: 8px; flex-wrap: wrap; }
     .btn {
       display: inline-flex; align-items: center; gap: 8px;
-      background: var(--cyan); color: #080f1a;
+      background: var(--ink); color: #fff;
       font-size: 14px; font-weight: 700; font-family: 'DM Sans', sans-serif;
       padding: 11px 22px; border-radius: 50px;
       border: none; cursor: pointer; text-decoration: none;
     }
     .btn i { width: 16px; height: 16px; }
 
-    /* THE CARD: A5 portrait, 148 x 210 mm */
+    /* THE CARD: A5 portrait, 148 x 210 mm. Print A4 or A3 with the buttons above: the whole card is scaled with
+       `zoom`, so the layout and the heading spacing are identical at every size. */
     .card {
       width: 148mm; height: 210mm;
       margin: 0 auto;
-      background: var(--bg);
-      border: 1px solid var(--border);
+      background: #fff;
+      border: 1px solid var(--rule);
       border-radius: 14px;
-      padding: 15mm 13mm;
+      padding: 13mm 12mm 11mm;
       display: flex; flex-direction: column;
       position: relative; overflow: hidden;
+      zoom: var(--z);
     }
-    .card::after {
-      content: ''; position: absolute; top: -70mm; left: 50%;
-      transform: translateX(-50%); width: 170mm; height: 120mm; pointer-events: none;
-      background: radial-gradient(ellipse at center, rgba(56,189,248,0.16), transparent 70%);
+    .card::before {
+      content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3mm;
+      background: linear-gradient(90deg, var(--accent-2), var(--accent));
     }
-    .card > * { position: relative; z-index: 1; }
 
-    /* co-brand lockup: the Aqua Sharks mark is navy artwork on a white
-       ground, so it sits on a white chip rather than straight on the dark */
-    .lockup { display: flex; align-items: center; gap: 4mm; margin-bottom: 5mm; }
-    .club-chip { background: #fff; border-radius: 7px; padding: 2mm 2.5mm; display: flex; align-items: center; }
-    .club-chip img { height: 13mm; width: auto; display: block; }
-    .lockup .div { width: 1px; height: 11mm; background: var(--border); }
+    /* co-brand lockup */
+    .lockup { display: flex; align-items: center; gap: 4mm; margin-bottom: 6mm; margin-top: 1mm; }
+    .club-chip { display: flex; align-items: center; }
+    .club-chip img { height: 15mm; width: auto; display: block; }
+    .lockup .div { width: 1px; height: 11mm; background: var(--rule); }
     .powered {
       display: flex; align-items: center; gap: 2mm;
-      font-family: 'DM Mono', monospace; font-size: 8px; letter-spacing: 1.5px;
-      color: var(--text-sec); text-transform: uppercase; line-height: 1.5;
+      background: var(--ink); border-radius: 50px; padding: 2mm 4mm 2mm 3mm;
+      font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 1.4px;
+      color: #cbd5e1; text-transform: uppercase; line-height: 1.4;
     }
     .powered img { height: 5mm; width: auto; }
     .powered b {
-      font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 800;
-      letter-spacing: -0.3px; text-transform: none;
-      background: linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 800;
+      letter-spacing: -0.3px; text-transform: none; color: #38bdf8;
     }
 
     .eyebrow {
-      font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 2.4px;
-      color: var(--cyan); text-transform: uppercase; margin-bottom: 4mm;
+      font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500; letter-spacing: 2.2px;
+      color: var(--accent); text-transform: uppercase; margin-bottom: 4mm;
     }
 
     h1 {
       font-family: 'Bebas Neue', sans-serif; font-weight: 400;
-      font-size: 52px; line-height: 0.92; letter-spacing: 0.5px;
-      margin-bottom: 4mm;
+      font-size: 58px; line-height: 1.1; letter-spacing: 1px;
+      margin-bottom: 5.5mm; color: var(--ink);
     }
-    h1 span {
-      background: linear-gradient(135deg,#38bdf8 0%,#0ea5e9 55%,#0284c7 100%);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-    }
+    h1 span { color: var(--accent-2); }
 
-    .blurb { font-size: 13.5px; color: #cbd5e1; margin-bottom: 6mm; }
+    .blurb { font-size: 14.5px; line-height: 1.5; color: var(--ink); margin-bottom: 5.5mm; }
 
-    .points { list-style: none; display: grid; gap: 3mm; margin-bottom: 7mm; }
+    .points { list-style: none; display: grid; gap: 3.4mm; margin-bottom: 5mm; }
     .points li {
-      display: grid; grid-template-columns: 16px 1fr; gap: 9px;
-      font-size: 12.5px; color: var(--text-sec); align-items: start;
+      display: grid; grid-template-columns: 18px 1fr; gap: 10px;
+      font-size: 14px; line-height: 1.45; color: var(--ink-sec); align-items: start;
     }
-    .points li i { width: 14px; height: 14px; color: var(--cyan); margin-top: 3px; }
-    .points li b { color: var(--text); font-weight: 600; }
+    .points li i { width: 17px; height: 17px; color: var(--accent); margin-top: 2px; }
+    .points li b { color: var(--ink); font-weight: 700; }
 
     .qr-block {
       margin-top: auto;
       display: grid; grid-template-columns: 38mm 1fr; gap: 7mm; align-items: center;
     }
-    .qr { background: #fff; border-radius: 10px; padding: 3.5mm; }
+    .qr { background: #fff; border: 1px solid var(--rule); border-radius: 10px; padding: 2.5mm; }
     .qr img { width: 100%; height: auto; display: block; }
     .qr-text .scan {
-      font-family: 'Bebas Neue', sans-serif; font-size: 30px; line-height: 1;
-      color: var(--cyan); letter-spacing: 0.5px; margin-bottom: 2mm;
+      font-family: 'Bebas Neue', sans-serif; font-size: 38px; line-height: 1.02;
+      color: var(--accent); letter-spacing: 0.8px; margin-bottom: 2.5mm;
     }
-    .qr-text p { font-size: 12px; color: var(--text-sec); }
+    .qr-text p { font-size: 14px; line-height: 1.45; color: var(--ink-sec); }
     .qr-text .url {
-      font-family: 'DM Mono', monospace; font-size: 11.5px;
-      color: var(--text); margin-top: 2.5mm; overflow-wrap: anywhere;
+      font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500;
+      color: var(--ink); margin-top: 3mm; overflow-wrap: anywhere;
     }
 
     .foot {
-      margin-top: 6mm; padding-top: 4mm; border-top: 1px solid var(--border);
-      font-size: 10px; color: var(--text-sec); letter-spacing: 0.3px;
+      margin-top: 5mm; padding-top: 3.5mm; border-top: 1px solid var(--rule);
+      font-size: 11.5px; color: var(--ink-sec); letter-spacing: 0.2px;
     }
 
+    @page { size: A5 portrait; margin: 0; }   /* the print buttons override this for A4 / A3 */
     @media print {
-      @page { size: A5 portrait; margin: 0; }
       body { background: #fff; padding: 0; }
       .toolbar { display: none; }
       .card {
-        width: 148mm; height: 210mm; margin: 0;
+        margin: 0;
         border: none; border-radius: 0;
         -webkit-print-color-adjust: exact; print-color-adjust: exact;
       }
@@ -145,8 +143,12 @@
 <body>
 
 <div class="toolbar">
-  <p>A5 poolside card. Print at 100% scale (no "fit to page"), laminate, and put it on the gate or the noticeboard.</p>
-  <button class="btn" onclick="window.print()"><i data-lucide="printer"></i>Print</button>
+  <p>Poolside card. Choose the paper size, then print at 100% scale (no "fit to page"), laminate, and put it on the gate or the noticeboard.</p>
+  <div class="sizes">
+    <button class="btn" data-size="A5" data-z="1"><i data-lucide="printer"></i>Print A5</button>
+    <button class="btn" data-size="A4" data-z="1.4142"><i data-lucide="printer"></i>Print A4</button>
+    <button class="btn" data-size="A3" data-z="2"><i data-lucide="printer"></i>Print A3</button>
+  </div>
 </div>
 
 <div class="card">
@@ -183,6 +185,18 @@
   <div class="foot">Camps Bay Primary School, Cape Town &middot; 30 minutes &middot; From R800 per swimmer</div>
 </div>
 
-<script>lucide.createIcons();</script>
+<script>
+lucide.createIcons();
+// Each button scales the whole card (zoom) and sets the matching page size, so A4 and A3 are the same card, not a stretched A5.
+const pageStyle = document.createElement('style'); document.head.appendChild(pageStyle);
+const setSize = (size, z) => { document.documentElement.style.setProperty('--z', z); pageStyle.textContent = '@page { size: ' + size + ' portrait; margin: 0; }'; };
+const wanted = { A4: 1.4142, A3: 2 }[(new URLSearchParams(location.search).get('size') || '').toUpperCase()];
+if (wanted) setSize((new URLSearchParams(location.search).get('size')).toUpperCase(), wanted);   // ?size=A3 previews / prints at that size
+document.querySelectorAll('[data-size]').forEach((b) => b.addEventListener('click', () => {
+  document.documentElement.style.setProperty('--z', b.dataset.z);
+  pageStyle.textContent = '@page { size: ' + b.dataset.size + ' portrait; margin: 0; }';
+  setTimeout(() => { window.print(); document.documentElement.style.setProperty('--z', 1); }, 150);
+}));
+</script>
 </body>
 </html>
