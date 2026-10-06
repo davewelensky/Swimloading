@@ -190,3 +190,54 @@ test('distance per stroke leads every swimmer report, juniors included, and a go
   for (const bad of [0.1, 9, '2.9', NaN]) { const b = clone(A); b.coachReview.dpsGoalM = bad; assert.equal(sec(analyse(b, 'PERFORMANCE'), 'HERO').data.keyMetrics.some((m) => m.goal), false, String(bad)); }
   const c = clone(A); c.swimmer.name = 'T'; c.coachReview = { findings: {}, dpsGoalM: 2.956 }; assert.equal(cleanForStorage(c).coachReview.dpsGoalM, 2.96); c.coachReview.dpsGoalM = 40; assert.equal(cleanForStorage(c).coachReview.dpsGoalM, undefined);
 });
+
+// ------------------------------------------------------------------ matching the swimmer's previous report
+import { sameSwimmer, rankPrevious, sessionKey } from '../aquasharks-lab/analysis/progress.js';
+test('same swimmer: exact, or a one-letter slip in both names; a shared first name alone is never a match', () => {
+  assert.equal(sameSwimmer('Johann Smith', ' johann  SMITH '), true); assert.equal(sameSwimmer('Johan Smith', 'Johann Smith'), true);
+  assert.equal(sameSwimmer('Zoë Naidoo', 'Zoe Naidoo'), true, 'accents do not matter');
+  for (const [x, y] of [['Johann Smith', 'Johann Jones'], ['Johann Smith', 'Henk Smith'], ['Johann', 'Johann Smith'], ['Jo Smith', 'Jon Smith'], ['', 'Johann Smith'], ['Sam Lee', 'Sem Lee']]) assert.equal(sameSwimmer(x, y), false, `${x} / ${y}`);
+});
+const row = (id, name, date, stroke, dist, pool, over = {}) => ({ id, swimmer_name: name, session_date: date, status: 'published', session: { stroke: { value: stroke, status: 'COMPLETE' }, distanceM: { value: dist, status: 'COMPLETE' }, poolLengthM: { value: pool, status: 'COMPLETE' } }, ...over });
+test('previous report: earlier, same swimmer, like for like first; later days, other swimmers and the same swim are left out', () => {
+  const cur = { id: 'now', name: 'Johann Smith', date: '2026-10-06', exportId: 'abc', session: row('x', 'x', null, 'Freestyle', 200, 25).session };
+  const rows = [
+    row('a', 'Johan Smith', '2026-08-17', 'Freestyle', 200, 25), row('b', 'Johann Smith', '2026-09-15', 'Freestyle', 50, 25), row('c', 'Johann Smith', '2026-06-01', 'Freestyle', 200, 25),
+    row('d', 'Johann Smith', '2026-10-20', 'Freestyle', 200, 25), row('e', 'Henk Smith', '2026-09-01', 'Freestyle', 200, 25), row('f', 'Johann Smith', '2026-10-06', 'Freestyle', 200, 25),
+    row('g', 'Johann Smith', '2026-09-30', 'Backstroke', 200, 25), row('now', 'Johann Smith', '2026-08-01', 'Freestyle', 200, 25),
+  ];
+  const { candidates, duplicateOf } = rankPrevious(rows, cur);
+  assert.deepEqual(candidates.map((c) => c.id), ['a', 'c', 'b', 'g'], 'most recent like-for-like first, then partial matches');
+  assert.equal(candidates[0].likeForLike, true); assert.equal(candidates[2].likeForLike, false); assert.match(candidates[2].differs.join(), /50 m/);
+  assert.equal(duplicateOf, null);
+  const dup = rankPrevious([row('z', 'Johann Smith', '2026-10-06', 'Freestyle', 200, 25, { exportId: 'abc' })], cur); assert.equal(dup.duplicateOf.id, 'z'); assert.equal(dup.candidates.length, 0);
+  assert.deepEqual(rankPrevious(rows.slice(4, 5), cur).candidates, [], 'nobody else\'s reports');
+  assert.deepEqual(sessionKey(null), { stroke: null, distanceM: null, poolLengthM: null });
+});
+
+test('progress: a different EO swimmer type (distance against sprinter targets) is flagged, a matching one is not', () => {
+  const a = clone(A); a.eoReferenceContext = { swimmerType: 'Distance', stroke: 'Freestyle' };
+  a.baseline = baselineFrom(earlier((p) => { p.eoReferenceContext = { swimmerType: 'Sprinter', stroke: 'Freestyle' }; }));
+  assert.ok(comparability(a).some((x) => /sprinter targets.*distance targets|sprinter.*distance/i.test(x)), comparability(a).join('|'));
+  a.baseline = baselineFrom(earlier((p) => { p.eoReferenceContext = { swimmerType: 'distance', stroke: 'Freestyle' }; }));
+  assert.deepEqual(comparability(a).filter((x) => /targets/.test(x)), []);
+});
+
+// ------------------------------------------------------------------ EO's swimmer type changes the targets, and a miss only counts on the side EO treats as an error
+import { classifyAgainst } from '../aquasharks-lab/analysis/rules.js';
+test('a target is one-sided where EO\'s error is one-sided: too little forward is a miss, too much is not; too much downward is a miss, too little is not', () => {
+  const fwd = { lo: 55, hi: 60 }, down = { lo: 32, hi: 37 }, lat = { lo: null, hi: 4 };
+  assert.equal(classifyAgainst(40, fwd, 'propulsivePct').status, 'BELOW'); assert.equal(classifyAgainst(70, fwd, 'propulsivePct').status, 'ON_TARGET');
+  assert.equal(classifyAgainst(40, down, 'downwardPct').status, 'ABOVE'); assert.equal(classifyAgainst(24, down, 'downwardPct').status, 'ON_TARGET');
+  assert.equal(classifyAgainst(9, lat, 'leftwardPct').status, 'ABOVE'); assert.equal(classifyAgainst(2, lat, 'leftwardPct').status, 'ON_TARGET');
+  assert.equal(classifyAgainst(24, down).status, 'BELOW', 'without a key the plain range applies');
+});
+test('same swim, different EO swimmer type: only the printed targets change, and the report follows them', () => {
+  const dist = clone(A); dist.eoReferenceRanges = { propulsivePct: { text: '70-75%', lo: 70, hi: 75, provenance: {} }, downwardPct: { text: '17-22%', lo: 17, hi: 22, provenance: {} } };
+  const sprint = clone(A); sprint.eoReferenceRanges = { propulsivePct: { text: '55-60%', lo: 55, hi: 60, provenance: {} }, downwardPct: { text: '32-37%', lo: 32, hi: 37, provenance: {} } };
+  const rows = (x) => Object.fromEntries(analyse(x, 'COACH').findings.find((f) => f.ruleId === 'POWER_EFFECTIVENESS').meta.targetRows.map((r) => [r.key, [r.target, r.status]]));
+  assert.deepEqual(rows(dist), { propulsivePct: ['70–75%', 'BELOW'], downwardPct: ['17–22%', 'ABOVE'] });
+  assert.deepEqual(rows(sprint), { propulsivePct: ['55–60%', 'BELOW'], downwardPct: ['32–37%', 'ABOVE'] });
+  sprint.forceDistribution.overall.downwardPct.value = 30;   // under the sprint range: not a fault
+  assert.equal(rows(sprint).downwardPct[1], 'ON_TARGET');
+});

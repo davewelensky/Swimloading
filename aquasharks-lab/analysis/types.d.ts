@@ -22,7 +22,7 @@ export type SwimmerProfileId = Exclude<ProfileId, 'COACH'>;
  *  COACH_SUPPLIED  entered or confirmed by a coach
  *  DERIVED         computed by Aqua Sharks from other values
  */
-export type Origin = 'EO_REPORT' | 'EO_IMAGE_LABEL' | 'CHART_READ' | 'COACH_SUPPLIED' | 'DERIVED' | 'FIXTURE';
+export type Origin = 'EO_REPORT' | 'EO_EXPORT' | 'EO_IMAGE_LABEL' | 'CHART_READ' | 'COACH_SUPPLIED' | 'DERIVED' | 'FIXTURE';
 
 /** How a field was extracted and how sure the extractor is. Present on parser output. */
 export interface ExtractionInfo {
@@ -138,6 +138,8 @@ export interface ArmPathReading {
   maxDepthCm: Measured;
   /** Furthest point from the centreline in the overhead view, in cm. */
   maxWidthCm: Measured;
+  /** From a data export only: statistics across this hand's strokes, in cm. Numbers, never graded. */
+  depthSdCm?: number | null; widthSdCm?: number | null; inwardSweepCm?: number | null; strokes?: number;
   /** Dispersion of the overlaid strokes in the consistency chart. */
   spread: Observed<'TIGHT' | 'MODERATE' | 'WIDE' | 'UNSURE'>;
   /** Hand-path-and-power chart: does the hand stay angled down through the pull (maximum downward force with maximum propulsion)? */
@@ -183,7 +185,7 @@ export interface SourceIssue {
 export interface ReferenceRange { text: string; lo: number | null; hi: number | null; provenance: Provenance }
 
 export interface SourceDocument {
-  kind: 'EO_REPORT_DOCX' | 'EO_REPORT_PDF' | 'EO_APP_SCREENSHOT' | 'COACH_ENTRY' | 'FIXTURE';
+  kind: 'EO_REPORT_DOCX' | 'EO_REPORT_PDF' | 'EO_EXPORT' | 'EO_APP_SCREENSHOT' | 'COACH_ENTRY' | 'FIXTURE';
   filename: string | null;
   sha256: string | null;
   /** Which EO views this document supplies. */
@@ -222,6 +224,8 @@ export interface SwimAnalysis {
     provider: 'EO Labs'; product: 'SwimBETTER';
     /** Every input behind this analysis: a report, screenshots, coach entry. */
     documents: SourceDocument[];
+    /** The EO swim id from a data export, used to spot a swim imported twice. */
+    exportId?: string | null;
     /** Detected report layout, e.g. EO_AI_DOCX_V1. Null when not parsed. */
     layout: string | null;
     /** EO's own analysis context, e.g. "Distance". Context only, not an Aqua Sharks classification. */
@@ -272,6 +276,8 @@ export interface SwimAnalysis {
     crossesMidline: Observed<'YES' | 'NO' | 'UNSURE'>;
     left: ArmPathReading; right: ArmPathReading;
   };
+  /** EO data export, reduced to the numbers the report uses (per lap, per hand, hand path, phases). Absent when no export was imported. */
+  eoExport?: any;
   eoObservations: EoObservation[];
   eoRecommendations: EoRecommendation[];
   /** EO's own reference ranges, as printed. Source evidence only: Aqua Sharks does not adopt them as thresholds. */
@@ -308,7 +314,7 @@ export interface SwimAnalysis {
   baseline: {
     capturedOn: string | null; metrics: Record<string, number>;
     /** Set when the baseline is an earlier session of the same swimmer (see progress.js). Drives the "since last time" section. */
-    context?: { stroke: string | null; distanceM: number | null; poolLengthM?: number | null };
+    context?: { stroke: string | null; distanceM: number | null; poolLengthM?: number | null; /** EO's swimmer type (Distance or Sprinter) the earlier report was judged against. */ swimmerType?: string | null };
   };
 }
 
@@ -395,7 +401,7 @@ export interface ProfileConfig {
 }
 
 export interface ReportSection {
-  id: 'HERO' | 'NOTE' | 'STRENGTHS' | 'PROGRESS' | 'PLAN' | 'POWER' | 'COMPARISON' | 'ARMS' | 'FOCUS' | 'NEXT' | 'EVIDENCE' | 'DATA_QUALITY' | 'SOURCE';
+  id: 'HERO' | 'NOTE' | 'STRENGTHS' | 'PROGRESS' | 'PLAN' | 'POWER' | 'HANDS' | 'COMPARISON' | 'ARMS' | 'FOCUS' | 'NEXT' | 'EVIDENCE' | 'DATA_QUALITY' | 'SOURCE';
   status: DataStatus;
   data: unknown;
 }

@@ -133,6 +133,19 @@ reach roughly 50-68 cm and the overhead left-right extent is about 30-40 cm (the
 The model prompt now defines each axis (depth below zero; OVERHEAD width is the HORIZONTAL axis). Upload the original EO platform screenshots, not small images embedded in a PDF.
 **Not live-tested:** there is no `ANTHROPIC_API_KEY` on the dev machine, so the model reads are covered by mock tests only. Before relying on suggestions, run the builder against a real EO screenshot with the key set and compare to the chart.
 
+## EO data export import (6 Oct): exact numbers instead of reading charts
+
+Britt's workflow, built into the builder start screen (step-by-step guide on it): in EO open the swim, Charts, the three dots on a chart, **Export FullSwim XLSX** (a zip of five workbooks), and download EO's AI report (PDF/Word)
+for the same swim. Drop both in the builder (either alone also works). Review, write the note, set the retest, publish.
+- `parser/xlsx.js` (zip+XML spreadsheet reader, no dependencies), `parser/eo-export.js` (per lap, per hand, per stroke statistics), `export-apply.js` (merges into the analysis, origin `EO_EXPORT`; a value the EO report already gave is never overwritten, a >1% disagreement is flagged).
+- Gives exactly: per-lap left/right power (the report's "Avg Impulse" is each hand's average power: verified against the chart tooltips), each hand's own force-field shares, first-to-last-lap change, hand path in cm (depth, width, inward sweep, stroke-to-stroke spread, crossing), stroke phases, strokes. Whole-swim combined shares and EO's TARGET RANGES still come from the EO report (the export has neither): without the PDF the "where your power goes" section is left out and the builder says so.
+- Conventions assumed from one real swim (verify on others): hand-path metres, depth negative below the surface, lateral negative on the left of EO's centreline and positive on the right. "Crosses the centreline" is YES only if the typical stroke of a hand passes it.
+- A "stroke" in EO is a full cycle; the report's "Strokes" is left plus right added (EO's own strokes per lap, DPS and the .fit file all agree). Strokes per length = strokes / 2 / laps.
+- Targets are EO's printed ranges for the swimmer type chosen when the report was made (Distance or Sprinter): the same swim is judged differently (downward 17-22% against 32-37%). A miss only counts on the side EO treats as an error (too much downward/sideways/upward/drag, too little forward). The builder warns if last time's report used a different swimmer type.
+- **Last report is found automatically**: `rankPrevious` (progress.js) matches by name (a one-letter slip in both names is tolerated; first name alone never matches), keeps only earlier days, prefers like-for-like (same stroke, distance, pool), links the most recent one and says so; Britt can change or remove it. The same EO swim imported twice is flagged (`source.exportId`). The raw export zip is kept with the report (`lab-evidence/<id>/export.zip`).
+- Not read yet: `FPvsTime` (the 100 Hz force series: would give wrist pitch and double peaks from our own rule; EO publishes no double-peak rule, so EO's own statement is kept), the polar `fan` data (stored, not drawn), several efforts in one session (each export is one swim), a printable guide page (the guide is on the builder start screen).
+- The chart-reading step (`parser/hand-path-vision.js`, builder "Hand path" panel) remains for the case where only screenshots exist; with an export it is not needed.
+
 ## Known limits
 
 - Layout detected: `EO_AI_REPORT_V1` only. The older numbered-section EO PDF is reported "not recognised", nothing extracted.

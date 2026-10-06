@@ -117,3 +117,13 @@ test('storage keeps the hand-path reading with its CHART_READ provenance', () =>
   const a = clone(A); setHandPathField(a, 'crossesMidline', 'YES'); a.swimmer.name = 'Test';
   assert.equal(cleanForStorage(a).handPathReading.crossesMidline.provenance.origin, 'CHART_READ');
 });
+
+// ------------------------------------------------------------------ guard: the builder UI is not covered by unit tests, so check it never calls something it does not define
+import fs from 'node:fs';
+test('builder app.js: every helper it calls is defined (a deleted panel once broke the review screen)', () => {
+  const src = fs.readFileSync(new URL('../aquasharks-lab/report-builder/app.js', import.meta.url), 'utf8');
+  const defined = new Set([...src.matchAll(/(?:async\s+)?function\s+(\w+)\s*\(/g)].map((m) => m[1]).concat([...src.matchAll(/(?:const|let)\s+(\w+)\s*=\s*(?:async\s*)?(?:\([^)]*\)|\w+)\s*=>/g)].map((m) => m[1])));
+  const called = new Set([...src.matchAll(/\$\{(\w+(?:Panel|Col))\(/g)].map((m) => m[1]).concat([...src.matchAll(/\b(\w+(?:Panel|Col|View))\(\)/g)].map((m) => m[1])));
+  const missing = [...called].filter((n) => !defined.has(n));
+  assert.deepEqual(missing, [], 'called but not defined: ' + missing.join(', '));
+});

@@ -7,18 +7,21 @@
 import { present, getPath } from './model.js';
 import { f0, f1, f2, mmss, fmtDate, span } from './language.js';
 import { progressRows } from './progress.js';
+import { classifyAgainst } from './rules.js';
 import { buildPlan, retestWeeks, retestDate, pullCount, BOOK_URL } from './plan.js';
 
 const HEADLINES = {
   POWER_EFFECTIVENESS: (a, p) => {
     const hasPower = present(a.metrics.avgPowerW);
     if (!hasPower) return ['MORE OF YOUR FORCE CAN', 'POINT FORWARD.'];
-    return p === 'JUNIOR' ? ['YOU’VE GOT THE POWER.', 'LET’S SEND IT FORWARD.'] : ['YOU’RE MAKING THE POWER.', 'LET’S MAKE MORE OF IT MOVE YOU FORWARD.'];
+    return p === 'JUNIOR' ? ['YOU’VE GOT THE POWER.', 'LET’S SEND IT FORWARD.'] : ['YOU’RE MAKING THE POWER.', 'LET’S POINT MORE OF IT FORWARD.'];
   },
   LAP_COMPARISON: (a, p, f) => (f.meta.headlineKey === 'POWER_FALLS_MORE' ? ['YOUR FORWARD POWER DROPS', 'MORE THAN YOUR RHYTHM.'] : [`FROM ${f.meta.fromLabel}`, `TO ${f.meta.toLabel}.`]),
   ASYMMETRY_PROFILE: () => ['TWO ARMS.', 'TWO DIFFERENT POWER PATTERNS.'],
 };
 
+const KEYOF = { forward: 'propulsivePct', down: 'downwardPct', inward: 'leftwardPct' };
+const targetTextOf = (r) => { const n = (v) => String(Math.round(v * 10) / 10); return r.lo != null && r.hi != null ? (r.lo === r.hi ? `${n(r.lo)}%` : `${n(r.lo)}\u2013${n(r.hi)}%`) : r.hi != null ? `under ${n(r.hi)}%` : `over ${n(r.lo)}%`; };
 const METRIC = {
   timeS: (a) => (present(a.session.timeS) ? { label: 'TIME', value: mmss(a.session.timeS.value), unit: '' } : null),
   distanceM: (a) => (present(a.session.distanceM) ? { label: 'DISTANCE', value: f0(a.session.distanceM.value), unit: 'm' } : null),
@@ -102,7 +105,7 @@ export function buildReport(a, findings, priorities, quality, profile) {
   const onT = (k) => trows.find((r) => r.key === k && r.status === 'ON_TARGET');
   if (onT('leftwardPct') && onT('rightwardPct')) good.push({ title: 'Your sideways push is balanced', detail: P === 'JUNIOR' ? 'Almost none of your push goes sideways.' : `Left ${f1(onT('leftwardPct').value)}% and right ${f1(onT('rightwardPct').value)}%, both inside EO's target (${onT('leftwardPct').target}).` });
   else for (const k of ['leftwardPct', 'rightwardPct']) if (onT(k)) good.push({ title: `Your ${k === 'leftwardPct' ? 'leftward' : 'rightward'} drift is on target`, detail: P === 'JUNIOR' ? '' : `${f1(onT(k).value)}%, inside EO's target (${onT(k).target}).` });
-  for (const k of ['upwardPct', 'handDragPct']) if (onT(k)) good.push({ title: k === 'upwardPct' ? 'No wasted lift' : 'Your hand drag is on target', detail: P === 'JUNIOR' ? '' : `${f1(onT(k).value)}%, inside EO's target (${onT(k).target}).` });
+  for (const k of ['upwardPct', 'handDragPct']) if (onT(k)) good.push({ title: k === 'upwardPct' ? 'No wasted lift' : 'Your hand drag is on target', detail: P === 'JUNIOR' ? '' : k === 'upwardPct' && onT(k).value > 0 ? `${f1(onT(k).value)}%, small enough that EO treats it as negligible.` : `${f1(onT(k).value)}%, inside EO's target (${onT(k).target}).` });
   for (const [side, name] of [['left', 'left'], ['right', 'right']]) {
     const pp = a.powerProfile[side], ser = pp.doublePeakPctByLap.filter(present);
     if (present(pp.shape) && pp.shape.value === 'SINGLE_PEAK' && ser.length && ser.every((m) => m.value === 0)) good.push({ title: `Your ${name} arm pushes smoothly`, detail: ser.length > 1 ? `One clean push per stroke in every lap.` : 'One clean push per stroke.' });
@@ -127,6 +130,24 @@ export function buildReport(a, findings, priorities, quality, profile) {
     sections.push({ id: 'POWER', status: quality.sections.POWER, data: { headline: 'WHERE YOUR POWER GOES', categories: cats, whatThisMeans: pe.text[P], findingId: pe.id, kind: pe.kind,
       targets: miss.length ? { context: ctxText ? `EO's target for ${ctxText}` : 'EO’s target', rows: miss.map((r) => ({ id: r.key, label: r.label, value: r.value, target: r.target, status: r.status, gap: r.gap })), simple: P === 'JUNIOR' } : null,
       explanations: okClaims.filter((x) => !x.strength).map((x) => x.shown) } });
+  }
+
+  // EACH HAND: where each hand sends its force, from the EO data export (EO's own per-hand figures). Targets are EO's printed ranges, when there are any.
+  const ffx = a.eoExport && a.eoExport.forceField;
+  if (!ffx || !ffx.left || !ffx.right || !ffx.left.mean || !ffx.right.mean || ffx.left.mean.propulsive == null || ffx.right.mean.propulsive == null) sections.push({ id: 'HANDS', status: 'MISSING', data: null });
+  else {
+    const refs = a.eoReferenceRanges || {}, tText = (k) => (refs[k] && (refs[k].lo != null || refs[k].hi != null) ? targetTextOf(refs[k]) : null);
+    const inwardKey = (hand) => (hand === 'left' ? 'rightward' : 'leftward'), inwardRef = (hand) => refs[hand === 'left' ? 'rightwardPct' : 'leftwardPct'];
+    const row = (id, label, v, ref) => ({ id, label, value: v, target: ref && (ref.lo != null || ref.hi != null) ? targetTextOf(ref) : null, status: ref && (ref.lo != null || ref.hi != null) ? classifyAgainst(v, ref, KEYOF[id]).status : null });
+    const hands = ['left', 'right'].map((k) => { const m = ffx[k].mean; return { id: k, label: k === 'left' ? 'LEFT HAND' : 'RIGHT HAND', rows: [row('forward', 'Forward', m.propulsive, refs.propulsivePct), row('down', 'Down', m.downward, refs.downwardPct), row('inward', 'Sideways, inward', m[inwardKey(k)], inwardRef(k))] }; });
+    const first = (k) => ffx[k].byLap[0], last = (k) => ffx[k].byLap[ffx[k].byLap.length - 1];
+    const trend = [];
+    if (ffx.left.byLap.length >= 2 && ffx.right.byLap.length >= 2) {
+      const f = (n) => (Math.round(n * 10) / 10).toFixed(1);
+      trend.push(`Inward force, lap ${first('left').lap} to lap ${last('left').lap}: left hand ${f(first('left').rightward)}% to ${f(last('left').rightward)}%, right hand ${f(first('right').leftward)}% to ${f(last('right').leftward)}%.`);
+      trend.push(`Downward force, lap ${first('left').lap} to lap ${last('left').lap}: left hand ${f(first('left').downward)}% to ${f(last('left').downward)}%, right hand ${f(first('right').downward)}% to ${f(last('right').downward)}%.`);
+    }
+    sections.push({ id: 'HANDS', status: 'COMPLETE', data: { headline: 'EACH HAND', context: refs.downwardPct && a.eoReferenceContext && (a.eoReferenceContext.swimmerType || a.eoReferenceContext.stroke) ? `EO's target for ${[a.eoReferenceContext.swimmerType, a.eoReferenceContext.stroke].filter(Boolean).join(' ').toLowerCase()}` : null, hands, trend: P === 'JUNIOR' ? [] : trend, simple: P === 'JUNIOR' } });
   }
 
   // COMPARISON (endpoint lap comparison; never called a trend or a fatigue response)
@@ -197,6 +218,9 @@ export function buildReport(a, findings, priorities, quality, profile) {
   // order of the story: where you are (going well, power, progress since last time), what to do (focus, plan), come back (next)
   const pi = sections.findIndex((x) => x.id === 'PROGRESS'), wi = sections.findIndex((x) => x.id === 'POWER');
   if (pi > -1 && wi > -1 && pi > wi) sections.splice(wi + 1, 0, sections.splice(pi, 1)[0]);
+  // left and right belong together: each hand's force, then the two arms' power, then how it changes first lap to last
+  const ci = sections.findIndex((x) => x.id === 'COMPARISON'), ai = sections.findIndex((x) => x.id === 'ARMS');
+  if (ci > -1 && ai > -1 && ai > ci) sections.splice(ci, 0, sections.splice(ai, 1)[0]);
 
   if (isCoach) {
     sections.push({ id: 'EVIDENCE', status: 'COMPLETE', data: { findings: findings.map((f) => ({ ...f, resolved: f.evidence.map((r) => describeRef(a, r)) })) } });

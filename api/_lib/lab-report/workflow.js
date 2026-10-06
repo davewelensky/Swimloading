@@ -5,6 +5,9 @@ import { parseEoReport } from '../../../aquasharks-lab/analysis/parser/index.js'
 import { readImageLabels } from '../../../aquasharks-lab/analysis/parser/vision.js';
 import { analyse } from '../../../aquasharks-lab/analysis/engine.js';
 import { hasRealConflict } from '../../../aquasharks-lab/analysis/calc.js';
+import { parseEoExport } from '../../../aquasharks-lab/analysis/parser/eo-export.js';
+import { applyEoExport } from '../../../aquasharks-lab/analysis/export-apply.js';
+import { emptyAnalysis } from '../../../aquasharks-lab/analysis/model.js';
 
 export const SWIMMER_PROFILES = ['JUNIOR', 'PERFORMANCE', 'MASTERS_OPEN_WATER'];
 export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
@@ -17,25 +20,45 @@ const fail = (code, status = 400, detail) => Object.assign(new Error(detail || c
  * @param {{ callModel?: Function | null, now?: () => string }} deps
  */
 export async function parseUpload(input, deps = {}) {
-  const b64 = typeof input.fileBase64 === 'string' ? input.fileBase64 : '';
-  if (!b64) throw fail('file_missing');
-  if (b64.length > MAX_UPLOAD_BYTES * 1.4) throw fail('file_too_large', 413);
-  const bytes = new Uint8Array(Buffer.from(b64, 'base64'));
-  const sha256 = crypto.createHash('sha256').update(bytes).digest('hex');
-  let r;
-  try { r = await parseEoReport(bytes, { filename: input.filename || null, sha256, now: (deps.now || (() => new Date().toISOString()))() }); }
-  catch (e) { throw fail(e.code || 'parse_failed', 400, e.message); }
+  // Two optional inputs, at least one required: the EO data export (a zip: the numbers) and the EO report (PDF or Word: EO's targets and wording).
+  const b64 = typeof input.fileBase64 === 'string' ? input.fileBase64 : '', xb64 = typeof input.exportBase64 === 'string' ? input.exportBase64 : '';
+  if (!b64 && !xb64) throw fail('file_missing');
+  if (b64.length > MAX_UPLOAD_BYTES * 1.4 || xb64.length > MAX_UPLOAD_BYTES * 1.4) throw fail('file_too_large', 413);
+  const now = (deps.now || (() => new Date().toISOString()))();
 
-  let vision = null;
-  if (r.layout && deps.callModel) {
+  let analysis, diagnostics, layout = null, format = null, sha256 = null, vision = null, r = null, bytes = null;
+  if (b64) {
+    bytes = new Uint8Array(Buffer.from(b64, 'base64'));
+    sha256 = crypto.createHash('sha256').update(bytes).digest('hex');
+    try { r = await parseEoReport(bytes, { filename: input.filename || null, sha256, now }); }
+    catch (e) { throw fail(e.code || 'parse_failed', 400, e.message); }
+    ({ analysis, diagnostics, layout, format } = r);
+  } else {
+    analysis = emptyAnalysis('Unnamed swimmer');
+    diagnostics = { extracted: [], notes: ['No EO report was uploaded, so EO\'s target ranges and wording are not available. Add the EO report PDF to include them.'], coachRequired: ['swimmer.name', 'swimmer.age'] };
+  }
+
+  let exportInfo = null;
+  if (xb64) {
+    const xbytes = new Uint8Array(Buffer.from(xb64, 'base64'));
+    let ex;
+    try { ex = await parseEoExport(xbytes, { filename: input.exportFilename || null }); }
+    catch (e) { throw fail(e.code || 'export_unrecognised', 400, e.message); }
+    const done = applyEoExport(analysis, ex);
+    exportInfo = { swimId: ex.swimId, laps: ex.laps.length, strokesLeft: ex.summary.strokesLeft, strokesRight: ex.summary.strokesRight, applied: done.applied.length, issues: done.issues };
+    sha256 = sha256 || crypto.createHash('sha256').update(xbytes).digest('hex');
+  }
+
+  // Image labels (the model reads printed text in the report's images) are only needed when there is no export: the export holds the exact numbers.
+  if (r && r.layout && deps.callModel && !xb64) {
     let src = null;
     if (r.format === 'DOCX') src = r.imageData && r.imageData.length ? { images: r.imageData.map((x) => ({ base64: Buffer.from(x.bytes).toString('base64'), mediaType: x.mediaType })) } : null;
     else if (input.pageImages && input.pageImages.length) src = { images: input.pageImages.slice(0, 12).map((p) => ({ base64: p.base64, mediaType: p.mediaType || 'image/jpeg' })) };
     else src = { pdfBase64: b64 };
-    if (src) vision = await readImageLabels(r.analysis, src, deps.callModel);
+    if (src) vision = await readImageLabels(analysis, src, deps.callModel);
   }
-  if (input.swimmerName && input.swimmerName.trim()) r.analysis.swimmer.name = input.swimmerName.trim().slice(0, 120);
-  return { analysis: r.analysis, diagnostics: r.diagnostics, layout: r.layout, format: r.format, sha256, vision };
+  if (input.swimmerName && input.swimmerName.trim()) analysis.swimmer.name = input.swimmerName.trim().slice(0, 120);
+  return { analysis, diagnostics, layout, format, sha256, vision, exportInfo };
 }
 
 /** Validate what the browser sends back and strip derived layers (they are recomputed from source + coach review). */

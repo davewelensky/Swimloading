@@ -35,7 +35,7 @@ export function makeAdminHandler({ store, auth, callModel = null, publicBase }) 
       if (!userId) return json(res, 403, { error: 'not_an_admin' });
 
       if (b.action === 'parse') {
-        const out = await parseUpload({ fileBase64: b.file_base64, filename: b.filename, pageImages: b.page_images, swimmerName: b.swimmer_name }, { callModel });
+        const out = await parseUpload({ fileBase64: b.file_base64, filename: b.filename, exportBase64: b.export_base64, exportFilename: b.export_filename, pageImages: b.page_images, swimmerName: b.swimmer_name }, { callModel });
         return json(res, 200, out);
       }
 
@@ -56,6 +56,8 @@ export function makeAdminHandler({ store, auth, callModel = null, publicBase }) 
         let row;
         if (uuid(b.id)) { const cur = await store.getById(b.id); if (!cur) return json(res, 404, { error: 'not_found' }); row = await store.update(b.id, fields); }
         else row = await store.insert({ ...fields, created_by: userId });
+        // the raw EO data export is kept with the report (private bucket), so the numbers can always be re-checked
+        if (typeof b.export_base64 === 'string' && b.export_base64.length && b.export_base64.length < 36 * 1024 * 1024) await store.uploadSource(`${row.id}/export.zip`, Buffer.from(b.export_base64, 'base64'), 'application/zip');
         if (b.file_base64 && !row.source_file_path) { const path = `${row.id}/source${/\.docx$/i.test(b.filename || '') ? '.docx' : '.pdf'}`; await store.uploadSource(path, Buffer.from(b.file_base64, 'base64'), /\.docx$/i.test(path) ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 'application/pdf'); row = await store.update(row.id, { source_file_path: path }); }
         return json(res, 200, { id: row.id, status: row.status, updated_at: row.updated_at });
       }
@@ -66,7 +68,7 @@ export function makeAdminHandler({ store, auth, callModel = null, publicBase }) 
         return json(res, 200, { assessment: row, public_url: row.share_token && publicBase ? `${publicBase(req)}/aquasharks-lab/report/${row.share_token}` : null });
       }
 
-      if (b.action === 'list') return json(res, 200, { assessments: await store.list({ name: b.name }) });
+      if (b.action === 'list') return json(res, 200, { assessments: await store.list({ name: b.name, limit: b.limit }) });
 
       if (b.action === 'readiness') {
         const a = cleanForStorage(b.analysis); return json(res, 200, readiness(a, b.profile));

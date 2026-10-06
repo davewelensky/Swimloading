@@ -171,7 +171,7 @@ test('source ranges stay ranges end to end: no midpoint is ever invented', () =>
 });
 
 // ------------------------------------------------------------------ stroke phases
-test('lap-average stroke phases are MEASURED evidence in the arm finding and appear in swimmer output', () => {
+test('lap-average stroke phases are MEASURED evidence in the arm finding; the bars are drawn in the coach view only (a swimmer report stays simple)', () => {
   const r = analyse(A, 'PERFORMANCE'), as = by(r, 'ASYMMETRY_PROFILE');
   assert.equal(as.classification, 'MEASURED');
   assert.deepEqual(as.meta.phases.left, [{ lap: 1, glide: 9, pull: 67, recovery: 24 }, { lap: 8, glide: 15, pull: 66, recovery: 19 }]);
@@ -182,7 +182,8 @@ test('lap-average stroke phases are MEASURED evidence in the arm finding and app
   assert.match(arms.left.timing.join(' '), /glide 9% → 15%/); assert.match(arms.right.timing.join(' '), /recovery 27% → 29%/);
   assert.ok(as.evidence.includes('strokePhases.left.lapAverages'));
   assert.deepEqual(sec(analyse(A, 'JUNIOR'), 'ARMS').data.left.timing, [], 'JUNIOR gets no phase arithmetic');
-  assert.match(renderReport(r.report), /rv-pseg/, 'phase bars are drawn from the lap averages');
+  assert.doesNotMatch(renderReport(r.report), /rv-pseg/, 'swimmers do not get glide/pull/recovery bars');
+  assert.match(renderReport(analyse(A, 'COACH').report), /rv-pseg/, 'the coach view draws them from the lap averages');
 });
 
 test('individual-stroke data can never replace lap averages', () => {

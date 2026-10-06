@@ -29,7 +29,7 @@ export function baselineFrom(prev) {
   for (const [key] of PROGRESS_METRICS) { const v = currentValue(prev, key); if (v != null) metrics[key] = v; }
   return {
     capturedOn: prev.session && prev.session.date && prev.session.date.value ? prev.session.date.value : null, metrics,
-    context: { stroke: present(prev.session.stroke) ? prev.session.stroke.value : null, distanceM: present(prev.session.distanceM) ? prev.session.distanceM.value : null, poolLengthM: present(prev.session.poolLengthM) ? prev.session.poolLengthM.value : null },
+    context: { stroke: present(prev.session.stroke) ? prev.session.stroke.value : null, distanceM: present(prev.session.distanceM) ? prev.session.distanceM.value : null, poolLengthM: present(prev.session.poolLengthM) ? prev.session.poolLengthM.value : null, swimmerType: (prev.eoReferenceContext && prev.eoReferenceContext.swimmerType) || (prev.source && prev.source.analysisContext && prev.source.analysisContext.swimmerType) || null },
   };
 }
 
@@ -40,6 +40,8 @@ export function comparability(a) {
   if (c.stroke && present(a.session.stroke) && c.stroke.toLowerCase() !== a.session.stroke.value.toLowerCase()) out.push(`The earlier swim was ${c.stroke.toLowerCase()} and this one is ${a.session.stroke.value.toLowerCase()}. Stroke changes the numbers, so this is not a like-for-like comparison.`);
   if (c.distanceM != null && present(a.session.distanceM) && c.distanceM !== a.session.distanceM.value) out.push(`The earlier swim was ${c.distanceM} m and this one is ${a.session.distanceM.value} m.`);
   if (c.poolLengthM != null && present(a.session.poolLengthM) && c.poolLengthM !== a.session.poolLengthM.value) out.push(`The earlier swim was in a ${c.poolLengthM} m pool and this one is ${a.session.poolLengthM.value} m. Turns change the numbers, so compare like with like.`);
+  const cur = (a.eoReferenceContext && a.eoReferenceContext.swimmerType) || (a.source && a.source.analysisContext && a.source.analysisContext.swimmerType) || null;
+  if (c.swimmerType && cur && String(c.swimmerType).toLowerCase() !== String(cur).toLowerCase()) out.push(`The earlier report was judged against EO's ${c.swimmerType.toLowerCase()} targets and this one against ${cur.toLowerCase()} targets. The numbers still compare, but a target on one report is not the target on the other.`);
   return out;
 }
 
@@ -55,4 +57,52 @@ export function progressRows(a) {
     rows.push({ key, label, unit, dp, then: t, now: n, verdict });
   }
   return rows;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Finding the swimmer's previous report. Britt should not have to hunt: the builder proposes the most recent earlier session of the
+// same swimmer that is like for like (same stroke, distance and pool length), and links it with one click.
+
+const norm = (s) => String(s || '').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z\s'-]/g, ' ').replace(/\s+/g, ' ').trim();
+/** Edit distance, small strings only. */
+function lev(a, b) { const m = a.length, n = b.length; let prev = Array.from({ length: n + 1 }, (_, j) => j); for (let i = 1; i <= m; i++) { const cur = [i]; for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); prev = cur; } return prev[n]; }
+/**
+ * Same swimmer? Identical names, or a one-letter spelling difference in BOTH the first name and the surname ("Johan" / "Johann" Smith).
+ * A shared first name alone is never a match (the club rule), and a single-word name only matches itself exactly.
+ */
+export function sameSwimmer(a, b) {
+  const x = norm(a), y = norm(b); if (!x || !y) return false; if (x === y) return true;
+  const tx = x.split(' '), ty = y.split(' '); if (tx.length < 2 || ty.length < 2) return false;
+  const close = (p, q) => p === q || (Math.min(p.length, q.length) >= 4 && lev(p, q) <= 1);
+  return close(tx[0], ty[0]) && close(tx[tx.length - 1], ty[ty.length - 1]);
+}
+
+/** @param {any} session an analysis `session` object @returns {{stroke: string|null, distanceM: number|null, poolLengthM: number|null}} */
+export function sessionKey(session) {
+  const v = (m) => (m && m.value != null && m.status !== 'MISSING' ? m.value : null);
+  const stroke = v(session && session.stroke);
+  return { stroke: stroke ? String(stroke).toLowerCase() : null, distanceM: v(session && session.distanceM), poolLengthM: v(session && session.poolLengthM) };
+}
+
+/**
+ * Rank earlier sessions of the same swimmer, best first.
+ * @param {any[]} rows rows from the list action: { id, swimmer_name, session_date, status, exportId, session }
+ * @param {{ id?: string|null, name: string, date?: string|null, session: any, exportId?: string|null }} cur the swim being reported
+ * @returns {{ candidates: any[], duplicateOf: any|null }}
+ */
+export function rankPrevious(rows, cur) {
+  const ck = sessionKey(cur.session);
+  const same = (rows || []).filter((r) => r && r.id !== cur.id && sameSwimmer(r.swimmer_name, cur.name));
+  const duplicateOf = cur.exportId ? same.find((r) => r.exportId && r.exportId === cur.exportId) || null : null;
+  const out = [];
+  for (const r of same) {
+    if (r === duplicateOf) continue;
+    if (cur.date && r.session_date && r.session_date >= cur.date) continue;          // only earlier days: two efforts on one morning are not "last time"
+    const k = sessionKey(r.session), strokeOk = !!ck.stroke && ck.stroke === k.stroke, distOk = ck.distanceM != null && ck.distanceM === k.distanceM, poolOk = ck.poolLengthM != null && ck.poolLengthM === k.poolLengthM;
+    const likeForLike = strokeOk && distOk && poolOk;
+    const differs = [!strokeOk && k.stroke && ck.stroke ? `${k.stroke} (this one is ${ck.stroke})` : null, !distOk && k.distanceM != null && ck.distanceM != null ? `${k.distanceM} m (this one is ${ck.distanceM} m)` : null, !poolOk && k.poolLengthM != null && ck.poolLengthM != null ? `${k.poolLengthM} m pool (this one is ${ck.poolLengthM} m)` : null].filter(Boolean);
+    out.push({ ...r, likeForLike, differs, score: (likeForLike ? 100 : 0) + (strokeOk ? 30 : 0) + (distOk ? 20 : 0) + (poolOk ? 10 : 0) + (r.status === 'published' ? 5 : 0) });
+  }
+  out.sort((a, b) => b.score - a.score || String(b.session_date || '').localeCompare(String(a.session_date || '')));
+  return { candidates: out, duplicateOf };
 }

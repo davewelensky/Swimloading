@@ -10,7 +10,7 @@ import { debugRows, summariseRows } from '../analysis/parser/debug-rows.js';
 import { emptyComparison, overlay, num, rng, lapRef, missing, X } from '../analysis/model.js';
 import { printedValues } from '../analysis/calc.js';
 import { fmtDate } from '../analysis/language.js';
-import { baselineFrom, comparability, progressRows } from '../analysis/progress.js';
+import { baselineFrom, comparability, progressRows, rankPrevious, sessionKey } from '../analysis/progress.js';
 import { retestWeeks, retestDate, RETEST_WEEKS } from '../analysis/plan.js';
 import { setHandPathField } from '../analysis/hand-path.js';
 
@@ -23,7 +23,7 @@ const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&':
 const getPath = (o, p) => p.split('.').reduce((x, k) => (x == null ? undefined : x[k]), o);
 const SWIMMER_PROFILES = ['JUNIOR', 'PERFORMANCE', 'MASTERS_OPEN_WATER'];
 const PROFILE_LABEL = { JUNIOR: 'Junior', PERFORMANCE: 'Performance', MASTERS_OPEN_WATER: 'Masters / Open water', COACH: 'Coach view' };
-const STAGES = ['Uploading report', 'Reading EO analysis', 'Extracting measurements', 'Reading image labels', 'Building findings'];
+const STAGES = ['Reading your files', 'Reading the EO data', 'Merging the numbers', 'Checking the report', 'Building findings'];
 
 const S = { token: null, id: null, analysis: null, filename: null, fileB64: null, profile: 'PERFORMANCE', diagnostics: null, vision: null, published: null, msg: null, err: null, openDetails: {} };
 
@@ -59,6 +59,7 @@ function friendly(e) {
   if (e.code === 'not_an_admin') return 'This account is not an Aquasharks club admin.';
   if (e.code === 'storage_not_ready') return 'Saving is not switched on yet (the assessments table has not been created). Your work is still on screen.';
   if (e.code === 'unsupported_format') return 'That file is not a PDF or a Word document.';
+  if (e.code === 'export_unrecognised') return e.message || 'That zip is not an EO data export.';
   if (e.code === 'file_too_large') return 'That file is too large (limit 25 MB).';
   return e.message || 'Something went wrong.';
 }
@@ -76,20 +77,41 @@ function authView(msg) {
 function route() { const id = new URLSearchParams(location.search).get('id'); id ? openDraft(id) : uploadView(); }
 
 /* ---------------------------------------------------------------- upload */
-let picked = null; const form = { name: '', profile: 'PERFORMANCE' };
+let picked = null, pickedExport = null; const form = { name: '', profile: 'PERFORMANCE' };
+const GUIDE = [
+  ['Run the session', 'Same protocol every time (warm-up, then the efforts at about three quarters pace), so a later session is comparable.'],
+  ['Export the data from EO', 'In the EO platform open the swim, then Charts. Click the three dots at the top right of any chart and choose <strong>Export FullSwim XLSX</strong>. A zip file downloads. This holds the exact numbers.'],
+  ['Download EO’s report for the same swim', 'The EO SwimBETTER analysis report (PDF). It adds EO’s target ranges and EO’s own wording. Optional, but without it the force-direction targets are missing.'],
+  ['Drop both files below', 'Enter the swimmer’s name, pick the report style, press <strong>Create the report</strong>. This takes under a minute.'],
+  ['Check it, make it yours', 'Look over the numbers, show or reword EO’s points, write your note, set the retest. The last report for this swimmer is found and compared for you.'],
+  ['Publish', 'Publish, then send the private link and the PDF by WhatsApp or email.'],
+];
 function uploadView(err) {
-  show(`<h1>CREATE SWIMBETTER REPORT</h1><p class="lede">Upload the EO Labs SwimBETTER report. We read it, you check it, then Aqua Sharks turns it into a swimmer report you can share and download as a PDF. EO measures. Aqua Sharks interprets.</p>
-    <div class="panel"><h2>Swimmer</h2><div class="grid2"><label class="f">Swimmer name<input class="in" id="f_name" value="${esc(form.name)}" autocomplete="off"></label>
-      <label class="f">Report style<select class="in" id="f_profile">${SWIMMER_PROFILES.map((p) => `<option value="${p}"${form.profile === p ? ' selected' : ''}>${PROFILE_LABEL[p]}</option>`).join('')}</select></label></div></div>
-    <div class="panel"><h2>EO report</h2><div class="drop${picked ? ' has' : ''}" id="drop" tabindex="0" role="button"><i data-lucide="${picked ? 'file-check' : 'upload'}" style="font-size:30px;color:var(--cyan)"></i><strong>${picked ? esc(picked.name) : 'Drop the EO SwimBETTER report here'}</strong><span class="muted">${picked ? 'Click to choose a different file' : 'One PDF (or Word document). Or click to choose a file.'}</span><input type="file" id="file" accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden></div></div>
-    ${err ? `<p class="err">${esc(err)}</p>` : ''}<div class="actions"><button class="btn primary" id="go">Read the report <i data-lucide="arrow-right"></i></button></div><div id="recent"></div>`, 'upload');
+  const ok = (x, label, miss) => `<li class="${x ? 'ok' : 'miss'}"><i data-lucide="${x ? 'check-circle-2' : 'circle'}"></i><span>${x ? `<strong>${label}</strong> ${esc(x.name)}` : miss}</span></li>`;
+  show(`<h1>CREATE A SWIMBETTER REPORT</h1><p class="lede">EO measures. Aqua Sharks turns it into a short report the swimmer will read, with a note from you and a plan for the weeks that follow.</p>
+    <details class="d" ${S.openDetails.guide === false ? '' : 'open'} data-d="guide"><summary>How it works, step by step<span class="mini">6 steps</span></summary><div class="dbody"><ol class="guide">${GUIDE.map((g) => `<li><strong>${esc(g[0])}.</strong> ${g[1]}</li>`).join('')}</ol></div></details>
+    <div class="panel"><h2>Swimmer</h2><div class="grid2"><label class="f">Swimmer name (first name and surname)<input class="in" id="f_name" value="${esc(form.name)}" autocomplete="off"></label>
+      <label class="f">Report style<select class="in" id="f_profile">${SWIMMER_PROFILES.map((p) => `<option value="${p}"${form.profile === p ? ' selected' : ''}>${PROFILE_LABEL[p]}</option>`).join('')}</select></label></div>
+      <p class="mini">The name is how the last report is found next time, so use the same spelling each session.</p></div>
+    <div class="panel"><h2>EO files</h2><div class="drop${picked || pickedExport ? ' has' : ''}" id="drop" tabindex="0" role="button"><i data-lucide="${picked || pickedExport ? 'files' : 'upload'}" style="font-size:30px;color:var(--cyan)"></i><strong>Drop the EO files here</strong><span class="muted">The data export (zip) and the EO report (PDF or Word). Drop both at once, or click to choose.</span></div>
+      <input type="file" id="file" accept=".zip,.pdf,.docx" multiple hidden>
+      <ul class="filestatus">${ok(pickedExport, 'Data export', 'Data export (zip): not added. This gives the exact numbers.')}${ok(picked, 'EO report', 'EO report (PDF or Word): not added. This adds EO’s targets and wording.')}</ul></div>
+    ${err ? `<p class="err">${esc(err)}</p>` : ''}<div class="actions"><button class="btn primary" id="go">Create the report <i data-lucide="arrow-right"></i></button></div><div id="recent"></div>`, 'upload');
   const drop = document.getElementById('drop'), fileEl = document.getElementById('file');
   const keep = () => { form.name = document.getElementById('f_name').value.trim(); form.profile = document.getElementById('f_profile').value; };
-  const take = (f) => { if (!f) return; if (!/\.(pdf|docx)$/i.test(f.name)) { keep(); return uploadView('That is not a PDF or Word document.'); } if (f.size > 25 * 1024 * 1024) { keep(); return uploadView('That file is over 25 MB.'); } keep(); picked = f; uploadView(); };
-  drop.onclick = () => fileEl.click(); drop.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') fileEl.click(); }; fileEl.onchange = () => take(fileEl.files[0]);
+  const take = (files) => {
+    keep(); let bad = null;
+    for (const f of [...files]) {
+      if (f.size > 25 * 1024 * 1024) { bad = `${f.name} is over 25 MB.`; continue; }
+      if (/\.zip$/i.test(f.name)) pickedExport = f; else if (/\.(pdf|docx)$/i.test(f.name)) picked = f; else bad = `${f.name} is not a zip, PDF or Word file.`;
+    }
+    uploadView(bad);
+  };
+  document.querySelector('details[data-d="guide"]').addEventListener('toggle', (e) => { S.openDetails.guide = e.target.open; });
+  drop.onclick = () => fileEl.click(); drop.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') fileEl.click(); }; fileEl.onchange = () => take(fileEl.files);
   ['dragover', 'dragenter'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('over'); }));
-  ['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('over'); if (ev === 'drop') take(e.dataTransfer.files[0]); }));
-  document.getElementById('go').onclick = () => { keep(); if (!picked) return uploadView('Choose the EO report first.'); S.profile = form.profile; runParse(); };
+  ['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('over'); if (ev === 'drop') take(e.dataTransfer.files); }));
+  document.getElementById('go').onclick = () => { keep(); if (!picked && !pickedExport) return uploadView('Add the EO data export, the EO report, or both.'); S.profile = form.profile; runParse(); };
   api('list', {}).then((r) => { const a = (r.assessments || []).slice(0, 8); if (!a.length) return; document.getElementById('recent').innerHTML = `<div class="panel" style="margin-top:22px"><h2>Recent reports</h2>${a.map((x) => `<p style="margin-top:8px"><a class="btn sm" href="?id=${x.id}">${esc(x.swimmer_name)} • ${esc(x.session_date || 'undated')} • ${esc(x.status)}</a></p>`).join('')}</div>`; }).catch(() => {});
 }
 
@@ -133,16 +155,28 @@ function processing(upto) {
   show(`<h1>READING YOUR EO REPORT</h1><ul class="stages">${STAGES.map((s, k) => `<li id="st${k}" class="${k < upto ? 'done' : k === upto ? 'on' : ''}"><span class="dot"></span>${esc(s)}</li>`).join('')}</ul><p class="mini">This usually takes under a minute.</p>`, 'upload');
   return (k) => STAGES.forEach((_, i) => { const el = document.getElementById('st' + i); if (el) el.className = i < k ? 'done' : i === k ? 'on' : ''; });
 }
-function runParse() {
-  const mark = processing(0); let timers = [];
-  S.filename = picked.name; S.id = null; S.published = null;
-  toBase64(picked).then((b64) => { S.fileB64 = b64; mark(1); return (/\.pdf$/i.test(picked.name) ? Promise.race([renderPdfPages(picked), new Promise((res) => setTimeout(() => res([]), 40000))]) : Promise.resolve([])).then((pages) => { mark(2); timers.push(setTimeout(() => mark(3), 2500)); return api('parse', { file_base64: b64, filename: picked.name, page_images: pages, swimmer_name: form.name || undefined }); }); })
-    .then((r) => { timers.forEach(clearTimeout); mark(4); S.analysis = r.analysis; S.diagnostics = r.diagnostics; S.vision = r.vision; if (!r.layout) { return uploadView('This report layout is not recognised yet, so nothing was extracted. Nothing has been guessed.'); } if (form.name) S.analysis.swimmer.name = form.name; S.analysis.swimmer.communicationProfile = S.profile; reviewView(); })
-    .catch((e) => { timers.forEach(clearTimeout); uploadView('Could not read the report: ' + friendly(e)); });
+async function runParse() {
+  const mark = processing(0); const timers = [];
+  try {
+    S.filename = (picked || pickedExport).name; S.id = null; S.published = null; S.fileB64 = null; S.exportB64 = null; S.prevList = null; S.prevCands = null; S.matchFor = null; S.exportInfo = null;
+    const payload = { filename: picked ? picked.name : undefined, export_filename: pickedExport ? pickedExport.name : undefined, swimmer_name: form.name || undefined };
+    if (picked) { S.fileB64 = await toBase64(picked); payload.file_base64 = S.fileB64; }
+    if (pickedExport) { S.exportB64 = await toBase64(pickedExport); payload.export_base64 = S.exportB64; }
+    mark(1);
+    // the PDF's pictures are only read by the model when there is no data export (the export already holds the exact numbers)
+    if (picked && !pickedExport && /\.pdf$/i.test(picked.name)) payload.page_images = await Promise.race([renderPdfPages(picked), new Promise((res) => setTimeout(() => res([]), 40000))]);
+    mark(2); timers.push(setTimeout(() => mark(3), 2500));
+    const r = await api('parse', payload);
+    timers.forEach(clearTimeout); mark(4);
+    S.analysis = r.analysis; S.diagnostics = r.diagnostics; S.vision = r.vision; S.exportInfo = r.exportInfo || null;
+    if (!r.layout && !r.exportInfo) return uploadView('This report layout is not recognised yet, so nothing was extracted. Nothing has been guessed. Add the data export as well and it will work.');
+    if (form.name) S.analysis.swimmer.name = form.name; S.analysis.swimmer.communicationProfile = S.profile;
+    reviewView();
+  } catch (e) { timers.forEach(clearTimeout); uploadView('Could not read the files: ' + friendly(e)); }
 }
 function openDraft(id) {
   show('<h1>OPENING REPORT</h1><p class="lede">Loading the saved report.</p>', 'review');
-  api('get', { id }).then((r) => { const a = r.assessment; S.id = a.id; S.analysis = a.analysis; S.profile = a.communication_profile || 'PERFORMANCE'; S.filename = a.source_file_name; S.fileB64 = null; S.diagnostics = null; S.vision = null; S.published = a.share_token ? { url: r.public_url, token: a.share_token } : null; S.published ? publishedView() : reviewView(); })
+  api('get', { id }).then((r) => { const a = r.assessment; S.id = a.id; S.analysis = a.analysis; S.profile = a.communication_profile || 'PERFORMANCE'; S.filename = a.source_file_name; S.fileB64 = null; S.diagnostics = null; S.vision = null; S.exportInfo = null; S.prevList = null; S.prevCands = null; S.matchFor = null; S.published = a.share_token ? { url: r.public_url, token: a.share_token } : null; S.published ? publishedView() : reviewView(); })
     .catch((e) => uploadView('Could not open that report: ' + friendly(e)));
 }
 
@@ -189,6 +223,7 @@ function evidenceCol() {
   const issues = q.issues.map((i) => `<li>${chip(i.severity === 'WARN' ? 'st-ambiguous' : 'coach', i.kind || i.severity)} ${esc(i.message)}</li>`).join('');
   const need = S.diagnostics ? S.diagnostics.coachRequired : [];
   return `<div class="col"><div class="col-h">EO evidence <small>what the report said</small></div>
+    <div class="panel"><h2>What was read</h2>${a.eoExport ? `<p class="ok">EO data export: ${a.eoExport.laps.length} laps, ${a.eoExport.summary.strokesLeft} left and ${a.eoExport.summary.strokesRight} right strokes. Exact numbers, nothing estimated.</p>` : '<p class="warn">No EO data export was added, so left/right per lap, each hand\u2019s force field and the hand path are missing. Open the swim in EO, use the three dots on a chart, Export FullSwim XLSX.</p>'}${a.source.layout ? `<p class="ok">EO report read (${esc(a.source.layout)}): EO\u2019s target ranges and wording are available.</p>` : '<p class="warn">No EO report was added, so EO\u2019s target ranges and the combined force direction are missing. Download the EO report (PDF) for the same swim and add it.</p>'}</div>
     <div class="panel"><div class="chips">${chip('st-complete', sum.COMPLETE + ' complete')}${chip('st-partial', sum.PARTIAL + ' partial')}${chip('st-ambiguous', sum.AMBIGUOUS + ' ambiguous')}${chip('st-missing', sum.MISSING + ' missing')}</div>
       <p class="mini">Layout ${esc(a.source.layout || 'unknown')}. Image labels: ${S.vision ? (S.vision.ok ? esc(S.vision.forceField) + ' force-field panel(s) read' : 'not read') : 'not run this session'}.</p>
       ${need.length ? `<p class="mini">The report cannot supply: ${need.map(esc).join('; ')}.</p>` : ''}</div>
@@ -270,15 +305,33 @@ function handPathPanel() {
 }
 const present2 = (m) => !!m && m.status !== 'MISSING' && (m.value != null || !!m.range);
 
-/** Link an earlier session of the same swimmer, so the report can show progress. */
+/**
+ * The swimmer's previous report. As soon as the name is known the builder finds their earlier sessions (names may differ by a letter),
+ * links the most recent LIKE-FOR-LIKE one (same stroke, distance and pool) automatically, and says what it did. Britt can change or remove it.
+ */
+const curKey = () => { const a = S.analysis; return { id: S.id, name: a.swimmer.name === 'Unnamed swimmer' ? '' : a.swimmer.name, date: (a.session.date && a.session.date.value) || null, session: a.session, exportId: (a.source && a.source.exportId) || null }; };
+async function linkPrevious(id, auto) { const r = await api('get', { id }); S.analysis.baseline = baselineFrom(r.assessment.analysis); S.linked = { id, auto: !!auto }; }
+async function loadMatches() {
+  const cur = curKey(), key = cur.name + '|' + (S.id || '') + '|' + (cur.exportId || '');
+  if (!cur.name) { S.prevCands = null; S.dupOf = null; S.matchFor = null; return; }
+  if (S.matchFor === key) return; S.matchFor = key;
+  try {
+    if (!S.allList) S.allList = (await api('list', { limit: 200 })).assessments || [];
+    const { candidates, duplicateOf } = rankPrevious(S.allList, cur); S.prevCands = candidates; S.dupOf = duplicateOf;
+    if (!(S.analysis.baseline && S.analysis.baseline.context) && !S.noAuto && candidates[0] && candidates[0].likeForLike) await linkPrevious(candidates[0].id, true);
+  } catch (e) { S.prevCands = []; }
+}
+const candLabel = (c) => { const k = sessionKey(c.session); return `${c.session_date ? fmtDate(c.session_date) : 'undated'} • ${[k.distanceM != null ? k.distanceM + ' m' : null, k.stroke].filter(Boolean).join(' ')}${k.poolLengthM != null ? ' • ' + k.poolLengthM + ' m pool' : ''} • ${c.status === 'published' ? 'published' : 'draft'}`; };
 function progressPanel() {
-  const a = S.analysis, b = a.baseline && a.baseline.context ? a.baseline : null, name = a.swimmer.name === 'Unnamed swimmer' ? '' : a.swimmer.name;
-  const rows = b ? progressRows(a) : [], warn = b ? comparability(a) : [];
-  const list = (S.prevList || []).filter((r) => r.id !== S.id);
-  return `<div class="panel"><h2>Progress</h2><p class="hint">Compare with an earlier session of ${name ? esc(name) : 'this swimmer'}. The report then shows what moved since last time.</p>
-    ${b ? `<p class="ok">Comparing with the session of ${b.capturedOn ? esc(fmtDate(b.capturedOn)) : 'an earlier date'} (${rows.length} number${rows.length === 1 ? '' : 's'} to compare).</p>${warn.map((x) => `<p class="warn">${esc(x)}</p>`).join('')}<div class="ctl"><button class="btn sm warnb" data-act="prog-clear">Remove comparison</button></div>`
-      : list.length ? `<label class="f">Earlier session<select class="in" id="o-prev">${list.map((r) => `<option value="${esc(r.id)}">${esc(r.session_date ? fmtDate(r.session_date) : 'undated')} ${r.status === 'published' ? '(published)' : '(draft)'}</option>`).join('')}</select></label><div class="ctl"><button class="btn sm primary" data-act="prog-use">Use as last time</button></div>`
-      : `<div class="ctl"><button class="btn sm" data-act="prog-find" ${name ? '' : 'disabled'}>${S.prevList ? 'No earlier sessions found. Look again' : 'Find earlier sessions'}</button></div>${name ? '' : '<p class="mini">Enter the swimmer’s name first.</p>'}`}</div>`;
+  const a = S.analysis, cur = curKey(), b = a.baseline && a.baseline.context ? a.baseline : null, rows = b ? progressRows(a) : [], warn = b ? comparability(a) : [];
+  const cands = S.prevCands || [];
+  let body;
+  if (!cur.name) body = '<p class="mini">Enter the swimmer’s name (first name and surname) and their last report is found for you.</p>';
+  else if (b && !S.changing) body = `<p class="ok">Compared with ${b.capturedOn ? esc(fmtDate(b.capturedOn)) : 'an earlier session'}${S.linked && S.linked.auto ? ' (matched automatically: same swimmer, same stroke, distance and pool)' : ''}. ${rows.length} number${rows.length === 1 ? '' : 's'} compared.</p>${warn.map((x) => `<p class="warn">${esc(x)}</p>`).join('')}<div class="ctl"><button class="btn sm" data-act="prog-change">Choose a different one</button><button class="btn sm warnb" data-act="prog-clear">Do not compare</button></div>`;
+  else if (cands.length) body = `<p class="mini">${S.changing ? 'Choose the session to compare with.' : 'No like-for-like report found, but these earlier sessions are the same swimmer.'}</p><label class="f">Earlier session<select class="in" id="o-prev">${cands.map((c) => `<option value="${esc(c.id)}">${esc(candLabel(c))}${c.likeForLike ? ' • like for like' : c.differs.length ? ' • differs: ' + esc(c.differs.join(', ')) : ''}</option>`).join('')}</select></label><div class="ctl"><button class="btn sm primary" data-act="prog-use">Use as last time</button>${S.changing ? '<button class="btn sm" data-act="prog-keep">Keep what I have</button>' : ''}</div>`;
+  else body = S.prevCands === null ? '<p class="mini">Looking for their last report...</p>' : `<p class="mini">No earlier report found for ${esc(cur.name)}. This one becomes their baseline: next session is picked up and compared automatically. If they have been here before, check the spelling of the name.</p>`;
+  const dup = S.dupOf ? `<p class="err">This EO swim was already imported on ${S.dupOf.session_date ? esc(fmtDate(S.dupOf.session_date)) : 'an earlier date'} for ${esc(S.dupOf.swimmer_name)}. <a href="?id=${esc(S.dupOf.id)}">Open that report</a> instead of making a second one.</p>` : '';
+  return `<div class="panel"><h2>Last time</h2><p class="hint">The report compares this session with the swimmer’s previous one and shows what moved.</p>${dup}${body}</div>`;
 }
 /** When the swimmer is invited back. The practice plan is built from the report's own focuses and drills over these weeks. */
 function retestPanel() {
@@ -356,6 +409,8 @@ function reviewView() {
   compute();
   show(`<div class="rb">${evidenceCol()}${findingsCol()}${outputCol()}</div>`, 'review', true);
   bindReview();
+  S.allList = null; S.matchFor = null; S.changing = false;
+  loadMatches().then(() => { if (document.querySelector('.rb') && S.analysis) rerender(); });
 }
 function rerender() { const y = window.scrollY, cols = [...document.querySelectorAll('.rb > .col')].map((c) => c.scrollTop); compute(); const rb = document.querySelector('.rb'); rb.innerHTML = evidenceCol() + findingsCol() + outputCol(); if (window.lucide) lucide.createIcons(); [...rb.children].forEach((c, i) => { c.scrollTop = cols[i] || 0; }); window.scrollTo(0, y); }
 
@@ -378,7 +433,7 @@ function bindReview() {
     if (t.id === 'o-note') { review().coachNote = t.value; return rerender(); }
     if (t.dataset.note !== undefined) { fr(t.dataset.note).note = t.value; return; }
     if (t.dataset.drill !== undefined) { const r = review(); r.drillChoice = r.drillChoice || {}; t.value ? (r.drillChoice[t.dataset.drill] = t.value) : delete r.drillChoice[t.dataset.drill]; return rerender(); }
-    if (t.id === 'o-name') { S.analysis.swimmer.name = t.value.trim() || 'Unnamed swimmer'; return rerender(); }
+    if (t.id === 'o-name') { S.analysis.swimmer.name = t.value.trim() || 'Unnamed swimmer'; S.matchFor = null; S.noAuto = false; rerender(); return loadMatches().then(rerender); }
     if (t.id === 'o-age') { const v = Number(t.value); S.analysis.swimmer.age = t.value.trim() && isFinite(v) ? num(v, 'years', X.from('MANUAL', 'HIGH', { section: 'coach entry' }, undefined, 'COACH_SUPPLIED')) : missing('years', 'COACH_REQUIRED'); return; }
     if (t.id === 'o-profile') { S.profile = t.value; S.analysis.swimmer.communicationProfile = t.value; return rerender(); }
   };
@@ -403,9 +458,10 @@ function bindReview() {
     }
     else if (act === 'claim-show') { const cl = (review().eoClaims = review().eoClaims || {}), ta = root.querySelector(`[data-claim="${CSS.escape(id)}"]`), c = (S.R.findings.find((f) => f.ruleId === 'POWER_EFFECTIVENESS').meta.explanationCandidates || []).find((x) => x.id === id), v = ta ? ta.value.trim() : ''; cl[id] = c && v && v !== c.text ? { status: 'EDITED', editedText: v } : { status: 'APPROVED' }; }
     else if (act === 'claim-hide') { (review().eoClaims = review().eoClaims || {})[id] = { status: 'HIDDEN' }; }
-    else if (act === 'prog-find') { const nm = S.analysis.swimmer.name; return api('list', { name: nm }).then((r) => { S.prevList = r.assessments || []; }).catch((er) => { S.err = friendly(er); }).then(rerender); }
-    else if (act === 'prog-use') { const sel = root.querySelector('#o-prev'); if (!sel) return; return api('get', { id: sel.value }).then((r) => { S.analysis.baseline = baselineFrom(r.assessment.analysis); }).catch((er) => { S.err = friendly(er); }).then(rerender); }
-    else if (act === 'prog-clear') { S.analysis.baseline = { capturedOn: null, metrics: {} }; S.prevList = null; }
+    else if (act === 'prog-change') { S.changing = true; }
+    else if (act === 'prog-keep') { S.changing = false; }
+    else if (act === 'prog-use') { const sel = root.querySelector('#o-prev'); if (!sel) return; S.noAuto = false; return linkPrevious(sel.value, false).then(() => { S.changing = false; }).catch((er) => { S.err = friendly(er); }).then(rerender); }
+    else if (act === 'prog-clear') { S.analysis.baseline = { capturedOn: null, metrics: {} }; S.linked = null; S.noAuto = true; S.changing = false; }
     else if (act === 'lap-apply') applyLap();
     else if (act === 'lap-remove') S.analysis.lapComparisons = [];
     else if (act === 'save') return save().then((ok) => { if (ok) S.msg = 'Draft saved.'; rerender(); });
@@ -417,7 +473,7 @@ function bindReview() {
 
 /* ---------------------------------------------------------------- save / preview / publish */
 function save() {
-  return api('save', { id: S.id || undefined, analysis: S.analysis, profile: SWIMMER_PROFILES.includes(S.profile) ? S.profile : 'PERFORMANCE', filename: S.filename, file_base64: S.id ? undefined : S.fileB64 || undefined })
+  return api('save', { id: S.id || undefined, analysis: S.analysis, profile: SWIMMER_PROFILES.includes(S.profile) ? S.profile : 'PERFORMANCE', filename: S.filename, file_base64: S.id ? undefined : S.fileB64 || undefined, export_base64: S.id ? undefined : S.exportB64 || undefined })
     .then((r) => { S.id = r.id; return true; }).catch((e) => { S.err = friendly(e); return false; });
 }
 function openPreview(mode) {

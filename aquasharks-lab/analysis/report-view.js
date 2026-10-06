@@ -76,6 +76,16 @@ function targets(d, m) {
   return `<div class="rv-targets"><p class="lbl">${esc(t.context)}</p>${t.rows.map((r) => `<div class="rv-trow rv-t-${r.status.toLowerCase()}"><span class="rv-tlabel">${esc(r.label)}</span>${t.simple ? `<span class="rv-tword">${word(r)}</span>` : `<span class="rv-tyou"><small>You</small><strong>${f1(r.value)}%</strong></span><svg class="rv-arr" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15M13 5l7 7-7 7"/></svg><span class="rv-ttarget"><small>Target</small><strong>${esc(r.target)}</strong></span>`}</div>`).join('')}</div>`;
 }
 
+function hands(sec) {
+  const d = sec.data;
+  const word = (r) => (r.status === 'ON_TARGET' ? 'on target' : r.status === 'BELOW' ? 'a bit low' : 'a bit high');
+  const card = (h) => `<article class="rv-hand rv-hand-${h.id}"><h3>${esc(h.label)}</h3>${h.rows.map((r) => `<div class="rv-hrow${r.status ? ' rv-t-' + r.status.toLowerCase() : ''}"><span class="rv-hlabel">${esc(r.label)}</span>${d.simple ? (r.status ? `<span class="rv-tword">${word(r)}</span>` : '') : `<span class="rv-hval">${(Math.round(r.value * 10) / 10).toFixed(1)}<small>%</small></span>${r.target ? `<span class="rv-htarget"><small>Target</small>${esc(r.target)}</span>` : ''}`}</div>`).join('')}</article>`;
+  return `<section class="pg rv-sec rv-hands" data-sec="HANDS"><header class="rv-sechead"><p class="eyebrow">${d.context ? esc(d.context) : 'Left and right'}</p><h2 class="rv-h2">${esc(d.headline)}</h2></header>
+    <div class="rv-handgrid">${d.hands.map(card).join('')}</div>
+    ${d.trend && d.trend.length ? `<ul class="rv-trend">${d.trend.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}
+    <p class="muted small">Where each hand sends its force, as a share of that hand's force, averaged over the laps. EO's own figures.</p></section>`;
+}
+
 function comparison(sec, m, isCoach) {
   const d = sec.data, minimal = m.profile.showNumbers === 'MINIMAL';
   const pctRows = d.rows.filter((r) => r.kind === 'pct');
@@ -125,7 +135,7 @@ function arms(sec, m, isCoach) {
     ${d.lapLeads && d.lapLeads.length ? `<div class="rv-lapleads"><p class="lbl">Stronger arm, lap by lap</p><div>${d.lapLeads.map((x) => `<span class="rv-lapchip rv-lap-${x.higher.toLowerCase()}"><small>LAP ${x.lap}</small><strong>${x.higher === 'LEFT' ? 'LEFT' : 'RIGHT'}</strong></span>`).join('')}</div></div>` : ''}
     ${d.lr && !isCoach ? `<div class="rv-lr"><p class="lbl">Average power, whole swim</p>${d.lr.simple ? `<p class="rv-big">${d.lr.higher === 'LEFT' ? 'Your left hand' : 'Your right hand'} does a bit more of the work.</p>` : `<div class="rv-lrnums"><div class="rv-lrcell rv-lrcell-left${d.lr.higher === 'LEFT' ? ' lead' : ''}"><small>LEFT</small><strong>${f0(d.lr.left)}<span>W</span></strong></div><div class="rv-lrcell rv-lrcell-right${d.lr.higher === 'RIGHT' ? ' lead' : ''}"><small>RIGHT</small><strong>${f0(d.lr.right)}<span>W</span></strong></div></div><p class="muted small">${d.lr.higher === 'LEFT' ? 'Left' : 'Right'} is ${f0(d.lr.gapW)} W higher over the swim.</p>`}</div>` : ''}
     ${!isCoach && ((d.lapLeads && d.lapLeads.length) || d.lr) ? '' : `<div class="rv-armgrid">${armCol('left', d.left, d.doublePeaks.left, isCoach)}${armCol('right', d.right, d.doublePeaks.right, isCoach)}</div>`}
-    ${d.phases ? phaseBars(d.phases) : ''}
+    ${d.phases && isCoach ? phaseBars(d.phases) : ''}
     <div class="rv-means"><p class="lbl">Coaching opportunity</p><p class="rv-big">${esc(d.opportunity)}</p></div>
   </section>`;
 }
@@ -197,7 +207,7 @@ function source(sec) {
   </section>`;
 }
 
-const RENDER = { HERO: hero, NOTE: noteSec, STRENGTHS: strengths, PROGRESS: progress, PLAN: plan, POWER: power, COMPARISON: comparison, ARMS: arms, FOCUS: focus, NEXT: next, EVIDENCE: evidence, DATA_QUALITY: quality, SOURCE: source };
+const RENDER = { HERO: hero, NOTE: noteSec, STRENGTHS: strengths, PROGRESS: progress, PLAN: plan, POWER: power, HANDS: hands, COMPARISON: comparison, ARMS: arms, FOCUS: focus, NEXT: next, EVIDENCE: evidence, DATA_QUALITY: quality, SOURCE: source };
 
 /** @param {import('./types').ReportModel} model */
 export function renderReport(model) {
