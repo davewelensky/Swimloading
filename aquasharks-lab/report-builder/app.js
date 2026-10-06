@@ -30,11 +30,29 @@ function setSteps(cur) {
   document.getElementById('steps').innerHTML = order.map((o, k) => `<span class="${k < idx ? 'done' : k === idx ? 'on' : ''}">${k + 1} ${o[1]}</span>`).join('');
 }
 function show(html, step, wide) { setSteps(step); app.className = 'bwrap' + (wide ? ' wide' : ''); app.innerHTML = html; if (window.lucide) lucide.createIcons(); }
-function api(action, payload) {
-  return fetch('/api/lab-report', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + S.token }, body: JSON.stringify(Object.assign({ action }, payload || {})) })
-    .then((r) => r.json().catch(() => ({})).then((j) => { if (!r.ok) { const e = new Error(j.detail || j.error || 'HTTP ' + r.status); e.code = j.error; e.status = r.status; e.body = j; throw e; } return j; }));
+// Supabase access tokens expire (about an hour) and are refreshed in the background by supabase-js. The token must
+// therefore be read fresh for every request: caching it once at page load made a long-open page report the
+// expired token as "not an admin".
+async function freshToken(force) {
+  if (DEV) return 'dev';
+  const r = force ? await sb.auth.refreshSession() : await sb.auth.getSession();
+  const s = r && r.data && r.data.session;
+  if (s) S.token = s.access_token;
+  return S.token;
+}
+async function api(action, payload, retried) {
+  const token = await freshToken(!!retried);
+  const r = await fetch('/api/lab-report', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify(Object.assign({ action }, payload || {})) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    // One retry with a forced refresh before telling the coach their sign-in has lapsed.
+    if (!retried && !DEV && (r.status === 401 || j.error === 'session_expired')) return api(action, payload, true);
+    const e = new Error(j.detail || j.error || 'HTTP ' + r.status); e.code = j.error; e.status = r.status; e.body = j; throw e;
+  }
+  return j;
 }
 function friendly(e) {
+  if (e.code === 'session_expired') return 'Your sign-in has expired. Refresh this page and sign in again. Your work on screen is not lost until you do.';
   if (e.code === 'not_an_admin') return 'This account is not an Aquasharks club admin.';
   if (e.code === 'storage_not_ready') return 'Saving is not switched on yet (the assessments table has not been created). Your work is still on screen.';
   if (e.code === 'unsupported_format') return 'That file is not a PDF or a Word document.';

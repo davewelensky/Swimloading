@@ -33,6 +33,11 @@ test('every admin action requires an Aquasharks club admin; public endpoints nee
   const res = await call(makeAdminHandler({ store: memoryStore(), auth: async () => 'a' }), { method: 'GET' }); assert.equal(res.statusCode, 405);
 });
 
+test('an expired or invalid sign-in is reported as session_expired (401), not as "not an admin"', async () => {
+  const h = makeAdminHandler({ store: memoryStore(), auth: async () => 'session_expired', callModel: mockModel });
+  for (const action of ['parse', 'save', 'list']) { const res = await call(h, { body: { action } }); assert.equal(res.statusCode, 401, action); assert.equal(json(res).error, 'session_expired'); }
+});
+
 test('parse: reads the upload, applies the vision step, names the swimmer only from the coach, never invents', async () => {
   const r = rig(), p = await parsed(r);
   assert.equal(p.layout, 'EO_AI_REPORT_V1'); assert.equal(p.format, 'DOCX'); assert.match(p.sha256, /^[0-9a-f]{64}$/);

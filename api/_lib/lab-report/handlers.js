@@ -15,7 +15,8 @@ export function supabaseAdminAuth() {
   return async function auth(req) {
     const h = req.headers['authorization'] || ''; if (!h.startsWith('Bearer ')) return null;
     const who = await fetch(`${url()}/auth/v1/user`, { headers: { apikey: process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_KEY, Authorization: h } });
-    if (!who.ok) return null; const user = await who.json(); if (!user || !user.id) return null;
+    // The token itself was refused (expired / invalid): say so, instead of reporting it as "not an admin".
+    if (!who.ok) return 'session_expired'; const user = await who.json(); if (!user || !user.id) return 'session_expired';
     const [club] = await svc(`clubs?slug=eq.${CLUB_SLUG}&select=id`); if (!club) return null;
     const rows = await svc(`club_admins?user_id=eq.${user.id}&club_id=eq.${club.id}&select=user_id`);
     return rows && rows.length ? user.id : null;
@@ -29,6 +30,7 @@ export function makeAdminHandler({ store, auth, callModel = null, publicBase }) 
     const b = req.body && typeof req.body === 'object' ? req.body : {};
     try {
       const userId = await auth(req);
+      if (userId === 'session_expired') return json(res, 401, { error: 'session_expired' });
       if (!userId) return json(res, 403, { error: 'not_an_admin' });
 
       if (b.action === 'parse') {
