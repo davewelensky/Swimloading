@@ -7,6 +7,7 @@
 import { present, getPath } from './model.js';
 import { f0, f1, f2, mmss, fmtDate, span } from './language.js';
 import { progressRows } from './progress.js';
+import { buildPlan, retestWeeks, retestDate, pullCount, BOOK_URL } from './plan.js';
 
 const HEADLINES = {
   POWER_EFFECTIVENESS: (a, p) => {
@@ -171,10 +172,22 @@ export function buildReport(a, findings, priorities, quality, profile) {
     summary: better === prog.length ? 'Every number moved the right way.' : better === 0 ? 'No number has moved yet. That is normal early on: keep working on your focus.' : `${better} of ${prog.length} numbers moved the right way.`,
     rows: prog } : null });
 
+  // PLAN: what to work on in the weeks before the retest, one focus at a time, from this report's own priorities and drills
+  const weeks = retestWeeks(a.coachReview && a.coachReview.retestWeeks);
+  const steps = buildPlan(included.map((p) => ({ title: p.title, cue: p.cue, drill: p.drill })), weeks);
+  const pulls = pullCount(a);
+  sections.push({ id: 'PLAN', status: steps.length ? 'COMPLETE' : 'MISSING', data: steps.length ? {
+    headline: 'YOUR PRACTICE PLAN', weeks, steps,
+    check: pulls != null ? { perLength: pulls, text: 'Count your strokes on any length, in any session, with no sensors. When that number drops, it is working.' } : null } : null });
+
   // NEXT
   const baseline = Object.keys(a.baseline.metrics).filter((k) => BASELINE_FMT[k]).map((k) => ({ label: BASELINE_LABELS[k], ...BASELINE_FMT[k](a.baseline.metrics[k]) }));
   const remeasure = included.flatMap((p) => /** @type {any} */ (live.find((f) => f.id === p.findingIds[0])).meta.remeasure || []);
-  sections.push({ id: 'NEXT', status: quality.sections.NEXT, data: { headline: 'NEXT TIME', baselineDate: a.baseline.capturedOn ? fmtDate(a.baseline.capturedOn) : null, baseline: prog.length ? [] : P === 'JUNIOR' ? baseline.slice(0, 2) : baseline, remeasure: isCoach ? remeasure : remeasure.slice(0, 4) } });
+  sections.push({ id: 'NEXT', status: quality.sections.NEXT, data: { headline: 'YOUR NEXT SESSION', retest: { weeks, date: present(a.session.date) ? retestDate(a.session.date.value, weeks) : null }, book: { url: BOOK_URL, label: 'Book your retest' }, baselineDate: a.baseline.capturedOn ? fmtDate(a.baseline.capturedOn) : null, baseline: prog.length ? [] : P === 'JUNIOR' ? baseline.slice(0, 2) : baseline, remeasure: isCoach ? remeasure : remeasure.slice(0, 3) } });
+
+  // order of the story: where you are (going well, power, progress since last time), what to do (focus, plan), come back (next)
+  const pi = sections.findIndex((x) => x.id === 'PROGRESS'), wi = sections.findIndex((x) => x.id === 'POWER');
+  if (pi > -1 && wi > -1 && pi > wi) sections.splice(wi + 1, 0, sections.splice(pi, 1)[0]);
 
   if (isCoach) {
     sections.push({ id: 'EVIDENCE', status: 'COMPLETE', data: { findings: findings.map((f) => ({ ...f, resolved: f.evidence.map((r) => describeRef(a, r)) })) } });

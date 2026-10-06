@@ -11,6 +11,7 @@ import { emptyComparison, overlay, num, rng, lapRef, missing, X } from '../analy
 import { printedValues } from '../analysis/calc.js';
 import { fmtDate } from '../analysis/language.js';
 import { baselineFrom, comparability, progressRows } from '../analysis/progress.js';
+import { retestWeeks, retestDate, RETEST_WEEKS } from '../analysis/plan.js';
 
 const SUPABASE_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
@@ -244,6 +245,14 @@ function progressPanel() {
       : list.length ? `<label class="f">Earlier session<select class="in" id="o-prev">${list.map((r) => `<option value="${esc(r.id)}">${esc(r.session_date ? fmtDate(r.session_date) : 'undated')} ${r.status === 'published' ? '(published)' : '(draft)'}</option>`).join('')}</select></label><div class="ctl"><button class="btn sm primary" data-act="prog-use">Use as last time</button></div>`
       : `<div class="ctl"><button class="btn sm" data-act="prog-find" ${name ? '' : 'disabled'}>${S.prevList ? 'No earlier sessions found. Look again' : 'Find earlier sessions'}</button></div>${name ? '' : '<p class="mini">Enter the swimmer’s name first.</p>'}`}</div>`;
 }
+/** When the swimmer is invited back. The practice plan is built from the report's own focuses and drills over these weeks. */
+function retestPanel() {
+  const a = S.analysis, w = retestWeeks(a.coachReview && a.coachReview.retestWeeks), d = a.session.date && a.session.date.value ? retestDate(a.session.date.value, w) : null;
+  const n = S.RS.priorities.filter((p) => p.included).length;
+  return `<div class="panel"><h2>Retest and practice plan</h2><p class="hint">The report invites the swimmer back and gives a week-by-week plan built from the ${n} focus${n === 1 ? '' : 'es'} above and the drill chosen for each. Six weeks is a starting suggestion: change it to what you would tell this swimmer.</p>
+    <label class="f">Retest in<select class="in" id="o-weeks">${RETEST_WEEKS.map((x) => `<option value="${x}"${w === x ? ' selected' : ''}>${x} weeks</option>`).join('')}</select></label>
+    <p class="mini">${d ? `Retest around ${esc(d)}.` : 'No session date, so the report says "in about ' + w + ' weeks".'}</p></div>`;
+}
 function notePanel() {
   const a = S.analysis, note = (a.coachReview && a.coachReview.coachNote) || '';
   const ov = a.eoObservations.filter((o) => o.area === 'OVERVIEW').map((o) => o.text).slice(0, 3);
@@ -288,7 +297,7 @@ function outputCol() {
   return `<div class="col"><div class="col-h">Report output <small>what the swimmer gets</small></div>
     <div class="panel"><h2>Swimmer</h2><div class="grid2"><label class="f">Name<input class="in" id="o-name" value="${esc(a.swimmer.name === 'Unnamed swimmer' ? '' : a.swimmer.name)}" placeholder="required"></label><label class="f">Age<input class="in" id="o-age" inputmode="numeric" value="${a.swimmer.age && a.swimmer.age.value != null ? a.swimmer.age.value : ''}" placeholder="optional"></label></div>
       <label class="f" style="margin-top:10px">Report style<select class="in" id="o-profile">${SWIMMER_PROFILES.map((p) => `<option value="${p}"${S.profile === p ? ' selected' : ''}>${PROFILE_LABEL[p]}</option>`).join('')}</select></label></div>
-    ${notePanel()}${progressPanel()}<div class="panel"><h2>Headline</h2>${hero ? `<p class="rv-big" style="margin:6px 0">${hero.data.headline.map(esc).join(' ')}</p>` : ''}<h3>Priorities the swimmer will see</h3>${inc.map((p, i) => `<p style="margin:6px 0"><strong>${i + 1}. ${esc(p.title)}</strong><br><span class="mini">${esc(p.cue)}${p.drill ? ' • ' + esc(p.drill.name) : ''}</span></p>`).join('') || '<p class="mini">None yet.</p>'}
+    ${notePanel()}${retestPanel()}${progressPanel()}<div class="panel"><h2>Headline</h2>${hero ? `<p class="rv-big" style="margin:6px 0">${hero.data.headline.map(esc).join(' ')}</p>` : ''}<h3>Priorities the swimmer will see</h3>${inc.map((p, i) => `<p style="margin:6px 0"><strong>${i + 1}. ${esc(p.title)}</strong><br><span class="mini">${esc(p.cue)}${p.drill ? ' • ' + esc(p.drill.name) : ''}</span></p>`).join('') || '<p class="mini">None yet.</p>'}
       <h3>Sections</h3><div class="chips">${RS.report.sections.filter((s) => !['EVIDENCE', 'DATA_QUALITY', 'SOURCE'].includes(s.id)).map((s) => chip('st-' + s.status.toLowerCase(), s.id.toLowerCase() + ': ' + s.status.toLowerCase())).join('')}</div><p class="mini">A section with no evidence is left out of the report, never filled.</p></div>
     <div class="panel"><h2>Ready to publish?</h2>${rd.blockers.map((x) => `<p class="err">${esc(x)}</p>`).join('')}${rd.warnings.map((x) => `<p class="warn">${esc(x)}</p>`).join('')}${!rd.blockers.length && !rd.warnings.length ? '<p class="ok">Nothing outstanding.</p>' : ''}
       ${S.err ? `<p class="err">${esc(S.err)}</p>` : ''}${S.msg ? `<p class="ok">${esc(S.msg)}</p>` : ''}
@@ -320,6 +329,7 @@ function bindReview() {
     if (t.dataset.field) { setLeafValue(t.dataset.field, t.value); return rerender(); }
     if (t.dataset.edit) { const f = S.R.findings.find((x) => x.id === t.dataset.edit), r = fr(t.dataset.edit), v = t.value.trim(); if (v && v !== f.text.PERFORMANCE) { r.editedText = v; r.status = 'EDITED'; } else { delete r.editedText; if (r.status === 'EDITED') r.status = 'PENDING'; } return rerender(); }
     if (t.dataset.claim) { const cl = (review().eoClaims = review().eoClaims || {}), v = t.value.trim(), c = (S.R.findings.find((f) => f.ruleId === 'POWER_EFFECTIVENESS').meta.explanationCandidates || []).find((x) => x.id === t.dataset.claim); if (c && v && v !== c.text) cl[t.dataset.claim] = { status: 'EDITED', editedText: v }; else if (cl[t.dataset.claim] && cl[t.dataset.claim].status === 'EDITED') cl[t.dataset.claim] = { status: 'APPROVED' }; return rerender(); }
+    if (t.id === 'o-weeks') { review().retestWeeks = Number(t.value); return rerender(); }
     if (t.id === 'o-note') { review().coachNote = t.value; return rerender(); }
     if (t.dataset.note !== undefined) { fr(t.dataset.note).note = t.value; return; }
     if (t.dataset.drill !== undefined) { const r = review(); r.drillChoice = r.drillChoice || {}; t.value ? (r.drillChoice[t.dataset.drill] = t.value) : delete r.drillChoice[t.dataset.drill]; return rerender(); }

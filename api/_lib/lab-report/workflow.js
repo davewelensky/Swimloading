@@ -53,7 +53,7 @@ export function cleanForStorage(analysis) {
     if (!c || !['APPROVED', 'EDITED', 'HIDDEN'].includes(c.status) || !/^eo-obs-\d{1,4}$/.test(id)) continue;
     eoClaims[id] = c.status === 'EDITED' ? { status: 'EDITED', editedText: String(c.editedText || '').slice(0, 600) } : { status: c.status };
   }
-  a.coachReview = { findings: rv.findings || {}, priorityOrder: rv.priorityOrder, drillChoice: rv.drillChoice, eoClaims, coachNote: typeof rv.coachNote === 'string' ? rv.coachNote.slice(0, 1200) : '' };
+  a.coachReview = { findings: rv.findings || {}, priorityOrder: rv.priorityOrder, drillChoice: rv.drillChoice, eoClaims, coachNote: typeof rv.coachNote === 'string' ? rv.coachNote.slice(0, 1200) : '', retestWeeks: [4, 6, 8].includes(Number(rv.retestWeeks)) ? Number(rv.retestWeeks) : 6 };
   if (JSON.stringify(a).length > MAX_ANALYSIS_BYTES) throw fail('analysis_too_large', 413);
   return a;
 }

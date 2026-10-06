@@ -280,6 +280,8 @@ export interface SwimAnalysis {
     eoClaims?: Record<string, { status: 'APPROVED' | 'EDITED' | 'HIDDEN'; editedText?: string }>;
     /** A short personal note from the coach, shown near the top of the swimmer report. */
     coachNote?: string;
+    /** Weeks until the suggested retest (4, 6 or 8). Defaults to 6. */
+    retestWeeks?: number;
   };
   baseline: {
     capturedOn: string | null; metrics: Record<string, number>;
@@ -371,7 +373,7 @@ export interface ProfileConfig {
 }
 
 export interface ReportSection {
-  id: 'HERO' | 'NOTE' | 'STRENGTHS' | 'PROGRESS' | 'POWER' | 'COMPARISON' | 'ARMS' | 'FOCUS' | 'NEXT' | 'EVIDENCE' | 'DATA_QUALITY' | 'SOURCE';
+  id: 'HERO' | 'NOTE' | 'STRENGTHS' | 'PROGRESS' | 'PLAN' | 'POWER' | 'COMPARISON' | 'ARMS' | 'FOCUS' | 'NEXT' | 'EVIDENCE' | 'DATA_QUALITY' | 'SOURCE';
   status: DataStatus;
   data: unknown;
 }

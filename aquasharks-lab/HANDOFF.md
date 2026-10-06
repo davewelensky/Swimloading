@@ -80,12 +80,13 @@ and is short: **three focuses maximum for every swimmer profile**, about four pr
 | Which arm leads each lap, read from EO's wording ("lap 1 favouring the left..."); coach can enter per-lap watts later. A swap is focus #2 in one plain sentence | parser `leftRight.byLap`, `rules.js` asymmetry |
 | Progress: link an earlier session of the same swimmer in the builder; report shows "Since last time" (distance per stroke, forward, downward, hand drag; better/same/not yet by the numbers as shown, no invented tolerance) | `analysis/progress.js`, builder "Progress" panel |
 | Parser now reads "(22% occurrence in both laps 1 and 2)" and "clean single-peak" as per-lap double-peak series | `parser/extract-ai-report.js` |
+| **Come-back section and practice plan:** "Your practice plan" (weeks split across the report's own focuses in rank order, each with its drill and cue, then a "put it together" week), a pull count the swimmer can check on any length (strokes / laps), and "Your next session" (retest date, three numbers to beat, booking button to `/aquasharks-lab#book`). Retest weeks are Britt's choice (4/6/8, default 6 is a suggestion, not a coaching rule). No reps or volumes are prescribed. | `analysis/plan.js`, `report-model.js` PLAN/NEXT, builder "Retest and practice plan" panel |
 | Print layout: sections flow, three page starts (you + note + going well / force + focus / progress + next) | `report-view.css` print block |
 
 Rule changes: rule 6 now reads "EO diagnoses and clinical advice are coach-only **until the coach shows or rewrites a sentence**; clinical advice never auto-surfaces". Rule 3 is unchanged:
 EO's ranges are EO's printed values, not invented thresholds.
 
-**Not done:** the Sophia-style coach-written EO layout (stroke path, video snapshots, breaststroke) is not recognised by the parser (fails closed); per-lap watts need a builder input; republishing
+**Not done:** per-week plan wording is auto-built from drills (Britt cannot yet edit individual weeks); the Sophia-style coach-written EO layout (stroke path, video snapshots, breaststroke) is not recognised by the parser (fails closed); per-lap watts need a builder input; republishing
 the existing sample (token `nBU8...`) from the builder is needed before it shows any of this; drill library and the new drills are DRAFT.
 
 ## Incidents fixed (6 Oct 2026)

@@ -120,3 +120,41 @@ test('progress: absent without a linked session, never invented, and a stroke ch
   const lone = clone(A); lone.baseline = baselineFrom(earlier((p) => { p.metrics.distancePerStrokeM = { value: null, status: 'MISSING', provenance: { origin: 'EO_REPORT' } }; }));
   assert.equal(progressRows(lone).some((r) => r.key === 'distancePerStrokeM'), false);
 });
+
+// ------------------------------------------------------------------ the come-back section and the practice plan
+import { buildPlan, retestDate, retestWeeks, pullCount, BOOK_URL } from '../aquasharks-lab/analysis/plan.js';
+const F = (t) => ({ title: t, cue: 'cue ' + t, drill: { name: 'Drill ' + t, what: 'Do ' + t + '.' } });
+test('plan: weeks are shared across the focuses in rank order, then a final week to put it together', () => {
+  const show = (n, w) => buildPlan(['A', 'B', 'C'].slice(0, n).map(F), w).map((s) => `${s.weeks}:${s.title}`);
+  assert.deepEqual(show(3, 6), ['Weeks 1–2:A', 'Weeks 3–4:B', 'Week 5:C', 'Week 6:Put it together']);
+  assert.deepEqual(show(2, 6), ['Weeks 1–3:A', 'Weeks 4–5:B', 'Week 6:Put it together']);
+  assert.deepEqual(show(1, 4), ['Weeks 1–3:A', 'Week 4:Put it together']);
+  assert.deepEqual(buildPlan([], 6), [], 'no focuses, no plan: nothing is invented');
+  const last = buildPlan([F('A')], 6).at(-1); assert.equal(last.drill, null);
+});
+test('plan: retest date is calendar maths on the session date, with no time-zone drift; weeks fall back to 6', () => {
+  assert.equal(retestDate('2026-10-06', 6), '17 November 2026'); assert.equal(retestDate('2026-12-20', 4), '17 January 2027'); assert.equal(retestDate(null, 6), null);
+  assert.deepEqual([retestWeeks(4), retestWeeks('8'), retestWeeks(5), retestWeeks(undefined)], [4, 8, 6, 6]);
+});
+test('plan: pull count is strokes over laps, and absent unless both were printed', () => {
+  const a = clone(A); a.session.strokeCount.value = 35; a.session.laps.value = 2; assert.equal(pullCount(a), 17.5);
+  a.session.laps = { value: null, status: 'MISSING', provenance: { origin: 'EO_REPORT' } }; assert.equal(pullCount(a), null);
+});
+test('report: the plan uses only this report\'s focuses and drills; the retest, date and booking link close the report', () => {
+  const a = clone(A); a.session.date = { value: '2026-10-06', status: 'COMPLETE', provenance: { origin: 'EO_REPORT' } };
+  const r = analyse(a, 'PERFORMANCE'), plan = sec(r, 'PLAN').data, next = sec(r, 'NEXT').data, inc = r.priorities.filter((p) => p.included);
+  assert.deepEqual(plan.steps.filter((s) => s.kind === 'FOCUS').map((s) => s.title), inc.map((p) => p.title));
+  assert.equal(plan.weeks, 6); assert.equal(plan.check.perLength, 17.1);
+  assert.equal(next.retest.date, '17 November 2026'); assert.equal(next.book.url, BOOK_URL); assert.ok(next.remeasure.length <= 3, 'three numbers to beat, not a list');
+  a.coachReview.retestWeeks = 8; assert.equal(sec(analyse(a, 'PERFORMANCE'), 'PLAN').data.steps.at(-1).weeks, 'Week 8');
+  const html = renderReport(r.report);
+  assert.match(html, /data-sec="PLAN"/); assert.match(html, /Book your retest/); assert.match(html, /href="https:\/\/www\.swimloading\.com\/aquasharks-lab#book"/);
+});
+test('report: swimmers with no focuses get no plan and no invented weeks; storage bounds the retest weeks', () => {
+  const none = emptyAnalysisFor();
+  assert.equal(sec(analyse(none, 'PERFORMANCE'), 'PLAN').status, 'MISSING');
+  const a = clone(A); a.coachReview = { findings: {}, retestWeeks: 99 };
+  assert.equal(cleanForStorage(a).coachReview.retestWeeks, 6);
+});
+import { emptyAnalysis } from '../aquasharks-lab/analysis/model.js';
+function emptyAnalysisFor() { return emptyAnalysis('Nobody'); }

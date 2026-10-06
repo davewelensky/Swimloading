@@ -49,6 +49,13 @@ function progress(sec) {
     <p class="muted small">Two swims are a small sample, and pool, effort and rest all change the numbers. Look for a pattern over several sessions.</p></section>`;
 }
 
+function plan(sec, m) {
+  const d = sec.data, simple = m.profile.showNumbers === 'MINIMAL';
+  return `<section class="pg rv-sec rv-plan" data-sec="PLAN"><header class="rv-sechead"><p class="eyebrow">Until your retest</p><h2 class="rv-h2">${esc(d.headline)}</h2></header>
+    <ol class="rv-steps">${d.steps.map((x) => `<li class="rv-step rv-step-${x.kind.toLowerCase()}"><span class="rv-stepwk">${esc(x.weeks)}</span><div><strong>${esc(x.title)}</strong>${x.drill ? `<p>Add <em>${esc(x.drill.name)}</em> to your warm-up (how it goes is on the focus page).</p>` : x.kind === 'TOGETHER' ? '<p>Swim your normal sets and bring the cues with you. Then come back and we measure what changed.</p>' : ''}${x.cue ? `<p class="rv-stepcue">Cue: &ldquo;${esc(x.cue)}&rdquo;</p>` : ''}</div></li>`).join('')}</ol>
+    ${d.check ? `<div class="rv-pull"><i data-lucide="hash"></i><div><p class="lbl">A number you can check yourself</p><p><strong>${simple ? '' : esc(d.check.perLength)}</strong>${simple ? 'Count your strokes on one length.' : ` strokes per length today. ${esc(d.check.text)}`}</p></div></div>` : ''}</section>`;
+}
+
 function power(sec, m, isCoach) {
   const d = sec.data, minimal = m.profile.showNumbers === 'MINIMAL', fmt = minimal ? f0 : f1;
   const total = d.categories.reduce((s, c) => s + c.pct, 0) || 1;
@@ -141,7 +148,9 @@ function next(sec, m, isCoach) {
   return `<section class="pg rv-sec" data-sec="NEXT">${head(sec, 'Retest', isCoach, d.headline)}
     ${d.baseline.length ? `<p class="lbl">Your baseline${d.baselineDate ? ` (${esc(d.baselineDate)})` : ''}</p><div class="rv-tiles rv-tiles-base">${d.baseline.map((b) => `<div class="rv-tile"><span class="lbl">${esc(b.label)}</span><strong>${esc(b.value)}<small>${esc(b.unit)}</small></strong></div>`).join('')}</div>` : ''}
     ${d.remeasure.length ? `<div class="rv-means"><p class="lbl">What we will re-measure</p><ul class="rv-remeasure">${d.remeasure.map((r) => `<li><span>${esc(r.label)}</span><strong>${esc(r.current)}${r.target ? ` <em>\u2192 ${esc(r.target)}</em>` : ''}</strong></li>`).join('')}</ul></div>` : ''}
-    <div class="cta">RETEST <i data-lucide="arrow-right"></i> MEASURE <i data-lucide="arrow-right"></i> SEE WHAT CHANGED</div>
+    ${d.retest ? `<div class="rv-retest"><p class="lbl">Your retest</p><p class="rv-big">In about ${d.retest.weeks} weeks${d.retest.date ? `, around <strong>${esc(d.retest.date)}</strong>` : ''}. Same swim, same sensors, so we can see what changed.</p></div>` : ''}
+    ${d.book ? '' : '<div class="cta">RETEST <i data-lucide="arrow-right"></i> MEASURE <i data-lucide="arrow-right"></i> SEE WHAT CHANGED</div>'}
+    ${d.book ? `<a class="rv-book" href="${esc(d.book.url)}">${esc(d.book.label)}</a>` : ''}
   </section>`;
 }
 
@@ -186,7 +195,7 @@ function source(sec) {
   </section>`;
 }
 
-const RENDER = { HERO: hero, NOTE: noteSec, STRENGTHS: strengths, PROGRESS: progress, POWER: power, COMPARISON: comparison, ARMS: arms, FOCUS: focus, NEXT: next, EVIDENCE: evidence, DATA_QUALITY: quality, SOURCE: source };
+const RENDER = { HERO: hero, NOTE: noteSec, STRENGTHS: strengths, PROGRESS: progress, PLAN: plan, POWER: power, COMPARISON: comparison, ARMS: arms, FOCUS: focus, NEXT: next, EVIDENCE: evidence, DATA_QUALITY: quality, SOURCE: source };
 
 /** @param {import('./types').ReportModel} model */
 export function renderReport(model) {
