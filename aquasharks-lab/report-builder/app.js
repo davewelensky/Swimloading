@@ -10,6 +10,7 @@ import { debugRows, summariseRows } from '../analysis/parser/debug-rows.js';
 import { emptyComparison, overlay, num, rng, lapRef, missing, X } from '../analysis/model.js';
 import { printedValues } from '../analysis/calc.js';
 import { fmtDate } from '../analysis/language.js';
+import { baselineFrom, comparability, progressRows } from '../analysis/progress.js';
 
 const SUPABASE_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
@@ -217,7 +218,38 @@ function findingsCol() {
   }).join('');
   return `<div class="col"><div class="col-h">Aqua Sharks findings <small>what we make of it</small></div>
     <div class="panel"><h2>Priorities</h2><p class="hint">Ranked by evidence strength. The swimmer sees at most ${PROFILES[S.profile] ? PROFILES[S.profile].maxPriorities : 3}.</p>${prios || '<p class="mini">No priorities yet: the evidence does not support one.</p>'}</div>
-    ${cards}${lapPanel()}</div>`;
+    ${explainPanel()}${cards}${lapPanel()}</div>`;
+}
+
+/** EO's headline sentences for the force-field section. Hidden from swimmers until the coach lets one through (or rewrites it). */
+function explainPanel() {
+  const pe = S.R.findings.find((f) => f.ruleId === 'POWER_EFFECTIVENESS'); const cands = pe && pe.meta.explanationCandidates ? pe.meta.explanationCandidates : [];
+  if (!cands.length) return '';
+  const cl = review().eoClaims || {};
+  const rows = cands.map((c) => {
+    const r = cl[c.id] || {}, on = r.status === 'APPROVED' || r.status === 'EDITED';
+    return `<div class="fcard ${on ? '' : 'sup'}"><div class="chips">${chip(c.strength ? 'class-measured' : 'st-partial', c.strength ? 'a positive' : 'a point to work on')}${on ? chip('st-complete', 'swimmer sees this') : chip('st-missing', 'hidden')}</div>
+      <label class="f">EO says, and the swimmer would read<textarea class="in" data-claim="${esc(c.id)}" rows="3">${esc(r.status === 'EDITED' ? r.editedText : c.text)}</textarea></label>
+      <div class="ctl"><button class="btn sm ${on ? 'on' : ''}" data-act="claim-show" data-id="${esc(c.id)}">${on ? 'Showing' : 'Show to swimmer'}</button>${on ? `<button class="btn sm warnb" data-act="claim-hide" data-id="${esc(c.id)}">Hide</button>` : ''}</div></div>`;
+  }).join('');
+  return `<details class="d" open data-d="claims"><summary>EO's explanation<span class="mini">${cands.length} to decide</span></summary><div class="dbody"><p class="mini">Nothing from EO's wording reaches the swimmer unless you show it. Keep it short, kind and in your own words: edit the text before showing it. Hand drag and elbow points are EO's reading, so only show what you agree with.</p>${rows}</div></details>`;
+}
+/** Link an earlier session of the same swimmer, so the report can show progress. */
+function progressPanel() {
+  const a = S.analysis, b = a.baseline && a.baseline.context ? a.baseline : null, name = a.swimmer.name === 'Unnamed swimmer' ? '' : a.swimmer.name;
+  const rows = b ? progressRows(a) : [], warn = b ? comparability(a) : [];
+  const list = (S.prevList || []).filter((r) => r.id !== S.id);
+  return `<div class="panel"><h2>Progress</h2><p class="hint">Compare with an earlier session of ${name ? esc(name) : 'this swimmer'}. The report then shows what moved since last time.</p>
+    ${b ? `<p class="ok">Comparing with the session of ${b.capturedOn ? esc(fmtDate(b.capturedOn)) : 'an earlier date'} (${rows.length} number${rows.length === 1 ? '' : 's'} to compare).</p>${warn.map((x) => `<p class="warn">${esc(x)}</p>`).join('')}<div class="ctl"><button class="btn sm warnb" data-act="prog-clear">Remove comparison</button></div>`
+      : list.length ? `<label class="f">Earlier session<select class="in" id="o-prev">${list.map((r) => `<option value="${esc(r.id)}">${esc(r.session_date ? fmtDate(r.session_date) : 'undated')} ${r.status === 'published' ? '(published)' : '(draft)'}</option>`).join('')}</select></label><div class="ctl"><button class="btn sm primary" data-act="prog-use">Use as last time</button></div>`
+      : `<div class="ctl"><button class="btn sm" data-act="prog-find" ${name ? '' : 'disabled'}>${S.prevList ? 'No earlier sessions found. Look again' : 'Find earlier sessions'}</button></div>${name ? '' : '<p class="mini">Enter the swimmer’s name first.</p>'}`}</div>`;
+}
+function notePanel() {
+  const a = S.analysis, note = (a.coachReview && a.coachReview.coachNote) || '';
+  const ov = a.eoObservations.filter((o) => o.area === 'OVERVIEW').map((o) => o.text).slice(0, 3);
+  return `<div class="panel"><h2>Your note</h2><p class="hint">Two or three lines from you, at the top of the report. This is what makes it yours.</p>
+    <textarea class="in" id="o-note" rows="5" maxlength="1200" placeholder="e.g. Great swim, Johann. Your left arm is smooth and balanced. This week let's just work on one thing...">${esc(note)}</textarea>
+    ${ov.length ? `<details class="d" style="margin-top:8px"><summary>EO's overview, for reference<span class="mini">not shown to the swimmer</span></summary><div class="dbody"><p class="mini">${ov.map(esc).join(' ')}</p></div></details>` : ''}</div>`;
 }
 
 function lapPanel() {
@@ -256,7 +288,7 @@ function outputCol() {
   return `<div class="col"><div class="col-h">Report output <small>what the swimmer gets</small></div>
     <div class="panel"><h2>Swimmer</h2><div class="grid2"><label class="f">Name<input class="in" id="o-name" value="${esc(a.swimmer.name === 'Unnamed swimmer' ? '' : a.swimmer.name)}" placeholder="required"></label><label class="f">Age<input class="in" id="o-age" inputmode="numeric" value="${a.swimmer.age && a.swimmer.age.value != null ? a.swimmer.age.value : ''}" placeholder="optional"></label></div>
       <label class="f" style="margin-top:10px">Report style<select class="in" id="o-profile">${SWIMMER_PROFILES.map((p) => `<option value="${p}"${S.profile === p ? ' selected' : ''}>${PROFILE_LABEL[p]}</option>`).join('')}</select></label></div>
-    <div class="panel"><h2>Headline</h2>${hero ? `<p class="rv-big" style="margin:6px 0">${hero.data.headline.map(esc).join(' ')}</p>` : ''}<h3>Priorities the swimmer will see</h3>${inc.map((p, i) => `<p style="margin:6px 0"><strong>${i + 1}. ${esc(p.title)}</strong><br><span class="mini">${esc(p.cue)}${p.drill ? ' • ' + esc(p.drill.name) : ''}</span></p>`).join('') || '<p class="mini">None yet.</p>'}
+    ${notePanel()}${progressPanel()}<div class="panel"><h2>Headline</h2>${hero ? `<p class="rv-big" style="margin:6px 0">${hero.data.headline.map(esc).join(' ')}</p>` : ''}<h3>Priorities the swimmer will see</h3>${inc.map((p, i) => `<p style="margin:6px 0"><strong>${i + 1}. ${esc(p.title)}</strong><br><span class="mini">${esc(p.cue)}${p.drill ? ' • ' + esc(p.drill.name) : ''}</span></p>`).join('') || '<p class="mini">None yet.</p>'}
       <h3>Sections</h3><div class="chips">${RS.report.sections.filter((s) => !['EVIDENCE', 'DATA_QUALITY', 'SOURCE'].includes(s.id)).map((s) => chip('st-' + s.status.toLowerCase(), s.id.toLowerCase() + ': ' + s.status.toLowerCase())).join('')}</div><p class="mini">A section with no evidence is left out of the report, never filled.</p></div>
     <div class="panel"><h2>Ready to publish?</h2>${rd.blockers.map((x) => `<p class="err">${esc(x)}</p>`).join('')}${rd.warnings.map((x) => `<p class="warn">${esc(x)}</p>`).join('')}${!rd.blockers.length && !rd.warnings.length ? '<p class="ok">Nothing outstanding.</p>' : ''}
       ${S.err ? `<p class="err">${esc(S.err)}</p>` : ''}${S.msg ? `<p class="ok">${esc(S.msg)}</p>` : ''}
@@ -266,6 +298,9 @@ function clientReadiness() {
   const blockers = [], warnings = [], a = S.analysis, R = S.R, RS = S.RS;
   if (!a.swimmer.name || a.swimmer.name === 'Unnamed swimmer') blockers.push('Enter the swimmer’s name.');
   if (!RS.report.sections.some((s) => ['POWER', 'COMPARISON', 'ARMS', 'FOCUS'].includes(s.id) && s.status !== 'MISSING')) blockers.push('There is not enough evidence to build a swimmer report yet.');
+  const peF = R.findings.find((f) => f.ruleId === 'POWER_EFFECTIVENESS'), cn = peF && peF.meta.explanationCandidates ? peF.meta.explanationCandidates : [], cl = (a.coachReview && a.coachReview.eoClaims) || {};
+  if (cn.length && !cn.some((c) => cl[c.id])) warnings.push('You have not looked at EO’s explanation yet. Show the points you agree with, or the report will give numbers and targets without the reason.');
+  if (!(a.coachReview && a.coachReview.coachNote && a.coachReview.coachNote.trim())) warnings.push('No note from you yet. A short personal note is what the swimmer remembers.');
   const un = R.quality.conflicts.filter((c) => c.realConflict && !c.selectionBasis); if (un.length) warnings.push(`Record a decision for conflicting values: ${un.map((c) => c.path).join(', ')}.`);
   const pend = R.findings.filter((f) => f.review.status === 'PENDING' && f.kind === 'OPPORTUNITY' && f.classification !== 'COACH_CONFIRMATION_REQUIRED').length; if (pend) warnings.push(`${pend} finding(s) not yet approved.`);
   return { blockers, warnings };
@@ -284,6 +319,8 @@ function bindReview() {
     const t = e.target;
     if (t.dataset.field) { setLeafValue(t.dataset.field, t.value); return rerender(); }
     if (t.dataset.edit) { const f = S.R.findings.find((x) => x.id === t.dataset.edit), r = fr(t.dataset.edit), v = t.value.trim(); if (v && v !== f.text.PERFORMANCE) { r.editedText = v; r.status = 'EDITED'; } else { delete r.editedText; if (r.status === 'EDITED') r.status = 'PENDING'; } return rerender(); }
+    if (t.dataset.claim) { const cl = (review().eoClaims = review().eoClaims || {}), v = t.value.trim(), c = (S.R.findings.find((f) => f.ruleId === 'POWER_EFFECTIVENESS').meta.explanationCandidates || []).find((x) => x.id === t.dataset.claim); if (c && v && v !== c.text) cl[t.dataset.claim] = { status: 'EDITED', editedText: v }; else if (cl[t.dataset.claim] && cl[t.dataset.claim].status === 'EDITED') cl[t.dataset.claim] = { status: 'APPROVED' }; return rerender(); }
+    if (t.id === 'o-note') { review().coachNote = t.value; return rerender(); }
     if (t.dataset.note !== undefined) { fr(t.dataset.note).note = t.value; return; }
     if (t.dataset.drill !== undefined) { const r = review(); r.drillChoice = r.drillChoice || {}; t.value ? (r.drillChoice[t.dataset.drill] = t.value) : delete r.drillChoice[t.dataset.drill]; return rerender(); }
     if (t.id === 'o-name') { S.analysis.swimmer.name = t.value.trim() || 'Unnamed swimmer'; return rerender(); }
@@ -299,6 +336,11 @@ function bindReview() {
     else if (act === 'confirm') { const r = fr(id); r.technicalConfirmed = !r.technicalConfirmed; }
     else if (act === 'up' || act === 'down') { const order = S.R.priorities.map((p) => p.findingIds[0]), i = order.indexOf(id), j = act === 'up' ? i - 1 : i + 1; if (j >= 0 && j < order.length) { [order[i], order[j]] = [order[j], order[i]]; review().priorityOrder = order; } }
     else if (act === 'apply-conflict') { const path = b.dataset.path, sel = root.querySelector(`input[name="cv-${CSS.escape(path)}"]:checked`), basis = (root.querySelector(`[data-basis="${CSS.escape(path)}"]`) || {}).value || ''; if (!basis.trim()) { S.err = 'Say why that value, so the decision is on record.'; return rerender(); } if (sel) applyConflict(path, sel.value, basis.trim()); }
+    else if (act === 'claim-show') { const cl = (review().eoClaims = review().eoClaims || {}), ta = root.querySelector(`[data-claim="${CSS.escape(id)}"]`), c = (S.R.findings.find((f) => f.ruleId === 'POWER_EFFECTIVENESS').meta.explanationCandidates || []).find((x) => x.id === id), v = ta ? ta.value.trim() : ''; cl[id] = c && v && v !== c.text ? { status: 'EDITED', editedText: v } : { status: 'APPROVED' }; }
+    else if (act === 'claim-hide') { (review().eoClaims = review().eoClaims || {})[id] = { status: 'HIDDEN' }; }
+    else if (act === 'prog-find') { const nm = S.analysis.swimmer.name; return api('list', { name: nm }).then((r) => { S.prevList = r.assessments || []; }).catch((er) => { S.err = friendly(er); }).then(rerender); }
+    else if (act === 'prog-use') { const sel = root.querySelector('#o-prev'); if (!sel) return; return api('get', { id: sel.value }).then((r) => { S.analysis.baseline = baselineFrom(r.assessment.analysis); }).catch((er) => { S.err = friendly(er); }).then(rerender); }
+    else if (act === 'prog-clear') { S.analysis.baseline = { capturedOn: null, metrics: {} }; S.prevList = null; }
     else if (act === 'lap-apply') applyLap();
     else if (act === 'lap-remove') S.analysis.lapComparisons = [];
     else if (act === 'save') return save().then((ok) => { if (ok) S.msg = 'Draft saved.'; rerender(); });

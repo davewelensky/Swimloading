@@ -46,7 +46,14 @@ export function cleanForStorage(analysis) {
   if (!name) throw fail('swimmer_name_required');
   a.swimmer.name = name.slice(0, 120);
   a.aquaSharksFindings = []; a.priorities = [];
-  a.coachReview = a.coachReview && typeof a.coachReview === 'object' ? { findings: a.coachReview.findings || {}, priorityOrder: a.coachReview.priorityOrder, drillChoice: a.coachReview.drillChoice } : { findings: {} };
+  const rv = a.coachReview && typeof a.coachReview === 'object' ? a.coachReview : {};
+  /** Which of EO's sentences the coach let through, and her edits. Only known statuses and bounded strings are kept. */
+  const eoClaims = {};
+  for (const [id, c] of Object.entries(rv.eoClaims && typeof rv.eoClaims === 'object' ? rv.eoClaims : {})) {
+    if (!c || !['APPROVED', 'EDITED', 'HIDDEN'].includes(c.status) || !/^eo-obs-\d{1,4}$/.test(id)) continue;
+    eoClaims[id] = c.status === 'EDITED' ? { status: 'EDITED', editedText: String(c.editedText || '').slice(0, 600) } : { status: c.status };
+  }
+  a.coachReview = { findings: rv.findings || {}, priorityOrder: rv.priorityOrder, drillChoice: rv.drillChoice, eoClaims, coachNote: typeof rv.coachNote === 'string' ? rv.coachNote.slice(0, 1200) : '' };
   if (JSON.stringify(a).length > MAX_ANALYSIS_BYTES) throw fail('analysis_too_large', 413);
   return a;
 }
@@ -69,7 +76,7 @@ export function readiness(analysis, profile) {
   return { blockers, warnings, sections: r.report.sections.map((s) => [s.id, s.status]), priorities: r.priorities.filter((p) => p.included).length };
 }
 
-/** The swimmer-facing report, frozen at publish time. Never contains the coach view, source prose, conflicts or coach-only items. */
+/** The swimmer-facing report, frozen at publish time. Never contains the coach view, conflicts or coach-only items. The only EO wording that can appear is a sentence the coach approved or rewrote. */
 export function buildSnapshot(analysis, profile) {
   const p = SWIMMER_PROFILES.includes(profile) ? profile : 'PERFORMANCE';
   const report = analyse(analysis, p).report;

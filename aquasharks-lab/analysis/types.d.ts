@@ -236,6 +236,11 @@ export interface SwimAnalysis {
     relativeOutput: { left: Observed<RelativeOutput>; right: Observed<RelativeOutput> };
     /** Did the gap persist across laps? As stated by EO or the coach. */
     persistence: Observed<'ALL_LAPS' | 'SOME_LAPS' | 'ONE_LAP'>;
+    /**
+     * Which arm produced more power in each lap. `higher` is what EO's text says (rule-read) or, when the coach has entered
+     * both per-lap figures, what those figures show. Absent on analyses saved before this field existed: treat as [].
+     */
+    byLap?: { lap: number; higher: Observed<'LEFT' | 'RIGHT' | 'EQUAL'>; leftW: Measured; rightW: Measured }[];
   };
   /** Explicit lap comparisons. Empty when the source gives none. */
   lapComparisons: LapComparison[];
@@ -268,8 +273,19 @@ export interface SwimAnalysis {
     priorityOrder?: string[];
     /** Drill chosen by the coach per finding id. */
     drillChoice?: Record<string, string>;
+    /**
+     * EO's diagnostic sentences are hidden from swimmers until the coach decides. APPROVED shows EO's sentence,
+     * EDITED shows `editedText`, anything else (or absent) stays hidden. Keyed by EoObservation id.
+     */
+    eoClaims?: Record<string, { status: 'APPROVED' | 'EDITED' | 'HIDDEN'; editedText?: string }>;
+    /** A short personal note from the coach, shown near the top of the swimmer report. */
+    coachNote?: string;
   };
-  baseline: { capturedOn: string | null; metrics: Record<string, number> };
+  baseline: {
+    capturedOn: string | null; metrics: Record<string, number>;
+    /** Set when the baseline is an earlier session of the same swimmer (see progress.js). Drives the "since last time" section. */
+    context?: { stroke: string | null; distanceM: number | null };
+  };
 }
 
 export interface FindingReview {
@@ -355,7 +371,7 @@ export interface ProfileConfig {
 }
 
 export interface ReportSection {
-  id: 'HERO' | 'POWER' | 'COMPARISON' | 'ARMS' | 'FOCUS' | 'NEXT' | 'EVIDENCE' | 'DATA_QUALITY' | 'SOURCE';
+  id: 'HERO' | 'NOTE' | 'STRENGTHS' | 'PROGRESS' | 'POWER' | 'COMPARISON' | 'ARMS' | 'FOCUS' | 'NEXT' | 'EVIDENCE' | 'DATA_QUALITY' | 'SOURCE';
   status: DataStatus;
   data: unknown;
 }

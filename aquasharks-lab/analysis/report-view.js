@@ -25,8 +25,28 @@ function hero(sec, m, isCoach) {
     <p class="rv-sessionsub">${esc([d.date, d.location].filter(Boolean).join(' • '))}</p>
     <h2 class="rv-headline">${d.headline.map((l, i) => `<span class="${i === 0 ? '' : 'em'}">${esc(l)}</span>`).join('')}</h2>
     ${d.keyMetrics.length ? `<div class="rv-tiles rv-tiles-${d.keyMetrics.length}">${d.keyMetrics.map((k) => `<div class="rv-tile"><span class="lbl">${esc(k.label)}</span><strong>${esc(k.value)}<small>${esc(k.unit)}</small></strong></div>`).join('')}</div>` : ''}
+    <p class="rv-eoref">This report builds on your EO Labs SwimBETTER analysis. EO measures your stroke; Aqua Sharks turns it into what to work on.</p>
     ${isCoach ? `<div class="rv-secstat">${statusChip(sec.status)}</div>` : ''}
   </section>`;
+}
+
+function noteSec(sec) {
+  const d = sec.data;
+  return `<section class="pg rv-sec rv-note" data-sec="NOTE"><p class="eyebrow">A note from ${esc(d.from)}</p><blockquote class="rv-notebody">${esc(d.text).split(/\n+/).map((x) => `<p>${x}</p>`).join('')}</blockquote><p class="rv-notesig">${esc(d.from)}, ${esc(d.club)}</p></section>`;
+}
+
+function strengths(sec) {
+  const d = sec.data;
+  return `<section class="pg rv-sec rv-good" data-sec="STRENGTHS"><header class="rv-sechead"><p class="eyebrow">Keep doing this</p><h2 class="rv-h2">${esc(d.headline)}</h2></header><ul class="rv-goodlist">${d.items.map((i) => `<li><i data-lucide="check"></i><div><strong>${esc(i.title)}</strong>${i.detail ? `<p>${esc(i.detail)}</p>` : ''}</div></li>`).join('')}</ul></section>`;
+}
+
+function progress(sec) {
+  const d = sec.data;
+  const chipOf = (v) => (v === 'BETTER' ? '<span class="rv-pv rv-pv-better">Better</span>' : v === 'SAME' ? '<span class="rv-pv rv-pv-same">Same</span>' : '<span class="rv-pv rv-pv-not">Not yet</span>');
+  return `<section class="pg rv-sec rv-progress" data-sec="PROGRESS"><header class="rv-sechead"><p class="eyebrow">${d.since ? `Compared with ${esc(d.since)}` : 'Compared with your last session'}</p><h2 class="rv-h2">${esc(d.headline)}</h2></header>
+    <p class="rv-big">${esc(d.summary)}</p>
+    <div class="rv-prog">${d.rows.map((r) => `<div class="rv-progrow"><span class="rv-progl">${esc(r.label)}</span><span class="rv-progn">${r.then.toFixed(r.dp)}<small>${esc(r.unit)}</small> \u2192 <strong>${r.now.toFixed(r.dp)}<small>${esc(r.unit)}</small></strong></span>${chipOf(r.verdict)}</div>`).join('')}</div>
+    <p class="muted small">Two swims are a small sample, and pool, effort and rest all change the numbers. Look for a pattern over several sessions.</p></section>`;
 }
 
 function power(sec, m, isCoach) {
@@ -34,11 +54,18 @@ function power(sec, m, isCoach) {
   const total = d.categories.reduce((s, c) => s + c.pct, 0) || 1;
   const bar = d.categories.map((c) => `<i class="rv-seg rv-seg-${c.id}" style="width:${(c.pct / Math.max(total, 100)) * 100}%" title="${esc(c.label)}"></i>`).join('');
   const legend = d.categories.map((c) => `<div class="rv-cat rv-cat-${c.id}"><strong>${fmt(c.pct)}<small>%</small></strong><span class="rv-catlbl">${esc(c.label)}</span>${c.detail ? `<span class="rv-catdet">${esc(c.detail)}</span>` : ''}</div>`).join('');
-  return `<section class="pg rv-sec" data-sec="POWER">${head(sec, 'Force direction', isCoach, d.headline)}
+  return `<section class="pg rv-sec rv-power-join" data-sec="POWER">${head(sec, 'Force direction', isCoach, d.headline)}
     <div class="rv-bar" role="img" aria-label="Share of force by direction">${bar}</div>
     <div class="rv-cats">${legend}</div>
-    <div class="rv-means"><p class="lbl">What this means</p><p class="rv-big">${esc(d.whatThisMeans)}</p></div>
+    ${targets(d, m)}
+    <div class="rv-means"><p class="lbl">What this means</p><p class="rv-big">${esc(d.whatThisMeans)}</p>${d.explanations && d.explanations.length ? `<ul class="rv-why">${d.explanations.map((x) => `<li>${esc(x)}</li>`).join('')}</ul><p class="muted small">From the EO analysis, checked by your coach.</p>` : ''}</div>
   </section>`;
+}
+/** Only the numbers that are off target, as: you, then the target. Juniors get words, not figures. */
+function targets(d, m) {
+  const t = d.targets; if (!t) return '';
+  const word = (r) => (r.status === 'BELOW' ? 'a bit low' : 'a bit high');
+  return `<div class="rv-targets"><p class="lbl">${esc(t.context)}</p>${t.rows.map((r) => `<div class="rv-trow rv-t-${r.status.toLowerCase()}"><span class="rv-tlabel">${esc(r.label)}</span>${t.simple ? `<span class="rv-tword">${word(r)}</span>` : `<span class="rv-tyou"><small>You</small><strong>${f1(r.value)}%</strong></span><svg class="rv-arr" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15M13 5l7 7-7 7"/></svg><span class="rv-ttarget"><small>Target</small><strong>${esc(r.target)}</strong></span>`}</div>`).join('')}</div>`;
 }
 
 function comparison(sec, m, isCoach) {
@@ -74,8 +101,8 @@ const GLYPH = {
   SHOULDER: '<path d="M2,52 C16,52 22,12 36,12 C50,12 50,30 62,30 C74,30 78,52 90,52" />',
 };
 function armCol(side, d, doubles, isCoach) {
-  const g = d.shape && GLYPH[d.shape] ? `<figure class="rv-glyph"><svg viewBox="0 0 92 60" aria-hidden="true">${GLYPH[d.shape]}</svg><figcaption>${d.shape === 'MULTI_PEAK' ? 'Multiple peaks' : d.shape === 'SINGLE_PEAK' ? 'Single peak' : 'Shoulder'} <small>(illustration of the pattern type)</small></figcaption></figure>` : '';
-  const dp = doubles && doubles.length ? `<div class="rv-dp"><p class="lbl">Double peaks by lap, % of strokes</p><div class="rv-dpbars">${doubles.map((v, i) => `<span title="Lap ${i + 1}: ${f1(v)}%"><i style="height:${Math.max(2, (v / 50) * 100)}%"></i><em>${i + 1}</em></span>`).join('')}</div></div>` : '';
+  const g = isCoach && d.shape && GLYPH[d.shape] ? `<figure class="rv-glyph"><svg viewBox="0 0 92 60" aria-hidden="true">${GLYPH[d.shape]}</svg><figcaption>${d.shape === 'MULTI_PEAK' ? 'Multiple peaks' : d.shape === 'SINGLE_PEAK' ? 'Single peak' : 'Shoulder'} <small>(illustration of the pattern type)</small></figcaption></figure>` : '';
+  const dp = isCoach && doubles && doubles.length ? `<div class="rv-dp"><p class="lbl">Double peaks by lap, % of strokes</p><div class="rv-dpbars">${doubles.map((v, i) => `<span title="Lap ${i + 1}: ${f1(v)}%"><i style="height:${Math.max(2, (v / 50) * 100)}%"></i><em>${i + 1}</em></span>`).join('')}</div></div>` : '';
   const tm = d.timing && d.timing.length ? `<ul class="rv-timing">${d.timing.map((p) => `<li>${esc(p)}</li>`).join('')}</ul>` : '';
   return `<article class="rv-arm rv-arm-${side}"><h3>${side === 'left' ? 'LEFT' : 'RIGHT'}</h3>${g}<ul>${d.points.map((p) => `<li>${esc(p)}</li>`).join('')}</ul>${tm}${dp}${isCoach && d.coachOnly.length ? `<ul class="rv-coachonly">${d.coachOnly.map((p) => `<li>${chip('coach', 'Coach only')} ${esc(p)}</li>`).join('')}</ul>` : ''}</article>`;
 }
@@ -87,7 +114,8 @@ function phaseBars(ph) {
 function arms(sec, m, isCoach) {
   const d = sec.data;
   return `<section class="pg rv-sec" data-sec="ARMS">${head(sec, 'Left and right', isCoach, d.headline)}
-    <div class="rv-armgrid">${armCol('left', d.left, d.doublePeaks.left, isCoach)}${armCol('right', d.right, d.doublePeaks.right, isCoach)}</div>
+    ${d.lapLeads && d.lapLeads.length ? `<div class="rv-lapleads"><p class="lbl">Stronger arm, lap by lap</p><div>${d.lapLeads.map((x) => `<span class="rv-lapchip rv-lap-${x.higher.toLowerCase()}"><small>LAP ${x.lap}</small><strong>${x.higher === 'LEFT' ? 'LEFT' : 'RIGHT'}</strong></span>`).join('')}</div></div>` : ''}
+    ${!isCoach && d.lapLeads && d.lapLeads.length ? '' : `<div class="rv-armgrid">${armCol('left', d.left, d.doublePeaks.left, isCoach)}${armCol('right', d.right, d.doublePeaks.right, isCoach)}</div>`}
     ${d.phases ? phaseBars(d.phases) : ''}
     <div class="rv-means"><p class="lbl">Coaching opportunity</p><p class="rv-big">${esc(d.opportunity)}</p></div>
   </section>`;
@@ -105,14 +133,14 @@ function focus(sec, m, isCoach) {
       ${isCoach ? `<div class="rv-evrow">${chip('class-' + p.classification.toLowerCase(), CLASS_LABEL[p.classification])}${chip('conf-' + p.confidence.toLowerCase(), p.confidence)}${p.suppressed ? chip('st-ambiguous', 'Suppressed') : p.included ? chip('st-complete', 'In swimmer report') : chip('coach', p.coachOnlyReason || 'Not in swimmer report')}</div>
         <ul class="rv-refs">${p.evidence.map((e) => `<li><code>${esc(e.ref)}</code> ${esc(e.text)} ${e.status ? `<small>${esc(e.status)}</small>` : ''}</li>`).join('')}</ul>` : ''}
     </article>`).join('');
-  return `<section class="pg rv-sec" data-sec="FOCUS">${head(sec, 'What to change', isCoach, d.headline)}<div class="rv-prios">${cards}</div></section>`;
+  return `<section class="pg rv-sec rv-focus-join" data-sec="FOCUS">${head(sec, 'What to change', isCoach, d.headline)}<div class="rv-prios">${cards}</div></section>`;
 }
 
 function next(sec, m, isCoach) {
   const d = sec.data;
   return `<section class="pg rv-sec" data-sec="NEXT">${head(sec, 'Retest', isCoach, d.headline)}
     ${d.baseline.length ? `<p class="lbl">Your baseline${d.baselineDate ? ` (${esc(d.baselineDate)})` : ''}</p><div class="rv-tiles rv-tiles-base">${d.baseline.map((b) => `<div class="rv-tile"><span class="lbl">${esc(b.label)}</span><strong>${esc(b.value)}<small>${esc(b.unit)}</small></strong></div>`).join('')}</div>` : ''}
-    ${d.remeasure.length ? `<div class="rv-means"><p class="lbl">What we will re-measure</p><ul class="rv-remeasure">${d.remeasure.map((r) => `<li><span>${esc(r.label)}</span><strong>${esc(r.current)}</strong></li>`).join('')}</ul></div>` : ''}
+    ${d.remeasure.length ? `<div class="rv-means"><p class="lbl">What we will re-measure</p><ul class="rv-remeasure">${d.remeasure.map((r) => `<li><span>${esc(r.label)}</span><strong>${esc(r.current)}${r.target ? ` <em>\u2192 ${esc(r.target)}</em>` : ''}</strong></li>`).join('')}</ul></div>` : ''}
     <div class="cta">RETEST <i data-lucide="arrow-right"></i> MEASURE <i data-lucide="arrow-right"></i> SEE WHAT CHANGED</div>
   </section>`;
 }
@@ -158,7 +186,7 @@ function source(sec) {
   </section>`;
 }
 
-const RENDER = { HERO: hero, POWER: power, COMPARISON: comparison, ARMS: arms, FOCUS: focus, NEXT: next, EVIDENCE: evidence, DATA_QUALITY: quality, SOURCE: source };
+const RENDER = { HERO: hero, NOTE: noteSec, STRENGTHS: strengths, PROGRESS: progress, POWER: power, COMPARISON: comparison, ARMS: arms, FOCUS: focus, NEXT: next, EVIDENCE: evidence, DATA_QUALITY: quality, SOURCE: source };
 
 /** @param {import('./types').ReportModel} model */
 export function renderReport(model) {

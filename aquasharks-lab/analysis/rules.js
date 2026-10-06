@@ -13,7 +13,7 @@
  *   OUTPUT (rate, DPS, power, work, time)                           -> OUTPUT_SUMMARY (context)
  */
 import { present } from './model.js';
-import { changeOf, largerMagnitude, asymmetry, corroborate, directionOf, confidenceOf, minConfidence, pointChange, printedValues, hasRealConflict } from './calc.js';
+import { round, changeOf, largerMagnitude, asymmetry, corroborate, directionOf, confidenceOf, minConfidence, pointChange, printedValues, hasRealConflict } from './calc.js';
 import { f0, f1, f2, signed, span, mmss, lapLabel, lapName } from './language.js';
 
 const CLASS_WEIGHT = { MEASURED: 3, OBSERVED: 2, INFERRED: 1, COACH_CONFIRMATION_REQUIRED: 0 };
@@ -49,6 +49,47 @@ function conflictCaveat(m, label) {
   return [`${kind} for ${label}: ${list}. ${m.selectionBasis ? 'Selection basis: ' + m.selectionBasis + '. ' : ''}This is a source-selection decision, not established ground truth.`];
 }
 
+
+// ---------------------------------------------------------------------------------------------
+// EO's own target ranges. They are read from the report (never hardcoded here) and compared with the swimmer's value.
+const TARGET_KEYS = [['propulsivePct', 'Forward', 'forward share'], ['downwardPct', 'Downward', 'downward force'], ['handDragPct', 'Hand drag', 'hand drag'], ['upwardPct', 'Upward', 'upward force'], ['leftwardPct', 'Left', 'sideways force to the left'], ['rightwardPct', 'Right', 'sideways force to the right']];
+/** "70–75%", "under 4%", "0%". */
+export function targetText(r) {
+  const n = (v) => String(round(v, 1));
+  if (r.lo != null && r.hi != null) return r.lo === r.hi ? `${n(r.lo)}%` : `${n(r.lo)}\u2013${n(r.hi)}%`;
+  if (r.hi != null) return `under ${n(r.hi)}%`;
+  return `over ${n(r.lo)}%`;
+}
+/** One row per force direction that has both a value and an EO target. Empty when the report prints no targets. */
+export function targetRows(a) {
+  const o = a.forceDistribution.overall, out = [];
+  for (const [key, label, plain] of TARGET_KEYS) {
+    const ref = a.eoReferenceRanges[key], m = o[key];
+    if (!ref || (ref.lo == null && ref.hi == null) || !present(m)) continue;
+    const v = m.value;
+    const status = ref.lo != null && v < ref.lo ? 'BELOW' : ref.hi != null && v > ref.hi ? 'ABOVE' : 'ON_TARGET';
+    const gap = status === 'BELOW' ? ref.lo - v : status === 'ABOVE' ? v - ref.hi : 0;
+    out.push({ key, label, plain, value: v, target: targetText(ref), lo: ref.lo, hi: ref.hi, status, gap: round(gap, 1) });
+  }
+  return out;
+}
+/**
+ * EO's headline diagnostic sentence for each point it makes in the force-field section. Hidden from swimmers until the coach
+ * approves it (coachReview.eoClaims). The first sentence of each EO paragraph is the point; the rest is elaboration and is not offered.
+ */
+export function explanationCandidates(a) {
+  const seen = new Set(), out = [];
+  for (const o of a.eoObservations) {
+    if (o.area !== 'FORCE_FIELD' || o.claimType !== 'DIAGNOSTIC_INTERPRETATION') continue;
+    const para = o.provenance && o.provenance.extraction && o.provenance.extraction.locator ? o.provenance.extraction.locator.paragraph : undefined;
+    if (para === undefined || seen.has(para)) continue;
+    seen.add(para);
+    const key = /hand drag/i.test(o.text) ? 'handDragPct' : /elbow|downward/i.test(o.text) ? 'downwardPct' : /propulsive/i.test(o.text) ? 'propulsivePct' : /left-right|balanc|leftward|rightward|sideways/i.test(o.text) ? 'lateral' : 'other';
+    out.push({ id: o.id, text: o.text, key, strength: /strength|balanc|clean|excellent/i.test(o.text) && !/below|drag|drop|collapse|issue/i.test(o.text) });
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------------------------
 export function powerEffectiveness(a) {
   const o = a.forceDistribution.overall;
@@ -61,10 +102,13 @@ export function powerEffectiveness(a) {
   const inputs = [o.propulsivePct, o.downwardPct, ...(hasSide ? [o.leftwardPct, o.rightwardPct] : []), ...(hasOther ? [o.upwardPct, o.handDragPct] : [])];
   const power = a.metrics.avgPowerW;
   const order = down > fwd ? 'DOWN_LARGER' : fwd > down ? 'FORWARD_LARGER' : 'EQUAL';
-  const title = order === 'DOWN_LARGER' ? 'More of your force goes down than forward'
+  const trows = targetRows(a), off = trows.filter((r) => r.status !== 'ON_TARGET').sort((x, y) => y.gap - x.gap);
+  const title = off.length ? `Force direction is off EO's target on ${off.length} of ${trows.length} measures`
+    : order === 'DOWN_LARGER' ? 'More of your force goes down than forward'
     : order === 'FORWARD_LARGER' ? 'More of your force goes forward than down' : 'Forward and downward force are equal';
 
   const measurement = [`${f1(fwd)}% of force goes forward`, `${f1(down)}% goes down`];
+  for (const r of trows) measurement.push(`${r.label}: ${f1(r.value)}% against EO's target of ${r.target}${r.status === 'ON_TARGET' ? ' (on target)' : ` (${f1(r.gap)} points ${r.status === 'BELOW' ? 'below' : 'above'})`}`);
   if (hasSide) measurement.push(`${f1(side)}% goes sideways (${f1(o.leftwardPct.value)}% left, ${f1(o.rightwardPct.value)}% right)`);
   if (hasOther) measurement.push(`${f1(other)}% is upward force and hand drag`);
   if (present(power)) measurement.push(`Average power ${f1(power.value)} W`);
@@ -79,14 +123,17 @@ export function powerEffectiveness(a) {
   const caveats = [...conflictCaveat(o.propulsivePct, 'the propulsive share')];
   if (lateral) caveats.push(`Sideways force is mostly ${lateral.toLowerCase()}ward. The force field shows direction, not cause: any technical reason needs coach confirmation.`);
   const s = (n) => f0(n);
+  /** "Forward share is 62% against a target of 70\u201375%." for the two biggest misses, then what is on target. */
+  const gapLine = off.slice(0, 2).map((r) => `Your ${r.plain} is ${s(r.value)}%, against a target of ${r.target}.`).join(' ');
+  const okRows = trows.filter((r) => r.status === 'ON_TARGET');
   const text = {
-    JUNIOR: order === 'DOWN_LARGER' ? 'A lot of your push goes down and sideways instead of forward. Let’s point more of it forward.' : 'Most of your push is going the right way. Let’s keep it pointing forward.',
-    PERFORMANCE: `About ${s(fwd)}% of your force pushes you forward. About ${s(down)}% pushes down${hasSide ? ` and ${s(side)}% goes sideways` : ''}.`,
-    MASTERS_OPEN_WATER: `Around ${s(fwd)}% of your force is propulsive; ${s(down)}% goes down${hasSide ? ` and ${s(side)}% sideways` : ''}. Pointing more of the same effort forward is the route to sustainable propulsion.`,
+    JUNIOR: off.length ? `You make plenty of push. Some of it goes down instead of back, so the job is to point more of it backwards.${okRows.length ? ' Your sideways push is already where it should be.' : ''}` : order === 'DOWN_LARGER' ? 'A lot of your push goes down and sideways instead of forward. Let’s point more of it forward.' : 'Most of your push is going the right way. Let’s keep it pointing forward.',
+    PERFORMANCE: off.length ? gapLine : `About ${s(fwd)}% of your force pushes you forward. About ${s(down)}% pushes down${hasSide ? ` and ${s(side)}% goes sideways` : ''}.`,
+    MASTERS_OPEN_WATER: off.length ? gapLine : `Around ${s(fwd)}% of your force is propulsive; ${s(down)}% goes down${hasSide ? ` and ${s(side)}% sideways` : ''}. Pointing more of the same effort forward is the route to sustainable propulsion.`,
     COACH: `Force field (whole swim): forward ${f1(fwd)}%, down ${f1(down)}%${hasSide ? `, sideways ${f1(side)}% (L ${f1(o.leftwardPct.value)} / R ${f1(o.rightwardPct.value)})` : ''}${hasOther ? `, upward + drag ${f1(other)}%` : ''}. ${present(power) ? `Average power ${f1(power.value)} W, so output is being produced; the opportunity is direction.` : ''}`.trim(),
   };
   return finding({
-    ruleId: 'POWER_EFFECTIVENESS', kind: order === 'DOWN_LARGER' ? 'OPPORTUNITY' : 'CONTEXT', title,
+    ruleId: 'POWER_EFFECTIVENESS', kind: order === 'DOWN_LARGER' || off.length ? 'OPPORTUNITY' : 'CONTEXT', title,
     classification: 'MEASURED', confidence: confidenceOf(inputs), evidence, measurement, text, caveats,
     observation: order === 'DOWN_LARGER' ? 'The downward share is larger than the forward share.' : null,
     recommendation: order === 'DOWN_LARGER' ? 'Work on where the force points, before adding more force.' : null,
@@ -94,7 +141,12 @@ export function powerEffectiveness(a) {
     meta: {
       categories: { forward: fwd, down, side, other, left: hasSide ? o.leftwardPct.value : null, right: hasSide ? o.rightwardPct.value : null },
       lateral,
-      remeasure: [{ label: 'Forward share of force', current: `${f1(fwd)}%` }, { label: 'Downward share of force', current: `${f1(down)}%` }],
+      targetRows: trows, targetContext: a.eoReferenceContext, explanationCandidates: explanationCandidates(a),
+      remeasure: [
+        { label: 'Forward share of force', current: `${f1(fwd)}%`, target: (trows.find((r) => r.key === 'propulsivePct') || {}).target },
+        { label: 'Downward share of force', current: `${f1(down)}%`, target: (trows.find((r) => r.key === 'downwardPct') || {}).target },
+        ...off.filter((r) => r.key === 'handDragPct').map((r) => ({ label: 'Hand drag', current: `${f1(r.value)}%`, target: r.target })),
+      ],
     },
   });
 }
@@ -220,13 +272,26 @@ export function asymmetryProfile(a) {
     outputGap = asymmetry(l, r);
     if (outputGap && outputGap.higher !== 'EQUAL') {
       const hi = outputGap.higher === 'RIGHT' ? R : L, lo = outputGap.higher === 'RIGHT' ? L : R;
-      hi.points.push(`Higher output (${f0(Math.max(l, r))} W)`); lo.points.push(`Lower output (${f0(Math.min(l, r))} W)`);
+      hi.points.push(`Higher output over the whole swim (${f0(Math.max(l, r))} W)`); lo.points.push(`Lower output over the whole swim (${f0(Math.min(l, r))} W)`);
       measurement.push(`Average impulse (EO label, W): left ${f0(l)} W, right ${f0(r)} W (${outputGap.higher.toLowerCase()} is ${f0(outputGap.differencePctOfLower)}% higher than the other; symmetry index ${signed(outputGap.symmetryIndexPct, 0)}%)`);
     }
     swimmerDims++; inputs.push(lr.avgImpulseW.left, lr.avgImpulseW.right); evidence.push('leftRight.avgImpulseW');
   } else if (present(lr.relativeOutput.left) && present(lr.relativeOutput.right)) {
     const lv = lr.relativeOutput.left.value, rv = lr.relativeOutput.right.value;
     if (lv !== rv) { (rv === 'HIGHER' ? R : L).points.push('Higher output'); (rv === 'HIGHER' ? L : R).points.push('Lower output'); swimmerDims++; evidence.push('leftRight.relativeOutput'); }
+  }
+
+  // dimension 1b: which arm leads each lap. Coach-entered per-lap figures win over EO's wording when both are present.
+  const lapLeads = (lr.byLap || []).map((b) => {
+    const figs = present(b.leftW) && present(b.rightW);
+    const higher = figs ? (b.leftW.value > b.rightW.value ? 'LEFT' : b.rightW.value > b.leftW.value ? 'RIGHT' : 'EQUAL') : present(b.higher) ? b.higher.value : null;
+    return { lap: b.lap, higher, leftW: figs ? b.leftW.value : null, rightW: figs ? b.rightW.value : null };
+  }).filter((x) => x.higher === 'LEFT' || x.higher === 'RIGHT');
+  const lapSwap = lapLeads.length >= 2 && new Set(lapLeads.map((x) => x.higher)).size > 1;
+  if (lapLeads.length) {
+    for (const x of lapLeads) (x.higher === 'RIGHT' ? R : L).points.push(`Stronger in lap ${x.lap}${x.leftW != null ? ` (${f0(x.higher === 'RIGHT' ? x.rightW : x.leftW)} W)` : ''}`);
+    measurement.push(`Stronger arm by lap: ${lapLeads.map((x) => `lap ${x.lap} ${x.higher.toLowerCase()}`).join(', ')}${lapSwap ? ' (the stronger arm changes between laps)' : ''}`);
+    swimmerDims++; evidence.push('leftRight.byLap'); inputs.push(...(lr.byLap || []).map((b) => b.higher).filter(present));
   }
 
   // dimension 2: power shape
@@ -274,17 +339,25 @@ export function asymmetryProfile(a) {
   // dimension 4: path
   if (present(a.consistency.left) || present(a.consistency.right)) { swimmerDims++; evidence.push('consistency'); }
 
-  if (!L.points.length && !R.points.length && !L_t.length && !R_t.length) return null;
+  if (!L.points.length && !R.points.length && !L_t.length && !R_t.length && !lapLeads.length) return null;
   const persists = present(lr.persistence) && lr.persistence.value === 'ALL_LAPS';
   if (persists) measurement.push('The power gap was present across all laps (per EO).');
 
   const confidence = swimmerDims >= 2 ? confidenceOf(inputs) : minConfidence([confidenceOf(inputs), 'LOW']);
   const multi = multiArms.length ? multiArms[0].toLowerCase() : null;
   const other = multi === 'right' ? 'left' : 'right';
-  const opportunity = multi
+  const leadWords = lapLeads.map((x) => `${x.higher.toLowerCase()} arm in lap ${x.lap}`).join(', ');
+  const opportunity = lapSwap
+    ? `Your stronger arm changes between laps: ${leadWords}. The opportunity is a steady stroke, where neither arm takes over from the other as the swim goes on.${multi ? ` The ${multi} arm’s force delivery is also less smooth than the ${other}.` : ''}`
+    : multi
     ? `The ${multi} arm’s force delivery is less smooth than the ${other}. The opportunity is to bring that smoothness across to the ${multi}, and to understand the output gap between the arms. A difference between arms is not automatically a fault.`
     : 'The two arms differ. The opportunity is to understand why, and to see whether the gap matters for you. A difference between arms is not automatically a fault.';
-  const text = {
+  const text = lapSwap ? {
+    JUNIOR: 'One arm pushes harder in the first lap, and the other takes over in the second. Let’s make both arms push the same, every lap.',
+    PERFORMANCE: `Your stronger arm changes between laps: ${leadWords}.`,
+    MASTERS_OPEN_WATER: `Your stronger arm changes between laps (${leadWords}). Over a long swim, a steady stroke keeps the work even.`,
+    COACH: `Asymmetry profile. LEFT: ${[...L.points, ...L_t, ...L.coachOnly].join('; ') || 'no evidence'}. RIGHT: ${[...R.points, ...R_t, ...R.coachOnly].join('; ') || 'no evidence'}. Stronger arm by lap: ${leadWords}. ${opportunity}`,
+  } : {
     JUNIOR: multi ? `Your ${other} arm pushes more smoothly. Let’s help your ${multi} arm push as smoothly.` : 'Your two arms don’t push exactly the same. That’s normal. We’ll look at it together.',
     PERFORMANCE: multi ? `Your ${multi} arm delivers its force less smoothly than your ${other}${outputGap ? `, and the two arms produce different output (${f0(lr.avgImpulseW.left.value)} W left, ${f0(lr.avgImpulseW.right.value)} W right)` : ''}.` : 'Your arms show different power patterns.',
     MASTERS_OPEN_WATER: multi ? `The ${multi}-side force pattern is less smooth than the ${other}${outputGap ? `, with a ${f0(outputGap.differencePctOfLower)}% output gap between the arms` : ''}. Over a long swim, the ${multi}-side pattern is the one to watch.` : 'The two arms show different power patterns.',
@@ -292,14 +365,14 @@ export function asymmetryProfile(a) {
   };
   const classification = (outputGap || dp.left.length || dp.right.length) ? 'MEASURED' : 'OBSERVED';
   return finding({
-    ruleId: 'ASYMMETRY_PROFILE', kind: 'OPPORTUNITY', title: multi ? `The ${multi}-side force pattern is less smooth` : 'Your arms show different power patterns',
+    ruleId: 'ASYMMETRY_PROFILE', kind: 'OPPORTUNITY', title: lapSwap ? 'The stronger arm changes between laps' : multi ? `The ${multi}-side force pattern is less smooth` : 'Your arms show different power patterns',
     classification, confidence, evidence, measurement, text,
     observation: multi ? `${multiArms.join(' and ')} shows multiple force peaks; the other side shows a simpler pattern.` : null,
     recommendation: 'Compare how each arm delivers force through the pull, with a coach watching.',
     caveats: [...(swimmerDims < 2 ? ['Only one dimension of left/right evidence is available.'] : []), ...(outputGap && lr.avgImpulseW.left.status !== 'COMPLETE' ? ['The lap behind the left/right output figures is not labelled in the source.'] : [])],
     relationships: ['LEFT/RIGHT POWER + POWER SHAPE (+ TIMING, PATH) = ASYMMETRY PROFILE'],
-    meta: { arms: { left: L, right: R }, timing: { left: L_t, right: R_t }, phases: { left: pe.left && [pe.left.first, pe.left.last].map((x) => ({ lap: x.lap, glide: x.phases.glidePct.value, pull: x.phases.pullPct.value, recovery: x.phases.recoveryPct.value })), right: pe.right && [pe.right.first, pe.right.last].map((x) => ({ lap: x.lap, glide: x.phases.glidePct.value, pull: x.phases.pullPct.value, recovery: x.phases.recoveryPct.value })) }, opportunity, multiArm: multi, outputGap, doublePeaks: { left: dp.left.map((m) => m.value), right: dp.right.map((m) => m.value) },
-      remeasure: [...(outputGap ? [{ label: 'Left vs right output', current: `${f0(lr.avgImpulseW.left.value)} W vs ${f0(lr.avgImpulseW.right.value)} W` }] : []), ...(multi && dp[multi].length ? [{ label: `${multi === 'left' ? 'Left' : 'Right'}-arm double peaks`, current: `${lapsWith(dp[multi])} of ${dp[multi].length} laps` }] : [])] },
+    meta: { lapSwap, lapLeads, arms: { left: L, right: R }, timing: { left: L_t, right: R_t }, phases: { left: pe.left && [pe.left.first, pe.left.last].map((x) => ({ lap: x.lap, glide: x.phases.glidePct.value, pull: x.phases.pullPct.value, recovery: x.phases.recoveryPct.value })), right: pe.right && [pe.right.first, pe.right.last].map((x) => ({ lap: x.lap, glide: x.phases.glidePct.value, pull: x.phases.pullPct.value, recovery: x.phases.recoveryPct.value })) }, opportunity, multiArm: multi, outputGap, doublePeaks: { left: dp.left.map((m) => m.value), right: dp.right.map((m) => m.value) },
+      remeasure: [...(lapLeads.length >= 2 ? [{ label: 'Which arm leads, lap by lap', current: lapLeads.map((x) => `${x.higher.toLowerCase()} (lap ${x.lap})`).join(', ') }] : []), ...(outputGap ? [{ label: 'Left vs right output', current: `${f0(lr.avgImpulseW.left.value)} W vs ${f0(lr.avgImpulseW.right.value)} W` }] : []), ...(multi && dp[multi].length ? [{ label: `${multi === 'left' ? 'Left' : 'Right'}-arm double peaks`, current: `${lapsWith(dp[multi])} of ${dp[multi].length} laps` }] : [])] },
   });
 }
 

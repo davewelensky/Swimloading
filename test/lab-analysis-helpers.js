@@ -24,6 +24,8 @@ export function allowedNumbers(a) {
     if (Array.isArray(o)) { o.forEach(walk); return; }
     for (const k of Object.keys(o)) if (!['aquaSharksFindings', 'priorities', 'eoObservations', 'eoRecommendations', 'sourceIssues', 'coachReview'].includes(k)) walk(o[k]);
   })(a);
+  // EO's printed target ranges are part of the source, so the numbers in them may be quoted
+  for (const r of Object.values(a.eoReferenceRanges || {})) { if (r.lo != null) out.add(r.lo); if (r.hi != null) out.add(r.hi); }
   const o = a.forceDistribution.overall, g = (m) => (m && m.value != null ? m.value : null);
   const L = g(o.leftwardPct), R = g(o.rightwardPct), U = g(o.upwardPct), H = g(o.handDragPct);
   if (L != null && R != null) out.add(L + R);

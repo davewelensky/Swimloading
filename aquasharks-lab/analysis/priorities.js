@@ -3,9 +3,14 @@ import { drillFor, drillById } from './drills.js';
 
 /** Priority copy per rule. Titles/feel/cue are Aqua Sharks coaching language; `why` comes from the finding. */
 const CONTENT = {
-  POWER_EFFECTIVENESS: () => ({ title: 'Send the water back', feel: 'Pressure moving backwards rather than down.', cue: 'Catch it. Hold it. Send it back.', tags: ['forceDirection'] }),
+  POWER_EFFECTIVENESS: (f) => {
+    // drill tags in order of how far each force direction is from EO's target
+    const TAG = { handDragPct: 'handDrag', downwardPct: 'downward', propulsivePct: 'forceDirection' };
+    const off = ((f.meta && f.meta.targetRows) || []).filter((r) => r.status !== 'ON_TARGET' && TAG[r.key]).sort((x, y) => y.gap - x.gap);
+    return { title: 'Send the water back', feel: 'Pressure moving backwards rather than down.', cue: 'Catch it. Hold it. Send it back.', tags: [...new Set([...off.filter((r) => r.key !== 'propulsivePct').map((r) => TAG[r.key]), 'forceDirection'])] };   // causes first: forward share is the outcome
+  },
   LAP_COMPARISON: () => ({ title: 'Keep your forward power to the last lap', feel: 'The same backward push on the last lap as on the first.', cue: 'Last lap, same catch.', tags: ['lapHold'] }),
-  ASYMMETRY_PROFILE: (f) => ({ title: f.meta.multiArm ? `Smooth out your ${f.meta.multiArm} arm` : 'Look at both arms together', feel: 'One even push from every stroke.', cue: 'One smooth push, every stroke.', tags: ['asymmetry', 'powerShape'] }),
+  ASYMMETRY_PROFILE: (f) => f.meta.lapSwap ? ({ title: 'Keep both arms pushing the same, every lap', feel: 'The same push from each arm, first lap to last.', cue: 'Same push, both arms.', tags: ['asymmetry', 'powerShape'] }) : ({ title: f.meta.multiArm ? `Smooth out your ${f.meta.multiArm} arm` : 'Look at both arms together', feel: 'One even push from every stroke.', cue: 'One smooth push, every stroke.', tags: ['asymmetry', 'powerShape'] }),
   POSSIBLE_TECHNICAL_OPPORTUNITY: (f) => ({ title: f.title, feel: '', cue: '', tags: [] }),
 };
 

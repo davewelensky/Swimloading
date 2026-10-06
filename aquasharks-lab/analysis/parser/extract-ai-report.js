@@ -179,6 +179,12 @@ export function extractAiReport(d, ctx = {}) {
   for (const side of ['left', 'right']) {
     const m = new RegExp(`${side} side[^.]*?(\\d+(?:\\.\\d+)?)%\\s+double peaks`, 'i').exec(allText);
     const cur = /** @type {any} */ (a.powerProfile)[side];
+    // one percentage quoted for every lap, e.g. "(22.22% occurrence in both laps 1 and 2)"
+    if (!cur.doublePeakPctByLap.length && lapCount) {
+      const occ = new RegExp(`${side} side[^()]*\\((\\d+(?:\\.\\d+)?)%\\s+occurrence in (?:both|all) laps`, 'i').exec(allText);
+      if (occ) cur.doublePeakPctByLap = Array.from({ length: lapCount }, () => num(+occ[1], '%', X.from('TEXT', 'MODERATE', { section: 'Power vs Time' }, `${occ[1]}% in every lap`)));
+      else if (new RegExp(`${side} side[^.]*?clean single-peak`, 'i').test(allText)) cur.doublePeakPctByLap = Array.from({ length: lapCount }, () => num(0, '%', X.from('RULE', 'MODERATE', { section: 'Power vs Time' }, 'clean single-peak pattern')));
+    }
     if (m && +m[1] === 0 && !cur.doublePeakPctByLap.length && lapCount) cur.doublePeakPctByLap = Array.from({ length: lapCount }, () => num(0, '%', X.from('RULE', 'MODERATE', { section: 'Power vs Time' }, '0% double peaks')));
     const ser = cur.doublePeakPctByLap.filter((x) => x.value != null);
     if (ser.length && ser.length === cur.doublePeakPctByLap.length) {
@@ -193,6 +199,17 @@ export function extractAiReport(d, ctx = {}) {
     const p = X.from('RULE', 'MODERATE', { section: 'Stroke Rate & Power' }, `${more[1]}% more power`);
     a.leftRight.relativeOutput.right = obs('HIGHER', p); a.leftRight.relativeOutput.left = obs('LOWER', p); diag.extracted.push('leftRight.relativeOutput');
     if (/across all (?:eight|\d+) laps|throughout the entire set/i.test(allText)) { a.leftRight.persistence = obs('ALL_LAPS', X.from('RULE', 'MODERATE', { section: 'Stroke Rate & Power' }, 'all laps')); diag.extracted.push('leftRight.persistence'); }
+  }
+
+  // ---- which arm leads each lap, when EO says so in words (e.g. "lap 1 favouring the left side and lap 2 heavily favouring the right") ----
+  const lapLead = [...allText.matchAll(/\blap\s*(\d+)\s+(?:\w+\s+)?favou?ring\s+the\s+(left|right)/gi)];
+  if (lapLead.length) {
+    const seen = new Set();
+    a.leftRight.byLap = lapLead.filter((m) => !seen.has(m[1]) && seen.add(m[1])).map((m) => ({
+      lap: +m[1], higher: obs(m[2].toLowerCase() === 'left' ? 'LEFT' : 'RIGHT', X.from('RULE', 'MODERATE', { section: 'Stroke Rate & Power' }, `lap ${m[1]} favouring ${m[2].toLowerCase()}`)),
+      leftW: missing('W', 'COACH_REQUIRED'), rightW: missing('W', 'COACH_REQUIRED'),
+    })).sort((x, y) => x.lap - y.lap);
+    diag.extracted.push('leftRight.byLap');
   }
 
   // ---- EO observations (sentence level) and recommendations ----

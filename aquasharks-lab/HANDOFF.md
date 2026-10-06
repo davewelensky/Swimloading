@@ -1,6 +1,6 @@
 # Aquasharks Lab report builder: handoff
 
-Last updated 6 Oct 2026. Club: **Aquasharks only** (Britt). No shared UI code is touched. This repo is **public**: never commit EO report prose, EO images,
+Last updated 6 Oct 2026 (simple-report rework, uncommitted: see "6 Oct rework"). Club: **Aquasharks only** (Britt). No shared UI code is touched. This repo is **public**: never commit EO report prose, EO images,
 sample report PDFs, or a real swimmer's identity (see "Rules that must not break").
 
 ## What it does
@@ -66,6 +66,28 @@ More detail: `analysis/README.md` (model rules) and `analysis/PARSER_FIELD_MAP.m
    rule 1); the line "wrecks a shoulder over a few seasons" on `/aquasharks-lab` is a health claim (EO clinical claims are coach-only); the swimmer PDF is
    7 pages, so any "short report" claim should stay about plain language, not page count.
 
+## 6 Oct rework: simple, positive, for school swimmers (Dave's decisions)
+
+Audience: Aquasharks school squad swimmers and open-water swimmers, not elite athletes. The report builds on EO's (it credits EO on page 1), keeps what is relevant,
+and is short: **three focuses maximum for every swimmer profile**, about four printed pages, and progress over time.
+
+| Change | Where |
+|---|---|
+| EO's printed target ranges are now compared with the swimmer's numbers ("You / Target"). Only what is off target is shown; juniors get words. Targets are read from the report, never hardcoded. | `rules.js` `targetRows`, `report-model.js` POWER |
+| "What's going well" section: on-target numbers, smooth arm, and any positive EO sentence Britt shows | `report-model.js` STRENGTHS |
+| EO's headline diagnostic sentences (one per EO point) are hidden until Britt shows or rewrites them (**reverses old rule 6 for approved text only**; clinical advice stays coach-only) | `rules.js` `explanationCandidates`, `coachReview.eoClaims`, builder "EO's explanation" panel |
+| A note from Britt at the top of the report | `coachReview.coachNote`, builder "Your note" |
+| Which arm leads each lap, read from EO's wording ("lap 1 favouring the left..."); coach can enter per-lap watts later. A swap is focus #2 in one plain sentence | parser `leftRight.byLap`, `rules.js` asymmetry |
+| Progress: link an earlier session of the same swimmer in the builder; report shows "Since last time" (distance per stroke, forward, downward, hand drag; better/same/not yet by the numbers as shown, no invented tolerance) | `analysis/progress.js`, builder "Progress" panel |
+| Parser now reads "(22% occurrence in both laps 1 and 2)" and "clean single-peak" as per-lap double-peak series | `parser/extract-ai-report.js` |
+| Print layout: sections flow, three page starts (you + note + going well / force + focus / progress + next) | `report-view.css` print block |
+
+Rule changes: rule 6 now reads "EO diagnoses and clinical advice are coach-only **until the coach shows or rewrites a sentence**; clinical advice never auto-surfaces". Rule 3 is unchanged:
+EO's ranges are EO's printed values, not invented thresholds.
+
+**Not done:** the Sophia-style coach-written EO layout (stroke path, video snapshots, breaststroke) is not recognised by the parser (fails closed); per-lap watts need a builder input; republishing
+the existing sample (token `nBU8...`) from the builder is needed before it shows any of this; drill library and the new drills are DRAFT.
+
 ## Incidents fixed (6 Oct 2026)
 
 **1. "This account is not an Aquasharks club admin" for a real admin.** Cause: `report-builder/app.js` read the Supabase access token once at page load
@@ -107,7 +129,7 @@ against `analysis/report-model.js` and `analysis/profiles.js`; do not promise ha
 3. **Never invent a value.** Absent = MISSING with a reason. Ranges stay ranges (no midpoints). Chart reads are never auto-filled.
 4. **Conflicting printed values are all kept.** The parser never chooses; the coach records a selection basis. A selection is a decision, not ground truth.
 5. **Endpoint comparisons are not trends.** No "fatigue/tire/trend/fade" wording for lap 1 vs lap 8.
-6. **EO diagnoses and clinical advice are coach-only.** They are preserved for the coach and never reach a swimmer unconfirmed.
+6. **EO diagnoses and clinical advice are coach-only until the coach shows or rewrites a sentence** (Britt, in the builder). Clinical advice never auto-surfaces.
 7. **Lap averages vs individual strokes are separate** and never substituted.
 8. **No unsupported equation** between pull power, force share and propulsive power. Independent signals are corroborated by direction only.
 9. Fail closed: unclear claim types are treated as diagnostic; unrecognised layouts extract nothing.

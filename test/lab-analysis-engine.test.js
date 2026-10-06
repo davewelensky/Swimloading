@@ -16,7 +16,7 @@ test('Test Swimmer A: findings, classifications and confidence come from the dat
   const r = analyse(A, 'PERFORMANCE');
   assert.deepEqual(r.findings.map((f) => f.ruleId), ['POWER_EFFECTIVENESS', 'LAP_COMPARISON', 'ASYMMETRY_PROFILE', 'POSSIBLE_TECHNICAL_OPPORTUNITY', 'OUTPUT_SUMMARY']);
   const pe = by(r, 'POWER_EFFECTIVENESS'), lc = by(r, 'LAP_COMPARISON'), as = by(r, 'ASYMMETRY_PROFILE'), to = by(r, 'POSSIBLE_TECHNICAL_OPPORTUNITY');
-  assert.equal(pe.title, 'More of your force goes down than forward');
+  assert.equal(pe.title, "Force direction is off EO's target on 6 of 6 measures", 'EO prints targets for this swimmer, so the finding is a comparison with them');
   assert.equal(pe.classification, 'MEASURED'); assert.equal(pe.confidence, 'MODERATE', 'the propulsive share is printed three ways, so it cannot be HIGH');
   assert.equal(lc.title, 'Propulsive power falls more than stroke rhythm, lap 1 to lap 8');
   assert.equal(lc.classification, 'MEASURED'); assert.equal(lc.confidence, 'MODERATE', 'approximate / ranged inputs cap at MODERATE');
@@ -29,9 +29,11 @@ test('priorities: ranked by classification x confidence x impact; ties by rule o
   const r = analyse(A, 'PERFORMANCE');
   assert.deepEqual(r.priorities.map((p) => p.ruleId), ['POWER_EFFECTIVENESS', 'LAP_COMPARISON', 'ASYMMETRY_PROFILE', 'POSSIBLE_TECHNICAL_OPPORTUNITY']);
   assert.deepEqual(r.priorities.map((p) => p.included), [true, true, true, false]);
+  // three things to work on, for every swimmer profile: a report that asks for more is not a report a child will use
+  for (const prof of SWIMMER) assert.ok(analyse(A, prof).priorities.filter((p) => p.included).length <= 3, prof + ' shows at most 3');
   const j = analyse(A, 'JUNIOR');
-  assert.equal(j.priorities.filter((p) => p.included).length, 2, 'JUNIOR shows at most 2');
-  assert.equal(j.priorities[2].swimmerFacing, true); assert.equal(j.priorities[2].included, false, 'valid but capped by the profile');
+  assert.equal(j.priorities.filter((p) => p.included).length, 3);
+  assert.equal(j.priorities[3].swimmerFacing, false, 'the technical opportunity still waits for the coach');
 });
 
 // ------------------------------------------------------------------ lap comparison: explicit, endpoint, never a trend
@@ -432,9 +434,18 @@ test('JUNIOR arm cards carry no figures; PERFORMANCE keeps them', () => {
   assert.equal(j.phases.showNumbers, false); assert.equal(p.phases.showNumbers, true);
 });
 
-test('EO reference ranges are kept as source evidence and never used by a rule', () => {
-  for (const f of runRules(A)) assert.doesNotMatch(JSON.stringify(f.measurement) + f.text.PERFORMANCE, /70-75|ideal|target/i, f.id);
-  assert.equal(A.eoReferenceRanges.propulsivePct.hi, 75);
+test('EO target ranges are compared as printed in the report, never hardcoded', () => {
+  const rows = by(analyse(A, 'COACH'), 'POWER_EFFECTIVENESS').meta.targetRows;
+  assert.equal(rows.find((r) => r.key === 'propulsivePct').status, 'BELOW');
+  assert.equal(rows.find((r) => r.key === 'propulsivePct').target, '70\u201375%');
+  // the report's own range decides: widen it and the same swimmer is no longer below target
+  const wide = clone(A); wide.eoReferenceRanges.propulsivePct.lo = 30;
+  assert.equal(by(analyse(wide, 'COACH'), 'POWER_EFFECTIVENESS').meta.targetRows.find((r) => r.key === 'propulsivePct').status, 'ON_TARGET');
+  // no printed range, no target talk
+  const none = clone(A); none.eoReferenceRanges = {};
+  const f = by(analyse(none, 'COACH'), 'POWER_EFFECTIVENESS');
+  assert.deepEqual(f.meta.targetRows, []); assert.doesNotMatch(JSON.stringify(f.measurement) + f.text.PERFORMANCE, /target/i);
+  assert.equal(f.title, 'More of your force goes down than forward');
 });
 
 // ------------------------------------------------------------------ data quality

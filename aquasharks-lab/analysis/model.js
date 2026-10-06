@@ -60,7 +60,7 @@ export function emptyAnalysis(name) {
     source: { provider: 'EO Labs', product: 'SwimBETTER', documents: [], layout: null, analysisContext: { swimmerType: null }, extractedAt: null, parserVersion: null, notes: [] },
     metrics: { strokeRate: missing('str/min'), distancePerStrokeM: missing('m'), avgForceN: missing('N'), avgPowerW: missing('W'), workKj: missing('kJ'), propulsivePct: missing('%') },
     forceDistribution: { overall: shares() },
-    leftRight: { avgImpulseW: { left: missing('W'), right: missing('W') }, impulse: { left: missing(), right: missing() }, relativeOutput: { left: obsMissing(), right: obsMissing() }, persistence: obsMissing() },
+    leftRight: { avgImpulseW: { left: missing('W'), right: missing('W') }, impulse: { left: missing(), right: missing() }, relativeOutput: { left: obsMissing(), right: obsMissing() }, persistence: obsMissing(), byLap: [] },
     lapComparisons: [],
     forceFieldReadings: [],
     handPath: { left: obsMissing(), right: obsMissing() },

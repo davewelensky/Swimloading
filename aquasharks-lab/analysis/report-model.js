@@ -6,6 +6,7 @@
  */
 import { present, getPath } from './model.js';
 import { f0, f1, f2, mmss, fmtDate, span } from './language.js';
+import { progressRows } from './progress.js';
 
 const HEADLINES = {
   POWER_EFFECTIVENESS: (a, p) => {
@@ -78,6 +79,33 @@ export function buildReport(a, findings, priorities, quality, profile) {
   const sl = sessionLine(a);
   sections.push({ id: 'HERO', status: quality.sections.HERO, data: { name: a.swimmer.name, sessionLine: sl.line, date: sl.date, location: sl.location, headline: head, keyMetrics: metrics, headlineFinding: lead ? lead.id : null } });
 
+  // NOTE: a short personal note from the coach. Absent unless one was written.
+  const rawNote = a.coachReview && a.coachReview.coachNote;
+  const note = typeof rawNote === 'string' ? rawNote.trim().slice(0, 1200) : '';
+  sections.push({ id: 'NOTE', status: note ? 'COMPLETE' : 'MISSING', data: note ? { text: note, from: 'Britt', club: 'Aqua Sharks' } : null });
+
+  // what the coach has approved of EO's own wording (hidden until approved)
+  const claims = (a.coachReview && a.coachReview.eoClaims) || {};
+  const approved = (id, text) => { const c = claims[id]; if (!c) return null; if (c.status === 'APPROVED') return text; if (c.status === 'EDITED' && c.editedText && c.editedText.trim()) return c.editedText.trim().slice(0, 600); return null; };
+  const peF = byRule('POWER_EFFECTIVENESS');
+  const cands = peF && peF.meta.explanationCandidates ? peF.meta.explanationCandidates : [];
+  const okClaims = cands.map((c) => ({ ...c, shown: approved(c.id, c.text) })).filter((c) => c.shown);
+
+  // STRENGTHS: what is going well, from EO's own on-target numbers and smooth force delivery. Nothing here is a judgement the data does not support.
+  const good = [];
+  const trows = peF ? peF.meta.targetRows || [] : [];
+  const onT = (k) => trows.find((r) => r.key === k && r.status === 'ON_TARGET');
+  if (onT('leftwardPct') && onT('rightwardPct')) good.push({ title: 'Your sideways push is balanced', detail: P === 'JUNIOR' ? 'Almost none of your push goes sideways.' : `Left ${f1(onT('leftwardPct').value)}% and right ${f1(onT('rightwardPct').value)}%, both inside EO's target (${onT('leftwardPct').target}).` });
+  else for (const k of ['leftwardPct', 'rightwardPct']) if (onT(k)) good.push({ title: `Your ${k === 'leftwardPct' ? 'leftward' : 'rightward'} drift is on target`, detail: P === 'JUNIOR' ? '' : `${f1(onT(k).value)}%, inside EO's target (${onT(k).target}).` });
+  for (const k of ['upwardPct', 'handDragPct']) if (onT(k)) good.push({ title: k === 'upwardPct' ? 'No wasted lift' : 'Your hand drag is on target', detail: P === 'JUNIOR' ? '' : `${f1(onT(k).value)}%, inside EO's target (${onT(k).target}).` });
+  for (const [side, name] of [['left', 'left'], ['right', 'right']]) {
+    const pp = a.powerProfile[side], ser = pp.doublePeakPctByLap.filter(present);
+    if (present(pp.shape) && pp.shape.value === 'SINGLE_PEAK' && ser.length && ser.every((m) => m.value === 0)) good.push({ title: `Your ${name} arm pushes smoothly`, detail: ser.length > 1 ? `One clean push per stroke in every lap.` : 'One clean push per stroke.' });
+  }
+  for (const c of okClaims.filter((x) => x.strength)) good.push({ title: 'From the EO analysis', detail: c.shown, eo: true });
+  const goodShown = good.slice(0, 4);
+  sections.push({ id: 'STRENGTHS', status: goodShown.length ? 'COMPLETE' : 'MISSING', data: goodShown.length ? { headline: 'WHAT’S GOING WELL', items: goodShown } : null });
+
   // POWER
   const pe = byRule('POWER_EFFECTIVENESS');
   if (!pe || quality.sections.POWER === 'MISSING') sections.push({ id: 'POWER', status: 'MISSING', data: null });
@@ -85,7 +113,12 @@ export function buildReport(a, findings, priorities, quality, profile) {
     const c = pe.meta.categories, cats = [{ id: 'forward', label: 'FORWARD', pct: c.forward }, { id: 'down', label: 'DOWN', pct: c.down }];
     if (c.side !== null) cats.push({ id: 'side', label: 'SIDEWAYS', pct: c.side, detail: P === 'JUNIOR' ? null : `${f1(c.left)}% left, ${f1(c.right)}% right` });
     if (c.other !== null && P !== 'JUNIOR') cats.push({ id: 'other', label: 'OTHER', pct: c.other, detail: 'upward and hand drag' });
-    sections.push({ id: 'POWER', status: quality.sections.POWER, data: { headline: 'WHERE YOUR POWER GOES', categories: cats, whatThisMeans: pe.text[P], findingId: pe.id, kind: pe.kind } });
+    const miss = trows.filter((r) => r.status !== 'ON_TARGET' && r.key !== 'upwardPct').sort((x, y) => y.gap - x.gap).slice(0, 3);
+    const ctx = a.eoReferenceContext || {};
+    const ctxText = [ctx.swimmerType, ctx.stroke].filter(Boolean).join(' ').toLowerCase();
+    sections.push({ id: 'POWER', status: quality.sections.POWER, data: { headline: 'WHERE YOUR POWER GOES', categories: cats, whatThisMeans: pe.text[P], findingId: pe.id, kind: pe.kind,
+      targets: miss.length ? { context: ctxText ? `EO's target for ${ctxText}` : 'EO’s target', rows: miss.map((r) => ({ id: r.key, label: r.label, value: r.value, target: r.target, status: r.status, gap: r.gap })), simple: P === 'JUNIOR' } : null,
+      explanations: okClaims.filter((x) => !x.strength).map((x) => x.shown) } });
   }
 
   // COMPARISON (endpoint lap comparison; never called a trend or a fatigue response)
@@ -105,7 +138,8 @@ export function buildReport(a, findings, priorities, quality, profile) {
 
   // ARMS
   const as = byRule('ASYMMETRY_PROFILE');
-  if (!as) sections.push({ id: 'ARMS', status: 'MISSING', data: null });
+  // a lap swap is already focus #2 on a swimmer's report, so its own page would only repeat it; the coach view keeps the detail
+  if (!as || (!isCoach && as.meta.lapSwap)) sections.push({ id: 'ARMS', status: 'MISSING', data: null });
   else {
     const arms = as.meta.arms;
     // JUNIOR gets the pattern, not the arithmetic: drop parenthetical figures such as "(67 W)" or "(5 of 8 laps, up to 44%)"
@@ -118,7 +152,7 @@ export function buildReport(a, findings, priorities, quality, profile) {
       left: { points: armsOut.left.points, timing: timing.left, coachOnly: isCoach ? armsOut.left.coachOnly : [], shape: a.powerProfile.left.shape.value },
       right: { points: armsOut.right.points, timing: timing.right, coachOnly: isCoach ? armsOut.right.coachOnly : [], shape: a.powerProfile.right.shape.value },
       phases: as.meta.phases.left && as.meta.phases.right ? { left: as.meta.phases.left, right: as.meta.phases.right, showNumbers: profile.showNumbers !== 'MINIMAL' } : null,
-      doublePeaks: as.meta.doublePeaks, opportunity: as.meta.opportunity, summary: as.text[P], findingId: as.id } });
+      doublePeaks: as.meta.doublePeaks, lapLeads: as.meta.lapSwap ? as.meta.lapLeads : [], opportunity: as.meta.opportunity, summary: as.text[P], findingId: as.id } });
   }
 
   // FOCUS
@@ -129,10 +163,18 @@ export function buildReport(a, findings, priorities, quality, profile) {
     classification: p.classification, confidence: p.confidence, findingId: p.findingIds[0],
     evidence: isCoach ? /** @type {any} */ (findings.find((f) => f.id === p.findingIds[0])).evidence.map((r) => describeRef(a, r)) : [] })) } });
 
+  // PROGRESS: since the last session, when an earlier session of this swimmer has been linked
+  const prog = progressRows(a);
+  const better = prog.filter((r) => r.verdict === 'BETTER').length;
+  sections.push({ id: 'PROGRESS', status: prog.length ? 'COMPLETE' : 'MISSING', data: prog.length ? {
+    headline: 'SINCE LAST TIME', since: a.baseline.capturedOn ? fmtDate(a.baseline.capturedOn) : null,
+    summary: better === prog.length ? 'Every number moved the right way.' : better === 0 ? 'No number has moved yet. That is normal early on: keep working on your focus.' : `${better} of ${prog.length} numbers moved the right way.`,
+    rows: prog } : null });
+
   // NEXT
   const baseline = Object.keys(a.baseline.metrics).filter((k) => BASELINE_FMT[k]).map((k) => ({ label: BASELINE_LABELS[k], ...BASELINE_FMT[k](a.baseline.metrics[k]) }));
   const remeasure = included.flatMap((p) => /** @type {any} */ (live.find((f) => f.id === p.findingIds[0])).meta.remeasure || []);
-  sections.push({ id: 'NEXT', status: quality.sections.NEXT, data: { headline: 'NEXT TIME', baselineDate: a.baseline.capturedOn ? fmtDate(a.baseline.capturedOn) : null, baseline: P === 'JUNIOR' ? baseline.slice(0, 2) : baseline, remeasure } });
+  sections.push({ id: 'NEXT', status: quality.sections.NEXT, data: { headline: 'NEXT TIME', baselineDate: a.baseline.capturedOn ? fmtDate(a.baseline.capturedOn) : null, baseline: prog.length ? [] : P === 'JUNIOR' ? baseline.slice(0, 2) : baseline, remeasure: isCoach ? remeasure : remeasure.slice(0, 4) } });
 
   if (isCoach) {
     sections.push({ id: 'EVIDENCE', status: 'COMPLETE', data: { findings: findings.map((f) => ({ ...f, resolved: f.evidence.map((r) => describeRef(a, r)) })) } });
