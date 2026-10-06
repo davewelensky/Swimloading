@@ -1,4 +1,4 @@
-const CACHE_NAME = 'swimloading-v12';
+const CACHE_NAME = 'swimloading-v13';
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',
@@ -49,6 +49,11 @@ self.addEventListener('fetch', (event) => {
 
     // Skip non-GET requests
     if (event.request.method !== 'GET') return;
+
+    // The Aquasharks Lab builder and report engine are many small ES modules that import each other without version strings. The
+    // cache-first rule below would pin the first copy of each forever, so a new builder page asks an old module for functions it does
+    // not have and the page goes blank. Leave them to the browser (served no-cache, see vercel.json).
+    if (url.pathname.startsWith('/aquasharks-lab/')) return;
 
     // Never cache-first these — they're served with Cache-Control: no-cache
     // specifically so an edit is live immediately, no ?v=N bump needed

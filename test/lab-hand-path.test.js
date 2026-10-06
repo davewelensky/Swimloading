@@ -127,3 +127,14 @@ test('builder app.js: every helper it calls is defined (a deleted panel once bro
   const missing = [...called].filter((n) => !defined.has(n));
   assert.deepEqual(missing, [], 'called but not defined: ' + missing.join(', '));
 });
+
+// ------------------------------------------------------------------ guard: stale cached modules once blanked the builder
+test('the lab\'s many small modules are never pinned by the service worker or the browser cache', () => {
+  const sw = fs.readFileSync(new URL('../sw.js', import.meta.url), 'utf8'), v = JSON.parse(fs.readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
+  assert.match(sw, /url\.pathname\.startsWith\('\/aquasharks-lab\/'\)\) return;/, 'service worker leaves /aquasharks-lab/ alone');
+  assert.ok(sw.indexOf("startsWith('/aquasharks-lab/')") < sw.indexOf('// Cache-first for static assets'), 'and does so before its cache-first rule');
+  const r = v.routes.find((x) => x.src && x.src.includes('aquasharks-lab/.+'));
+  assert.ok(r && r.headers['Cache-Control'] === 'no-cache', 'vercel.json serves the lab scripts and styles no-cache');
+  for (const f of ['aquasharks-lab/analysis/model.js', 'aquasharks-lab/report-builder/app.js', 'aquasharks-lab/analysis/report-view.css']) assert.ok(new RegExp(r.src).test(f), f);
+  assert.equal(new RegExp(r.src).test('aquasharks-lab/HANDOFF.md'), false);
+});
