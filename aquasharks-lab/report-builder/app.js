@@ -12,6 +12,7 @@ import { printedValues } from '../analysis/calc.js';
 import { fmtDate } from '../analysis/language.js';
 import { baselineFrom, comparability, progressRows } from '../analysis/progress.js';
 import { retestWeeks, retestDate, RETEST_WEEKS } from '../analysis/plan.js';
+import { setHandPathField } from '../analysis/hand-path.js';
 
 const SUPABASE_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
@@ -219,7 +220,7 @@ function findingsCol() {
   }).join('');
   return `<div class="col"><div class="col-h">Aqua Sharks findings <small>what we make of it</small></div>
     <div class="panel"><h2>Priorities</h2><p class="hint">Ranked by evidence strength. The swimmer sees at most ${PROFILES[S.profile] ? PROFILES[S.profile].maxPriorities : 3}.</p>${prios || '<p class="mini">No priorities yet: the evidence does not support one.</p>'}</div>
-    ${explainPanel()}${cards}${lapPanel()}</div>`;
+    ${explainPanel()}${handPathPanel()}${cards}${lapPanel()}</div>`;
 }
 
 /** EO's headline sentences for the force-field section. Hidden from swimmers until the coach lets one through (or rewrites it). */
@@ -235,6 +236,40 @@ function explainPanel() {
   }).join('');
   return `<details class="d" open data-d="claims"><summary>EO's explanation<span class="mini">${cands.length} to decide</span></summary><div class="dbody"><p class="mini">Nothing from EO's wording reaches the swimmer unless you show it. Keep it short, kind and in your own words: edit the text before showing it. Hand drag and elbow points are EO's reading, so only show what you agree with.</p>${rows}</div></details>`;
 }
+/**
+ * Hand path, from EO's stroke-path / consistency / hand-path-and-power charts. Those charts print no numbers, so nothing here is automatic:
+ * the coach reads or confirms every value next to the chart. Uploading screenshots only SUGGESTS values (read twice, kept only where both reads agree).
+ */
+const SPREAD = ['TIGHT', 'MODERATE', 'WIDE', 'UNSURE'], WRIST = ['BROKEN', 'OK', 'UNSURE'], YNU = ['YES', 'NO', 'UNSURE'];
+function handPathPanel() {
+  const h = S.analysis.handPathReading, sg = (S.hpSug && S.hpSug.suggestions) || {};
+  const cur = (m) => (m && m.value != null ? m.value : '');
+  const rg = (m) => (m && m.range ? m.range : m && m.value != null ? [m.value, m.value] : ['', '']);
+  const sel = (field, opts, v) => `<select class="in" data-hp="${field}"><option value="">Not entered</option>${opts.map((o) => `<option value="${o}"${v === o ? ' selected' : ''}>${o[0] + o.slice(1).toLowerCase()}</option>`).join('')}</select>`;
+  const sug = (field) => { const x = sg[field]; if (!x) return ''; const txt = x.range ? (x.range[0] === x.range[1] ? x.range[0] : x.range[0] + ' to ' + x.range[1]) + ' cm' : String(x.value).toLowerCase(); return `<div class="mini">Suggested from the chart: <strong>${esc(txt)}</strong> (both reads agree)${x.basis && x.range ? ' <span title="' + esc(x.basis) + '">basis</span>' : ''} <button class="btn sm" data-act="hp-use" data-field="${esc(field)}">Use</button></div>`; };
+  const arm = (k, label) => {
+    const a = h[k], d = rg(a.maxDepthCm), w = rg(a.maxWidthCm);
+    return `<h3>${label} hand</h3><div class="grid2">
+      <label class="f">Deepest point, cm (low to high)<span style="display:flex;gap:6px"><input class="in" data-hp-lo="${k}.maxDepthCm" inputmode="decimal" value="${d[0]}" placeholder="low"><input class="in" data-hp-hi="${k}.maxDepthCm" inputmode="decimal" value="${d[1]}" placeholder="high"></span></label>
+      <label class="f">Furthest from centreline, cm<span style="display:flex;gap:6px"><input class="in" data-hp-lo="${k}.maxWidthCm" inputmode="decimal" value="${w[0]}" placeholder="low"><input class="in" data-hp-hi="${k}.maxWidthCm" inputmode="decimal" value="${w[1]}" placeholder="high"></span></label>
+      <label class="f">Stroke-to-stroke spread${sel(k + '.spread', SPREAD, cur(a.spread))}</label>
+      <label class="f">Hand angled down at the catch?${sel(k + '.wristPitch', WRIST, cur(a.wristPitch))}</label></div>
+      ${sug(k + '.maxDepthCm')}${sug(k + '.maxWidthCm')}${sug(k + '.spread')}${sug(k + '.wristPitch')}`;
+  };
+  const thumbs = (S.hpImages || []).map((u) => `<a href="${u}" target="_blank"><img src="${u}" alt="EO chart" style="height:90px;border-radius:8px;border:1px solid var(--border)"></a>`).join(' ');
+  const und = S.hpSug && S.hpSug.undecided ? S.hpSug.undecided.map((x) => `<li>${esc(x.field)}: ${esc(x.why)}</li>`).join('') : '';
+  return `<details class="d" data-d="handpath" ${S.openDetails.handpath ? 'open' : ''}><summary>Hand path (from EO's stroke-path charts)<span class="mini">${h && (present2(h.crossesMidline) || present2(h.left.spread) || present2(h.left.maxDepthCm)) ? 'entered' : 'optional'}</span></summary><div class="dbody">
+    <p class="mini">These charts print no numbers, so nothing is filled automatically. Read each value off the chart yourself, or upload screenshots and check the suggestions against the chart: a suggestion is only offered when two independent reads agree. Nothing is used until you confirm it.</p>
+    <label class="f">EO chart screenshots (optional, up to 6)<input class="in" type="file" id="hp-files" accept="image/png,image/jpeg,image/webp" multiple></label>
+    <div class="ctl"><button class="btn sm" data-act="hp-suggest" ${S.hpBusy ? 'disabled' : ''}>${S.hpBusy ? 'Reading the charts...' : 'Suggest values from the charts'}</button></div>
+    ${thumbs ? `<div style="margin:8px 0">${thumbs}</div>` : ''}${S.hpErr ? `<p class="err">${esc(S.hpErr)}</p>` : ''}
+    ${und ? `<p class="mini">Not suggested, enter by hand if you can read it:</p><ul class="rv-issues">${und}</ul>` : ''}
+    <label class="f">Do the hands cross the centreline (head-on view)?${sel('crossesMidline', YNU, cur(h.crossesMidline))}</label>${sug('crossesMidline')}
+    ${arm('left', 'Left')}${arm('right', 'Right')}
+    <p class="mini">Entered values are recorded as chart reads confirmed by you. They feed the report only through EO's own mappings (crossing the middle with sideways force, a hand angled down at the catch, hand-path consistency). Depth and width are shown to you only: EO prints no target for them.</p></div></details>`;
+}
+const present2 = (m) => !!m && m.status !== 'MISSING' && (m.value != null || !!m.range);
+
 /** Link an earlier session of the same swimmer, so the report can show progress. */
 function progressPanel() {
   const a = S.analysis, b = a.baseline && a.baseline.context ? a.baseline : null, name = a.swimmer.name === 'Unnamed swimmer' ? '' : a.swimmer.name;
@@ -329,6 +364,13 @@ function bindReview() {
     if (t.dataset.field) { setLeafValue(t.dataset.field, t.value); return rerender(); }
     if (t.dataset.edit) { const f = S.R.findings.find((x) => x.id === t.dataset.edit), r = fr(t.dataset.edit), v = t.value.trim(); if (v && v !== f.text.PERFORMANCE) { r.editedText = v; r.status = 'EDITED'; } else { delete r.editedText; if (r.status === 'EDITED') r.status = 'PENDING'; } return rerender(); }
     if (t.dataset.claim) { const cl = (review().eoClaims = review().eoClaims || {}), v = t.value.trim(), c = (S.R.findings.find((f) => f.ruleId === 'POWER_EFFECTIVENESS').meta.explanationCandidates || []).find((x) => x.id === t.dataset.claim); if (c && v && v !== c.text) cl[t.dataset.claim] = { status: 'EDITED', editedText: v }; else if (cl[t.dataset.claim] && cl[t.dataset.claim].status === 'EDITED') cl[t.dataset.claim] = { status: 'APPROVED' }; return rerender(); }
+    if (t.dataset.hp) { setHandPathField(S.analysis, t.dataset.hp, t.value || null); return rerender(); }
+    if (t.dataset.hpLo || t.dataset.hpHi) {
+      const f = t.dataset.hpLo || t.dataset.hpHi, lo = root.querySelector(`[data-hp-lo="${f}"]`).value.trim(), hi = root.querySelector(`[data-hp-hi="${f}"]`).value.trim();
+      if (lo === '' && hi === '') setHandPathField(S.analysis, f, null);
+      else { const a = Number(lo === '' ? hi : lo), b = Number(hi === '' ? lo : hi); if (!setHandPathField(S.analysis, f, [Math.min(a, b), Math.max(a, b)])) S.err = 'Enter distances in cm, between 0 and 300.'; }
+      return rerender();
+    }
     if (t.id === 'o-weeks') { review().retestWeeks = Number(t.value); return rerender(); }
     if (t.id === 'o-note') { review().coachNote = t.value; return rerender(); }
     if (t.dataset.note !== undefined) { fr(t.dataset.note).note = t.value; return; }
@@ -346,6 +388,16 @@ function bindReview() {
     else if (act === 'confirm') { const r = fr(id); r.technicalConfirmed = !r.technicalConfirmed; }
     else if (act === 'up' || act === 'down') { const order = S.R.priorities.map((p) => p.findingIds[0]), i = order.indexOf(id), j = act === 'up' ? i - 1 : i + 1; if (j >= 0 && j < order.length) { [order[i], order[j]] = [order[j], order[i]]; review().priorityOrder = order; } }
     else if (act === 'apply-conflict') { const path = b.dataset.path, sel = root.querySelector(`input[name="cv-${CSS.escape(path)}"]:checked`), basis = (root.querySelector(`[data-basis="${CSS.escape(path)}"]`) || {}).value || ''; if (!basis.trim()) { S.err = 'Say why that value, so the decision is on record.'; return rerender(); } if (sel) applyConflict(path, sel.value, basis.trim()); }
+    else if (act === 'hp-use') { const x = (S.hpSug && S.hpSug.suggestions || {})[b.dataset.field]; if (x) setHandPathField(S.analysis, b.dataset.field, x.range ? x.range : x.value, 'Suggested by two independent reads of the chart; checked by the coach.'); }
+    else if (act === 'hp-suggest') {
+      const files = [...(document.getElementById('hp-files') || { files: [] }).files].slice(0, 6);
+      if (!files.length) { S.hpErr = 'Choose one or more chart screenshots first.'; return rerender(); }
+      S.hpBusy = true; S.hpErr = null; S.openDetails.handpath = true; rerender();
+      return Promise.all(files.map(async (f) => ({ base64: await toBase64(f), mediaType: f.type || 'image/png', url: URL.createObjectURL(f) })))
+        .then((ims) => { S.hpImages = ims.map((i) => i.url); return api('hand_path', { page_images: ims.map((i) => ({ base64: i.base64, mediaType: i.mediaType })) }); })
+        .then((r) => { S.hpSug = r; if (!r.ok) S.hpErr = 'The chart read did not work. Enter the values by hand.'; })
+        .catch((er) => { S.hpErr = friendly(er); }).then(() => { S.hpBusy = false; rerender(); });
+    }
     else if (act === 'claim-show') { const cl = (review().eoClaims = review().eoClaims || {}), ta = root.querySelector(`[data-claim="${CSS.escape(id)}"]`), c = (S.R.findings.find((f) => f.ruleId === 'POWER_EFFECTIVENESS').meta.explanationCandidates || []).find((x) => x.id === id), v = ta ? ta.value.trim() : ''; cl[id] = c && v && v !== c.text ? { status: 'EDITED', editedText: v } : { status: 'APPROVED' }; }
     else if (act === 'claim-hide') { (review().eoClaims = review().eoClaims || {})[id] = { status: 'HIDDEN' }; }
     else if (act === 'prog-find') { const nm = S.analysis.swimmer.name; return api('list', { name: nm }).then((r) => { S.prevList = r.assessments || []; }).catch((er) => { S.err = friendly(er); }).then(rerender); }

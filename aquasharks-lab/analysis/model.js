@@ -51,6 +51,13 @@ export const lapRef = (laps, distanceM, provenance, status = 'COMPLETE') => ({ l
 /** One lap-average phase set (percent of the stroke cycle). */
 export const phaseSet = (glide, pull, recovery, provenance) => ({ glidePct: num(glide, '%', provenance), pullPct: num(pull, '%', provenance), recoveryPct: num(recovery, '%', provenance) });
 
+/**
+ * Hand-path reading: what the EO stroke-path / consistency / hand-path-and-power charts show. These charts carry no printed values,
+ * so every field is a CHART_READ that a coach entered or confirmed. Nothing here is ever filled by a parser or a model on its own.
+ */
+const armPath = () => ({ maxDepthCm: missing('cm', 'COACH_REQUIRED'), maxWidthCm: missing('cm', 'COACH_REQUIRED'), spread: obsMissing('COACH_REQUIRED'), wristPitch: obsMissing('COACH_REQUIRED') });
+export const emptyHandPathReading = () => ({ crossesMidline: obsMissing('COACH_REQUIRED'), left: armPath(), right: armPath() });
+
 /** An analysis in which nothing is known. @param {string} name @returns {SwimAnalysis} */
 export function emptyAnalysis(name) {
   return {
@@ -68,6 +75,7 @@ export function emptyAnalysis(name) {
     strokePhases: { left: arm(), right: arm() },
     powerProfile: { left: { shape: obsMissing(), doublePeakPctByLap: [] }, right: { shape: obsMissing(), doublePeakPctByLap: [] } },
     handPathAndPower: { status: 'MISSING' },
+    handPathReading: emptyHandPathReading(),
     eoObservations: [], eoRecommendations: [], eoReferenceRanges: {}, eoReferenceContext: { swimmerType: null, stroke: null }, unmapped: [], sourceIssues: [],
     aquaSharksFindings: [], priorities: [], coachNotes: [],
     coachReview: { findings: {} },

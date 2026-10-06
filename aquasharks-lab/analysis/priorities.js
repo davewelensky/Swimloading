@@ -11,6 +11,9 @@ const CONTENT = {
   },
   LAP_COMPARISON: () => ({ title: 'Keep your forward power to the last lap', feel: 'The same backward push on the last lap as on the first.', cue: 'Last lap, same catch.', tags: ['lapHold'] }),
   ASYMMETRY_PROFILE: (f) => f.meta.lapSwap ? ({ title: 'Keep both arms pushing the same, every lap', feel: 'The same push from each arm, first lap to last.', cue: 'Same push, both arms.', tags: ['asymmetry', 'powerShape'] }) : ({ title: f.meta.multiArm ? `Smooth out your ${f.meta.multiArm} arm` : 'Look at both arms together', feel: 'One even push from every stroke.', cue: 'One smooth push, every stroke.', tags: ['asymmetry', 'powerShape'] }),
+  HAND_PATH_CROSSOVER: () => ({ title: 'Stay on your own side', feel: 'Each hand pulling straight back under its own shoulder.', cue: 'Stay on your own side. Pull straight back.', tags: ['crossover'] }),
+  HAND_PATH_WRIST: () => ({ title: 'Show the full palm', feel: 'The whole palm facing the back of the pool.', cue: 'Fingers down. Palm back.', tags: ['wrist', 'downward'] }),
+  HAND_PATH_CONSISTENCY: (f) => ({ title: f.meta.oneSided ? 'Make every stroke look the same' : 'Make every stroke look the same', feel: 'The same path, stroke after stroke.', cue: 'Slow down. Same path every time.', tags: ['consistency'] }),
   POSSIBLE_TECHNICAL_OPPORTUNITY: (f) => ({ title: f.title, feel: '', cue: '', tags: [] }),
 };
 

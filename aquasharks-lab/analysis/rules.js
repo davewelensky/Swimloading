@@ -12,7 +12,7 @@
  *   POWER SHAPE + HAND PATH + HAND PATH & POWER                     -> POSSIBLE_TECHNICAL_OPPORTUNITY
  *   OUTPUT (rate, DPS, power, work, time)                           -> OUTPUT_SUMMARY (context)
  */
-import { present } from './model.js';
+import { present, getPath } from './model.js';
 import { round, changeOf, largerMagnitude, asymmetry, corroborate, directionOf, confidenceOf, minConfidence, pointChange, printedValues, hasRealConflict } from './calc.js';
 import { f0, f1, f2, signed, span, mmss, lapLabel, lapName } from './language.js';
 
@@ -20,7 +20,7 @@ const CLASS_WEIGHT = { MEASURED: 3, OBSERVED: 2, INFERRED: 1, COACH_CONFIRMATION
 const CONF_WEIGHT = { HIGH: 3, MODERATE: 2, LOW: 1 };
 
 /** Impact weights are about WHICH KIND of finding matters more for a swimmer, not about any measured value. */
-export const RULE_IMPACT = { POWER_EFFECTIVENESS: 3, LAP_COMPARISON: 3, ASYMMETRY_PROFILE: 2, POSSIBLE_TECHNICAL_OPPORTUNITY: 2, OUTPUT_SUMMARY: 1 };
+export const RULE_IMPACT = { HAND_PATH_CROSSOVER: 3, HAND_PATH_WRIST: 3, HAND_PATH_CONSISTENCY: 2, HAND_PATH_FACTS: 1, POWER_EFFECTIVENESS: 3, LAP_COMPARISON: 3, ASYMMETRY_PROFILE: 2, POSSIBLE_TECHNICAL_OPPORTUNITY: 2, OUTPUT_SUMMARY: 1 };
 
 /** @returns {import('./types').Finding} */
 function finding(f) {
@@ -435,6 +435,106 @@ export function outputSummary(a) {
   });
 }
 
+
+// ---------------------------------------------------------------------------------------------
+// HAND PATH. Every input is a CHART_READ entered or confirmed by a coach (see model.js emptyHandPathReading). The mappings below are
+// EO's own, from the Technical Error Index (Feb 2026), paraphrased. No threshold is invented: a rule fires on what the coach
+// recorded, and magnitudes in cm are reported as facts, never graded.
+const hpOf = (a) => a.handPathReading || null;
+const ARMS = [['left', 'left'], ['right', 'right']];
+const armsWith = (h, field, value) => ARMS.filter(([k]) => present(h[k][field]) && h[k][field].value === value).map(([, n]) => n);
+const cmText = (m) => (m.range ? `${f0(m.range[0])} to ${f0(m.range[1])} cm` : `${f0(m.value)} cm`);
+
+/** Hands cross the centreline in the head-on view. EO ties this to sideways force, so a lateral miss strengthens it. */
+export function handPathCrossover(a) {
+  const h = hpOf(a); if (!h || !present(h.crossesMidline) || h.crossesMidline.value !== 'YES') return null;
+  const lat = targetRows(a).filter((r) => (r.key === 'leftwardPct' || r.key === 'rightwardPct') && r.status !== 'ON_TARGET');
+  const linked = lat.length > 0;
+  const forces = lat.map((r) => `${r.key === 'leftwardPct' ? 'left' : 'right'} ${f1(r.value)}%`).join(' and ');
+  const base = 'Your hands cross the middle of your body as you pull.';
+  const text = {
+    JUNIOR: 'Your hands drift across the middle of your body as you pull. Let’s keep each hand on its own side.',
+    PERFORMANCE: linked ? `${base} Your sideways force is above EO’s target (${forces}, target under ${f0(Math.max(...lat.map((r) => r.hi)))}%).` : base,
+    MASTERS_OPEN_WATER: linked ? `${base} It shows up as sideways force: ${forces}, against a target of under ${f0(Math.max(...lat.map((r) => r.hi)))}%.` : base,
+    COACH: `Hands cross the midline in the head-on view (chart read, coach-confirmed). ${linked ? `Lateral force above EO target: ${forces}. EO links a sweeping or crossing hand path with hand angled out or in to excess lateral force.` : 'Lateral force is within target, so the crossing is not (yet) costing force.'}`,
+  };
+  return finding({
+    ruleId: 'HAND_PATH_CROSSOVER', kind: 'OPPORTUNITY', title: 'Your hands cross the middle of your body',
+    classification: 'OBSERVED', confidence: linked ? 'MODERATE' : 'LOW',
+    evidence: ['handPathReading.crossesMidline', ...(linked ? lat.map((r) => `forceDistribution.overall.${r.key}`) : [])],
+    measurement: ['Hands cross the centreline in the head-on view (read from the chart, confirmed by the coach).', ...lat.map((r) => `${r.label}: ${f1(r.value)}% against EO's target of ${r.target}`)],
+    observation: 'The head-on view shows the hands converging across the centreline.', recommendation: 'Pull straight back under the shoulder on your own side.',
+    text, caveats: ['Read from a chart with no printed values: confirmed by the coach, never filled automatically.', ...(linked ? [] : ['Sideways force is within target, so the link to lost force is not shown.'])],
+    relationships: ['HAND PATH (head-on) + LATERAL FORCE = CROSSOVER'],
+    meta: { lateral: lat.map((r) => r.key), remeasure: [{ label: 'Hands crossing the middle', current: 'Yes' }, ...lat.map((r) => ({ label: `${r.label} force`, current: `${f1(r.value)}%`, target: r.target }))] },
+  });
+}
+
+/** Maximum downward force coincides with maximum propulsion: the hand is still angled down through the pull. */
+export function handPathWrist(a) {
+  const h = hpOf(a); if (!h) return null;
+  const arms = armsWith(h, 'wristPitch', 'BROKEN'); if (!arms.length) return null;
+  const who = arms.length === 2 ? 'both hands' : `your ${arms[0]} hand`;
+  const text = {
+    JUNIOR: 'Your fingers stay pointing down for too long. Let’s show the whole palm to the back of the pool.',
+    PERFORMANCE: `${who[0].toUpperCase() + who.slice(1)} stays angled down through the pull, so less of the hand faces backwards.`,
+    MASTERS_OPEN_WATER: `${who[0].toUpperCase() + who.slice(1)} stays angled down through the pull. That cuts the surface that pushes you forward, which matters most over distance.`,
+    COACH: `Wrist pitch: ${arms.join(' and ')} hand stays angled down beyond the catch (hand-path-and-power chart read, coach-confirmed). EO sequencing: downward force should peak earlier and propulsion peak once the hand is vertical.`,
+  };
+  return finding({
+    ruleId: 'HAND_PATH_WRIST', kind: 'OPPORTUNITY', title: `The ${arms.join(' and ')} hand stays angled down`,
+    classification: 'OBSERVED', confidence: 'MODERATE', evidence: arms.map((k) => `handPathReading.${k}.wristPitch`),
+    measurement: [`${arms.join(' and ')} hand: maximum downward force coincides with maximum propulsion (chart read, confirmed by the coach).`],
+    observation: 'The hand is still angled down at the point of maximum propulsion.', recommendation: 'Fingers pointing down, full palm to the back of the pool.',
+    text, caveats: ['Read from a chart with no printed values: confirmed by the coach, never filled automatically.'],
+    relationships: ['HAND PATH & POWER = WRIST PITCH'], meta: { arms, remeasure: [{ label: 'Hand angle at the catch', current: 'Angled down' }] },
+  });
+}
+
+/**
+ * Hand-position consistency. Both hands wide: stroke-to-stroke repeatability, a swimmer-facing opportunity.
+ * ONE hand wide and the other not: EO says this is not simple technique and may be an early sign of a shoulder problem, so it is held for the
+ * coach (never swimmer-facing until confirmed) and a separate coach-only watch finding is raised.
+ */
+export function handPathConsistency(a) {
+  const h = hpOf(a); if (!h) return null;
+  const wide = armsWith(h, 'spread', 'WIDE'); if (!wide.length) return null;
+  const oneSided = wide.length === 1;
+  const text = oneSided ? {
+    JUNIOR: 'One hand follows a less repeatable path than the other. We will look at it together.', PERFORMANCE: `Your ${wide[0]} hand follows a less repeatable path than the other.`, MASTERS_OPEN_WATER: `Your ${wide[0]} hand follows a less repeatable path than the other.`,
+    COACH: `Hand-position consistency: the ${wide[0]} hand is wide (chart read, coach-confirmed) while the other is not. EO: one-sided, increasing deterioration that does not track pace may be an early sign of shoulder dysfunction rather than skill. Confirm it is not pacing, reduce load, assess the shoulder, and monitor across sessions.`,
+  } : {
+    JUNIOR: 'Your hands do not follow the same path every stroke. Slow down and make every stroke look the same.', PERFORMANCE: 'Your hand path changes from stroke to stroke, so each pull starts from a slightly different place.', MASTERS_OPEN_WATER: 'Your hand path changes from stroke to stroke. A repeatable path holds up better over distance.',
+    COACH: 'Hand-position consistency: both hands show wide dispersion across strokes (consistency chart read, coach-confirmed). EO: reduce stroke rate temporarily to rebuild repeatability, use a snorkel to rule out breathing, then build tempo back.',
+  };
+  return finding({
+    ruleId: 'HAND_PATH_CONSISTENCY', kind: 'OPPORTUNITY', title: oneSided ? `The ${wide[0]} hand path is less repeatable` : 'Your hand path changes from stroke to stroke',
+    classification: oneSided ? 'COACH_CONFIRMATION_REQUIRED' : 'OBSERVED', confidence: 'MODERATE', evidence: ARMS.map(([k]) => `handPathReading.${k}.spread`),
+    measurement: ARMS.filter(([k]) => present(h[k].spread)).map(([k]) => `${k[0].toUpperCase() + k.slice(1)} hand path spread: ${h[k].spread.value.toLowerCase()}`),
+    observation: 'The overlaid strokes in the consistency chart spread widely.', recommendation: 'Slow the stroke down and make each stroke follow the same path.',
+    coachConfirmation: oneSided ? { required: true, reason: 'One hand only: may not be technique (EO).', evidenceNeeded: ['Confirm it is not pacing-related', 'Compare with the previous session', 'Consider a shoulder check if it is increasing'] } : { required: false },
+    text, caveats: ['Read from a chart with no printed values: confirmed by the coach, never filled automatically.'],
+    relationships: ['CONSISTENCY CHART = HAND-POSITION REPEATABILITY'], meta: { wide, oneSided, remeasure: [{ label: 'Hand path consistency', current: wide.map((k) => `${k} wide`).join(', ') }] },
+  });
+}
+
+/** Coach-only: facts about the path in cm, and nothing that grades them (EO prints no depth or width target). */
+export function handPathFacts(a) {
+  const h = hpOf(a); if (!h) return null;
+  const lines = [];
+  for (const [k] of ARMS) { const n = k[0].toUpperCase() + k.slice(1); if (present(h[k].maxDepthCm)) lines.push(`${n} hand, deepest point: ${cmText(h[k].maxDepthCm)}`); if (present(h[k].maxWidthCm)) lines.push(`${n} hand, furthest from the centreline: ${cmText(h[k].maxWidthCm)}`); }
+  if (present(h.left.maxDepthCm) && present(h.right.maxDepthCm) && h.left.maxDepthCm.value != null && h.right.maxDepthCm.value != null && h.left.maxDepthCm.value !== h.right.maxDepthCm.value) lines.push(`Depth differs between hands by ${f0(Math.abs(h.left.maxDepthCm.value - h.right.maxDepthCm.value))} cm`);
+  if (present(h.left.maxWidthCm) && present(h.right.maxWidthCm) && h.left.maxWidthCm.value != null && h.right.maxWidthCm.value != null && h.left.maxWidthCm.value !== h.right.maxWidthCm.value) lines.push(`Width differs between hands by ${f0(Math.abs(h.left.maxWidthCm.value - h.right.maxWidthCm.value))} cm`);
+  if (!lines.length) return null;
+  const down = targetRows(a).find((r) => r.key === 'downwardPct');
+  if (down && down.status !== 'ON_TARGET' && ARMS.some(([k]) => present(h[k].maxDepthCm))) lines.push(`Downward force is ${f1(down.value)}% against EO's target of ${down.target}: EO links excessive downward force with poor hand pitch and an early press down. No depth target is printed, so the depth above is not graded.`);
+  return finding({
+    ruleId: 'HAND_PATH_FACTS', kind: 'CONTEXT', title: 'Hand path measurements', classification: 'OBSERVED', confidence: 'LOW',
+    evidence: ARMS.flatMap(([k]) => [`handPathReading.${k}.maxDepthCm`, `handPathReading.${k}.maxWidthCm`]).filter((p) => present(getPath(a, p))), measurement: lines,
+    text: { JUNIOR: '', PERFORMANCE: '', MASTERS_OPEN_WATER: '', COACH: lines.join('; ') + '.' }, caveats: ['Chart reads, coach-confirmed. Coach view only.'], meta: {},
+  });
+}
+
 /** Fixed order = tie-break order for equal scores. */
-export const RULES = [powerEffectiveness, lapComparison, asymmetryProfile, technicalOpportunity, outputSummary];
+export const RULES = [powerEffectiveness, lapComparison, asymmetryProfile, technicalOpportunity, handPathCrossover, handPathWrist, handPathConsistency, handPathFacts, outputSummary];
 export function runRules(a) { return RULES.map((r) => r(a)).filter(Boolean); }

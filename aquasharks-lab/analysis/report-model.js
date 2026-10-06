@@ -103,6 +103,9 @@ export function buildReport(a, findings, priorities, quality, profile) {
     const pp = a.powerProfile[side], ser = pp.doublePeakPctByLap.filter(present);
     if (present(pp.shape) && pp.shape.value === 'SINGLE_PEAK' && ser.length && ser.every((m) => m.value === 0)) good.push({ title: `Your ${name} arm pushes smoothly`, detail: ser.length > 1 ? `One clean push per stroke in every lap.` : 'One clean push per stroke.' });
   }
+  const hpr = a.handPathReading;
+  if (hpr && present(hpr.crossesMidline) && hpr.crossesMidline.value === 'NO') good.push({ title: 'Your hands stay on their own side', detail: P === 'JUNIOR' ? '' : 'Neither hand crosses the middle of your body as you pull.' });
+  if (hpr && ['left', 'right'].every((k) => present(hpr[k].spread) && hpr[k].spread.value === 'TIGHT')) good.push({ title: 'Your hand path is repeatable', detail: P === 'JUNIOR' ? '' : 'Both hands follow almost the same path stroke after stroke.' });
   for (const c of okClaims.filter((x) => x.strength)) good.push({ title: 'From the EO analysis', detail: c.shown, eo: true });
   const goodShown = good.slice(0, 4);
   sections.push({ id: 'STRENGTHS', status: goodShown.length ? 'COMPLETE' : 'MISSING', data: goodShown.length ? { headline: 'WHAT’S GOING WELL', items: goodShown } : null });

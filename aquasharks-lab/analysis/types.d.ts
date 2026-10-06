@@ -133,6 +133,17 @@ export interface ArmPhases {
   individualStrokes: { lap: number; stroke: number; phases: PhaseSet }[];
 }
 
+export interface ArmPathReading {
+  /** Deepest point of the hand in the side view, in cm. A range when the chart only allows one. */
+  maxDepthCm: Measured;
+  /** Furthest point from the centreline in the overhead view, in cm. */
+  maxWidthCm: Measured;
+  /** Dispersion of the overlaid strokes in the consistency chart. */
+  spread: Observed<'TIGHT' | 'MODERATE' | 'WIDE' | 'UNSURE'>;
+  /** Hand-path-and-power chart: does the hand stay angled down through the pull (maximum downward force with maximum propulsion)? */
+  wristPitch: Observed<'BROKEN' | 'OK' | 'UNSURE'>;
+}
+
 export interface PowerSide {
   shape: Observed<PowerShape>;
   /** EO-detected share of strokes with a double peak, per lap (percent). Index 0 = lap 1. Empty when not printed. */
@@ -252,6 +263,15 @@ export interface SwimAnalysis {
   powerProfile: { left: PowerSide; right: PowerSide };
   /** The hand-path / force bridge. COMPLETE only when the source shows where in the stroke force events occur. */
   handPathAndPower: { status: DataStatus; note?: string };
+  /**
+   * What the stroke-path, consistency and hand-path-and-power charts show. These charts have no printed values, so every field is a
+   * CHART_READ entered or confirmed by a coach (a model may only SUGGEST). Absent on analyses saved before this existed.
+   */
+  handPathReading?: {
+    /** Head-on view: do the hands cross the centreline during the pull? */
+    crossesMidline: Observed<'YES' | 'NO' | 'UNSURE'>;
+    left: ArmPathReading; right: ArmPathReading;
+  };
   eoObservations: EoObservation[];
   eoRecommendations: EoRecommendation[];
   /** EO's own reference ranges, as printed. Source evidence only: Aqua Sharks does not adopt them as thresholds. */

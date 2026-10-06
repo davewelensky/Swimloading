@@ -115,9 +115,23 @@ against `analysis/report-model.js` and `analysis/profiles.js`; do not promise ha
 
 **6 Oct (later): sales surfaces rewritten for the simple report.** `/aquasharks-lab` and the A5 card now describe: going well first, numbers against EO's target range, three things at most (one at a time),
 a practice plan, a note from Britt, a retest date and progress. The card's old "first lap to last lap" line was removed (the report only has that when lap data is entered). The sample card still uses only
-the real August 2025 swimmer's numbers; rows without a number describe what every report contains. Two FAQs added ("Why only three things?", "Is this only for squad swimmers?": open water, triathletes, masters).
+one real swimmer's numbers (Johann's report, shown as "a swimmer aged 54", name removed, Dave OK'd 6 Oct); the card earlier used an August 2025 swimmer. Two FAQs added ("Why only three things?", "Is this only for squad swimmers?": open water, triathletes, masters).
 EO guidance used (from EO's Technical Error Index, Feb 2026, paraphrased, never copied): fix the dominant issue first, slow changes down, upward force under 3-4% is negligible (code uses 3), like-for-like comparison.
 Not sold, deliberately: EO's "emerging shoulder dysfunction" early-warning idea (clinical; coach-only).
+
+## Hand-path charts (6 Oct): coach-confirmed chart reads, EO's own mappings
+
+EO's stroke path, consistency and hand-path-and-power charts print no numbers, so **nothing about them is filled automatically**. `analysis.handPathReading` (crosses midline; per hand: deepest point, width, spread, wrist pitch)
+is entered or confirmed by Britt in the builder ("Hand path" panel); every field is `CHART_READ` provenance. Optional: upload chart screenshots and the builder asks the model for SUGGESTIONS
+(`parser/hand-path-vision.js`): each chart is read **twice** and a value is offered only where both reads agree (numeric ranges overlap and the overlap is 20 cm or less; categories identical and not UNSURE).
+Britt checks each suggestion against the chart thumbnail and presses Use. Nothing is applied by itself.
+Rules (`rules.js`, EO Technical Error Index mappings, no invented thresholds): crossover (linked to sideways force above EO's target), wrist pitch (hand angled down at the catch), hand-position consistency.
+**One hand wide and the other not is held for the coach** (EO: may be an early shoulder issue, not technique): never swimmer-facing until Britt confirms, wording neutral, no clinical words on the swimmer report.
+Depth and width in cm are coach facts only (EO prints no target, so they are never graded or shown to a swimmer).
+**Accuracy lesson, 6 Oct:** checked against the coach-written Sophia report, whose text says hands reach "60-75 cm" deep and the right arm is "60-65 cm from the centreline": on the chart itself the side-view curves
+reach roughly 50-68 cm and the overhead left-right extent is about 30-40 cm (the 60-65 looks like the front-to-back axis). A human read of these charts can be well off, so reads are double-checked and confirmed against the image.
+The model prompt now defines each axis (depth below zero; OVERHEAD width is the HORIZONTAL axis). Upload the original EO platform screenshots, not small images embedded in a PDF.
+**Not live-tested:** there is no `ANTHROPIC_API_KEY` on the dev machine, so the model reads are covered by mock tests only. Before relying on suggestions, run the builder against a real EO screenshot with the key set and compare to the chart.
 
 ## Known limits
 

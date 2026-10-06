@@ -3,6 +3,7 @@
 import { parseUpload, cleanForStorage, readiness, buildSnapshot, newToken, isToken, SWIMMER_PROFILES } from './workflow.js';
 import { renderPublicPage, notFoundPage, pdfFileName } from './page.js';
 import { renderPdf } from './pdf.js';
+import { suggestHandPath } from '../../../aquasharks-lab/analysis/parser/hand-path-vision.js';
 
 const CLUB_SLUG = 'aqua-sharks-atlantic';
 const json = (res, code, o) => { res.statusCode = code; res.setHeader('Content-Type', 'application/json'); res.setHeader('Cache-Control', 'no-store'); res.end(JSON.stringify(o)); };
@@ -36,6 +37,15 @@ export function makeAdminHandler({ store, auth, callModel = null, publicBase }) 
       if (b.action === 'parse') {
         const out = await parseUpload({ fileBase64: b.file_base64, filename: b.filename, pageImages: b.page_images, swimmerName: b.swimmer_name }, { callModel });
         return json(res, 200, out);
+      }
+
+      if (b.action === 'hand_path') {
+        // SUGGESTS hand-path readings from EO chart screenshots (read twice, kept only where both reads agree). Nothing is saved: the coach confirms in the builder.
+        if (!callModel) return json(res, 503, { error: 'vision_unavailable' });
+        const imgs = Array.isArray(b.page_images) ? b.page_images : [];
+        if (!imgs.length || imgs.length > 6) return json(res, 400, { error: 'images_invalid', detail: 'send between 1 and 6 chart images' });
+        if (imgs.some((i) => !i || !['image/png', 'image/jpeg', 'image/webp'].includes(i.mediaType) || typeof i.base64 !== 'string' || i.base64.length > 8 * 1024 * 1024)) return json(res, 400, { error: 'images_invalid', detail: 'PNG, JPEG or WebP, 6 MB each at most' });
+        return json(res, 200, await suggestHandPath({ images: imgs }, callModel));
       }
 
       if (b.action === 'save') {
