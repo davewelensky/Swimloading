@@ -4694,12 +4694,19 @@ async function loadSquadTracker() {
   el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
 
   // Hide QT/gala features for non-swim clubs (K8, DUC etc)
-  const isCompetitiveClub = currentClub?.club_type === 'swim_club';
+  // Qualifying-time tools (matrix, pipeline, age-up warnings, next-target panel) are for clubs that enter galas.
+  // A swim_club without gala entries (Bluefin: open water Masters + learn-to-swim) gets the plain squad view.
+  const isCompetitiveClub = currentClub?.club_type === 'swim_club' && window._clubFeatures?.hasGalaEntries === true;
   window._trackerIsCompetitive = isCompetitiveClub;
   document.getElementById('trackerViewMatrix').style.display     = isCompetitiveClub ? '' : 'none';
   document.getElementById('trackerViewPipeline').style.display   = isCompetitiveClub ? '' : 'none';
   document.getElementById('matrixCourseFilter').style.display    = 'none';
   document.getElementById('champsYearFilter').style.display      = 'none';
+  if (!isCompetitiveClub && trackerViewMode !== 'cards') {         // came from a club that had Matrix/Pipeline selected
+    trackerViewMode = 'cards';
+    ['Cards', 'Matrix', 'Pipeline'].forEach(m => document.getElementById('trackerView' + m).classList.toggle('active', m === 'Cards'));
+    document.getElementById('squadCapacityStrip').style.display = '';
+  }
   document.getElementById('trackerPageSub').textContent          = isCompetitiveClub
     ? 'Swimmer progress: galas attended, PBs and qualifying time matrix'
     : 'Squad membership and session groups';
