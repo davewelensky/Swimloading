@@ -21,6 +21,23 @@
             if (localStorage.getItem('sl_ui') === 'v2') document.documentElement.classList.add('ui-v2');
         } catch (e) {} })();
     </script>
+    <script>
+        /* ?perf=1: boot timing. Off by default (window.__perfMark is then undefined and every call site skips it). */
+        (function () {
+            if (!/[?&]perf=1/.test(location.search)) return;
+            var t = {};
+            window.__perf = { marks: t };
+            window.__perfMark = function (n) {
+                if (t[n] != null) return;
+                t[n] = Math.round(performance.now());
+                try { performance.mark('sl:' + n); } catch (e) {}
+                if (n === 'today-revealed') {
+                    console.table(Object.keys(t).map(function (k) { return { mark: k, ms: t[k] }; }).sort(function (a, b) { return a.ms - b.ms; }));
+                }
+            };
+            window.__perfMark('script-start');
+        })();
+    </script>
     <title>SwimLoading | Live Water Temps & Open Water Swimming</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -44,13 +61,13 @@
     <!-- Lucide Icons -->
     <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
 
-    <script src="app.js?v=89"></script>
+    <script src="app.js?v=90"></script>
     <script src="app-june.js?v=27"></script>
     <script src="app-uk-challenge.js?v=3"></script>
     <script src="app-eo.js?v=4"></script>
 
     <link rel="stylesheet" href="style.css?v=19">
-    <link rel="stylesheet" href="v2.css?v=29">
+    <link rel="stylesheet" href="v2.css?v=30">
 </head>
 
 <body>
@@ -2193,7 +2210,7 @@
     <script src="app-club.js?v=44"></script>
     <script src="app-install-prompt.js?v=1"></script>
     <script src="app-v2.js?v=11"></script>
-    <script src="app-v2-today.js?v=14"></script>
+    <script src="app-v2-today.js?v=15"></script>
     <script src="app-v2-log.js?v=1"></script>
     <script src="app-ig-story.js?v=4"></script>
     <script src="app-ig-editor.js?v=1"></script>

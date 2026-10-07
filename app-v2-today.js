@@ -20,7 +20,13 @@
 
     var COPY = window.V2.COPY;   // defined in app-v2.js
 
-    var S = { token: 0, inflight: false, lastRun: 0, mySpots: [], idx: 0, latest: [], hazards: [], heroCache: {} };
+    var S = { token: 0, inflight: false, lastRun: 0, mySpots: [], idx: 0, latest: [], hazards: [], heroCache: {}, pre: null, spotsReady: null, bootRun: false };
+    // Boot gate: Today stays on one skeleton until the hero and the zones above it are ready, then everything
+    // shows at once. Nothing is ever inserted above content the person can already see. CAP bounds the wait
+    // for the zones above the hero, so a slow one never holds the hero back.
+    var G = { revealed: false, heroDone: false, zonesDone: false, t0: 0, timer: null };
+    var CAP_MS = 1200;
+    function mark(n) { if (window.__perfMark) window.__perfMark(n); }
 
     function $(id) { return document.getElementById(id); }
     function esc(s) {
@@ -57,6 +63,7 @@
         if (!dash || $('v2Today')) return;
         var t = document.createElement('div');
         t.id = 'v2Today';
+        if (!G.revealed) t.className = 'v2-pending';
         t.innerHTML =
             '<div id="v2tRoles"></div>' +
             '<div id="v2tClubTop"></div>' +
@@ -74,10 +81,30 @@
         $('v2tLog').addEventListener('click', function () { showPage('logTemp'); });
         // Known club member from a previous visit: hold the club card's space from the first paint
         try { if (localStorage.getItem('sl_v2_club') === '1') $('v2tClubTop').classList.add('v2-club-reserve'); } catch (e) { /* optional */ }
+        // Known club role from a previous visit: hold the chip row's space too
+        try { if (localStorage.getItem('sl_v2_roles') === '1') $('v2tRoles').classList.add('v2-roles-reserve'); } catch (e) { /* optional */ }
         icons();
         renderRoles();
     }
 
+    function settle() {
+        if (G.revealed || !G.heroDone) return;
+        var left = G.t0 + CAP_MS - Date.now();
+        if (G.zonesDone || left <= 0) { reveal(); return; }
+        if (!G.timer) G.timer = setTimeout(reveal, left);
+    }
+    function reveal() {
+        if (G.revealed) return;
+        G.revealed = true;
+        if (G.timer) { clearTimeout(G.timer); G.timer = null; }
+        var t = $('v2Today');
+        if (t) {
+            t.classList.remove('v2-pending');
+            t.classList.add('v2-reveal');
+            setTimeout(function () { t.classList.remove('v2-reveal'); }, 400);
+        }
+        mark('today-revealed');
+    }
     // Coach / admin / sets-planner entry points (same links and roles as the classic Home chip row).
     function renderRoles() {
         var el = $('v2tRoles'), r = window._clubRoleLinks;
@@ -90,17 +117,39 @@
             .concat((r.coachClubs || []).map(function (c) { return chip('/coach/' + c.slug, 'home-chip--coach', 'clipboard-list', c.name, 'Coach'); }))
             .concat((r.coachSetsClubs || []).map(function (c) { return chip('/sets/' + c.slug, 'home-chip--sets', 'calendar-days', c.name, 'Sets'); }));
         el.innerHTML = chips.length ? '<div class="home-chip-row">' + chips.join('') + '</div>' : '';
+        el.classList.remove('v2-roles-reserve');
+        try { if (chips.length) localStorage.setItem('sl_v2_roles', '1'); else localStorage.removeItem('sl_v2_roles'); } catch (e) { /* optional */ }
         icons();
     }
     document.addEventListener('sl:roles', renderRoles);
 
     // ── Data: my spots ─────────────────────────────────────────────────────
-    async function loadSpotsAndLatest() {
+    function queryMine(uid) { return Promise.resolve(supabaseClient.from('temp_logs').select('spot_id, created_at').eq('user_id', uid).order('created_at', { ascending: false }).limit(60)); }
+    function queryLatest() { return Promise.resolve(supabaseClient.from('latest_spot_temps').select('spot_id, spot_name, spot_code, temp_c, updated_at, domain, water_type').order('updated_at', { ascending: false }).limit(300)); }
+    function queryHazards() { return Promise.resolve(supabaseClient.from('hazard_reports').select('spot_id, severity, title, hazard_type, active_until').is('resolved_at', null)); }
+
+    // Start the reads that need only the user id, while the app is still loading spots and the profile.
+    // loadToday() picks them up (once, if fresh) instead of asking again.
+    function prefetchToday() {
+        if (!(typeof currentUser !== 'undefined' && currentUser)) return;
+        mark('today-fetch-start');
+        var pre = { at: Date.now() };
+        pre.mine = queryMine(currentUser.id);
+        pre.latest = queryLatest();
+        pre.hazard = queryHazards();
+        // The hero's own reading depends only on the swimmer's most recent spot id
+        pre.heroP = pre.mine.then(function (res) {
+            var row = res && res.data && res.data[0];
+            return row && row.spot_id ? fetchReading(row.spot_id).then(function (r) { return { id: row.spot_id, r: r }; }) : null;
+        }).catch(function () { return null; });
+        S.pre = pre;
+    }
+    window.V2.prefetchToday = prefetchToday;
+
+    async function loadSpotsAndLatest(pre) {
         var uid = currentUser.id;
-        var res = await Promise.all([
-            supabaseClient.from('temp_logs').select('spot_id, created_at').eq('user_id', uid).order('created_at', { ascending: false }).limit(60),
-            supabaseClient.from('latest_spot_temps').select('spot_id, spot_name, spot_code, temp_c, updated_at, domain, water_type').order('updated_at', { ascending: false }).limit(300)
-        ]);
+        // spotsReady: spotById() below needs the spots list, but the queries above do not
+        var res = await Promise.all([pre ? pre.mine : queryMine(uid), pre ? pre.latest : queryLatest(), S.spotsReady || null]);
         var mine = [];
         ((res[0] && res[0].data) || []).forEach(function (r) { if (r.spot_id && mine.indexOf(r.spot_id) < 0) mine.push(r.spot_id); });
         S.latest = (res[1] && res[1].data) || [];
@@ -284,9 +333,9 @@
 
     // ── Hazard banner ──────────────────────────────────────────────────────
     // Active caution/danger reports near the swimmer (fetched once per load) ...
-    async function renderHazard() {
+    async function renderHazard(pre) {
         try {
-            var res = await supabaseClient.from('hazard_reports').select('spot_id, severity, title, hazard_type, active_until').is('resolved_at', null);
+            var res = await (pre && pre.hazard ? pre.hazard : queryHazards());
             var dom = homeDomain();
             var relevant = {};
             S.mySpots.forEach(function (s) { relevant[s.id] = 1; });
@@ -513,30 +562,59 @@
         S.inflight = true; S.lastRun = Date.now(); S.token++;
         mount();
         S.heroCache = {};
+        var pre = (!force && S.pre && Date.now() - S.pre.at < 15000) ? S.pre : null;
+        S.pre = null;
+        if (!G.revealed) G.t0 = Date.now();
+        if (!pre) mark('today-fetch-start');
+        // A saved "has club roles" hint that never gets confirmed must not hold blank space forever
+        setTimeout(function () {
+            if (window._clubRoleLinks) return;
+            var r = $('v2tRoles'); if (r) r.classList.remove('v2-roles-reserve');
+            try { localStorage.removeItem('sl_v2_roles'); } catch (e) { /* optional */ }
+        }, 8000);
         try {
-            await loadSpotsAndLatest();
-            showHero();
-            prefetchSpots();
-            // Zones fill independently so a slow one never blocks the rest
-            renderHazard().then(renderAround);
+            // Zones that do not depend on spots start straight away; each fills independently
             renderStrava();
             renderNext();
             renderChallenge();
             renderClub(0);
+            await loadSpotsAndLatest(pre);
+            S.spotsReady = null;
+            if (pre && pre.heroP) {
+                var h = await pre.heroP, first = S.mySpots[S.idx];
+                if (h && first && first.id === h.id) S.heroCache[h.id] = h.r;
+            }
+            var hazards = renderHazard(pre).then(renderAround);
+            var heroDone = showHero();
+            prefetchSpots();
+            await heroDone;
+            mark('hero-painted');
+            G.heroDone = true; settle();
+            // Zones above the hero (hazard banner) settle with it, bounded by CAP_MS
+            hazards.then(function () { G.zonesDone = true; settle(); }, function () { G.zonesDone = true; settle(); });
         } catch (e) {
             console.warn('Today load:', e);
             var el = $('v2tHero');
             if (el) { el.classList.remove('v2-skel'); el.innerHTML = '<div class="v2-hero-name">Water report</div><div class="v2-sub" style="margin-top:8px">Could not load. <button class="v2-link" type="button" id="v2tRetry">Try again</button></div>'; var b = $('v2tRetry'); if (b) b.onclick = function () { loadToday(true); }; }
+            G.heroDone = true; G.zonesDone = true; settle();
         } finally { S.inflight = false; }
     }
     window.V2.loadToday = loadToday;
+
+    // Called by loadApp() as soon as the profile is known, in parallel with the spots load
+    window.V2.startToday = function (spotsPromise) {
+        S.spotsReady = spotsPromise || null;
+        S.bootRun = true;
+        return loadToday(false);
+    };
 
     // v1's loadDashboard() runs on login and whenever Home is opened. Wrap it so Today loads
     // alongside (v1 still fills the shared caches).
     if (typeof window.loadDashboard === 'function') {
         var _orig = window.loadDashboard;
         window.loadDashboard = function () {
-            loadToday(false);
+            if (S.bootRun) S.bootRun = false;      // loadApp() already started Today for this boot
+            else loadToday(false);
             return _orig.apply(this, arguments);
         };
     }

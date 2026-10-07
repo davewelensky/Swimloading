@@ -749,6 +749,20 @@ html.ui-v2 #clubHealthCard button, html.ui-v2 .v2-club-results button { min-heig
 .v2-club-reserve { min-height: 210px; }
 #v2tClubTop { margin-bottom: 0; }
 
+/* Boot: Today shows one skeleton until the hero and the zones above it are ready, then reveals together.
+   Nothing is inserted above content the person can already see. */
+#v2Today.v2-pending > * { display: none !important; }
+#v2Today.v2-pending::before {
+    content: ''; display: block; min-height: 210px; box-sizing: border-box;
+    background: var(--sl-surface); border: 1px solid var(--sl-line); border-radius: var(--sl-r-card);
+}
+#v2Today.v2-reveal { animation: v2-reveal 0.24s ease-out both; }
+#v2tStrava > *, #v2tClub > *, #v2tNext > *, #v2tChal > *, #v2tAround > * { animation: v2-reveal 0.24s ease-out both; }
+@keyframes v2-reveal { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+    #v2Today.v2-reveal, #v2tStrava > *, #v2tClub > *, #v2tNext > *, #v2tChal > *, #v2tAround > * { animation: none; }
+}
+
 /* Spot picker: one tappable title (with 'n of m') that opens a sheet; replaces the stack of name chips */
 .v2-spotpick {
     display: flex; align-items: center; justify-content: space-between; gap: var(--sl-s3); width: 100%; min-height: var(--sl-tap);
@@ -764,6 +778,7 @@ html.ui-v2 #clubHealthCard button, html.ui-v2 .v2-club-results button { min-heig
 /* Coach / admin / sets chips on Today (hidden when the user has no club roles) */
 #v2tRoles:empty { display: none; }
 #v2tRoles { margin-bottom: var(--sl-s3); }
+#v2tRoles.v2-roles-reserve { display: block; min-height: 48px; }   /* known club role: hold the chip row's space (after :empty so it wins) */
 
 /* ── Full-screen forms (create swim, Strava log/import, hazard, suggest spot, event details, profile) ─────────
    They are fixed overlays that scroll, with only ~60px of space under the last button. On an iPhone the Safari

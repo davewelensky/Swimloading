@@ -507,16 +507,26 @@
         async function loadApp() {
             // Audit session start — captures IP/geo via server
             auditLog('session_start', { email: currentUser?.email });
+            window.__perfMark && window.__perfMark('auth-ready');
 
-            // Load domains early — needed for onboarding dropdowns AND main app
-            await loadDomains();
-
-            // Check if user needs onboarding
-            const { data: profile } = await supabaseClient
+            // Start every independent read at once instead of one round trip after another.
+            // Today's own reads (v2) go first: they only need the user id.
+            if (window.V2 && V2.prefetchToday) V2.prefetchToday();
+            // Domains are needed for onboarding dropdowns AND main app
+            const domainsP = loadDomains();
+            const profileQ = Promise.resolve(supabaseClient
                 .from('profiles')
                 .select('terms_accepted_at, avatar_url, display_name, phone, onboarding_completed_at, home_domain, date_of_birth, identity_public, identity_public_enabled_at')
                 .eq('id', currentUser.id)
-                .maybeSingle();
+                .maybeSingle());
+            // Spots populate dropdowns grouped by domain, so loadSpots waits for domains before it applies.
+            const spotsP = loadSpots(domainsP);
+            const countriesQ = Promise.resolve(supabaseClient.from('countries').select('iso_code, is_domestic'));
+            spotsP.catch(() => {});      // a gate below may return before spotsP is awaited
+
+            // Check if user needs onboarding
+            const [{ data: profile }] = await Promise.all([profileQ, domainsP]);
+            window.__perfMark && window.__perfMark('profile-loaded');
 
             // NEW USER — never accepted legal
             if (!profile || !profile.terms_accepted_at) {
@@ -583,11 +593,15 @@
             // Store profile for dashboard filtering
             currentUserProfile = profile;
 
-            // Load spots
-            await loadSpots();
+            // Today (v2) starts its own reads now; it waits for spots only where it maps ids to names
+            if (window.V2 && V2.startToday) V2.startToday(spotsP);
 
-            // Build international spot ID set from countries table
-            await loadCountriesAndRebuildIntl();
+            // Load spots (already in flight)
+            await spotsP;
+            window.__perfMark && window.__perfMark('spots-loaded');
+
+            // Build international spot ID set from countries table (query already in flight)
+            await loadCountriesAndRebuildIntl(countriesQ);
 
             // Load dashboard data
             await loadDashboard();
@@ -959,11 +973,12 @@
 
         // Load countries and rebuild the internationalSpotIds Set.
         // Must be called after loadSpots() so the spots array is populated.
-        async function loadCountriesAndRebuildIntl() {
+        async function loadCountriesAndRebuildIntl(pending) {
             try {
-                const { data } = await supabaseClient
+                // `pending` lets the boot sequence start this query early; spots must still exist before the rebuild
+                const { data } = await (pending || supabaseClient
                     .from('countries')
-                    .select('iso_code, is_domestic');
+                    .select('iso_code, is_domestic'));
                 if (!data) return;
                 const intlCodes = new Set(data.filter(c => !c.is_domestic).map(c => c.iso_code));
                 internationalSpotIds = new Set(spots.filter(s => intlCodes.has(s.country_code)).map(s => s.id));
@@ -1133,14 +1148,15 @@
         }
 
         // Load spots
-        async function loadSpots() {
+        async function loadSpots(waitFor) {
             const { data, error } = await supabaseClient
                 .from('spots')
                 .select('*')
                 .eq('active', true)
                 .order('name', { ascending: true });
 
-
+            // Boot passes the in-flight domains load so the dropdowns below are grouped correctly
+            if (waitFor) await waitFor;
 
             if (data) {
                 spots = data;
