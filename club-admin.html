@@ -4657,6 +4657,38 @@ let allWeekTimeSlots   = {};      // session_id → [{roster_id, time_slot}] sor
 let dashDay = new Date().getDay(); // currently selected day on the dashboard (0=Sun)
 let clubAttendancePct = null;     // set by attendance pulse, read by dashboard
 
+// Sessions a swimmer actually attended, from the coach register (club_attendance, status present / catch_up).
+// club_attendance has no club_id and no FK to club_sessions, so: this club's sessions first, then their marks in
+// chunks (URL length) and pages (PostgREST returns at most 1000 rows). Returns a Map roster_id -> Set of
+// 'date_HH:MM' keys, the same key shape the RSVP source below uses, so a session is never counted twice.
+async function loadRegisterAttendance(clubId) {
+  const bySession = new Map();
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await sb.from('club_sessions').select('id, session_date, start_time')
+      .eq('club_id', clubId).order('id').range(from, from + 999);
+    if (error) throw error;
+    (data || []).forEach(x => bySession.set(x.id, `${x.session_date}_${(x.start_time || '').slice(0, 5)}`));
+    if (!data || data.length < 1000) break;
+  }
+  const ids = [...bySession.keys()], out = new Map();
+  const chunks = [];
+  for (let i = 0; i < ids.length; i += 80) chunks.push(ids.slice(i, i + 80));
+  await Promise.all(chunks.map(async chunk => {
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await sb.from('club_attendance').select('session_id, roster_id, status')
+        .in('session_id', chunk).in('status', ['present', 'catch_up']).order('id').range(from, from + 999);
+      if (error) throw error;
+      (data || []).forEach(a => {
+        if (!a.roster_id) return;
+        if (!out.has(a.roster_id)) out.set(a.roster_id, new Set());
+        out.get(a.roster_id).add(bySession.get(a.session_id));
+      });
+      if (!data || data.length < 1000) break;
+    }
+  }));
+  return out;
+}
+
 async function loadSquadTracker() {
   const el = document.getElementById('trackerContent');
   el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
@@ -4674,6 +4706,8 @@ async function loadSquadTracker() {
 
   // Fetch roster + both time tables + attendance in parallel
   const clubId = currentClub.id;
+  // Register marks load alongside the rest; a failure must not blank the tracker, so it falls back to RSVP-only counts
+  const registerP = loadRegisterAttendance(clubId).catch(e => { console.warn('Tracker register attendance:', e); return new Map(); });
   const [rosterRes, swimTimesRes, galaTimesRes, attendRes, multisquadSessionsRes, sessionAssignRes, cssTestsRes] = await Promise.all([
     sb.from('club_roster').select('id, display_name, member_number, category, squad_id, secondary_squad_id, date_of_birth, gender, is_trial, fee_paid')
       .eq('club_id', clubId).eq('is_active', true).order('display_name'),
@@ -4730,10 +4764,12 @@ async function loadSquadTracker() {
     });
   });
 
+  // Sessions = coach-register marks (present / catch_up) plus RSVP 'attending' rows, one per date+start time
   const sessionsByRoster = {};
+  (await registerP).forEach((keys, rosterId) => { sessionsByRoster[rosterId] = new Set(keys); });
   attend.forEach(a => {
     if (!sessionsByRoster[a.roster_id]) sessionsByRoster[a.roster_id] = new Set();
-    sessionsByRoster[a.roster_id].add(`${a.session_date}_${a.session_start}`);
+    sessionsByRoster[a.roster_id].add(`${a.session_date}_${(a.session_start || '').slice(0, 5)}`);
   });
 
   // Exclude roster entries belonging to admin/organiser club_members
