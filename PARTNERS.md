@@ -417,8 +417,8 @@ Recorded 29 Sep 2026. Neither has a hero page, welcome card, route or public men
 | Field | Value |
 |-------|-------|
 | **Status** | Agreed to participate — Warren replied 25 Sep 2026: "happy to participate", "happy to sponsor products at this time. Prizes and samples". Products only, no cash. |
-| **Hero page** | None yet |
-| **Welcome card** | No |
+| **Hero page** | `/partners/getstoked` (built 9 Oct 2026, route in vercel.json, tracked as `partner_getstoked_*`). Shows "discount being set up"; the code block is hidden until `MEMBER_CODE` is set in the page. |
+| **Welcome card** | Yes, via a `partner_pages` row (section `coming_soon`, chip "Discount Coming"). Migration `sql/2026-10-09_getstoked-partner-page.sql` (applied only after Dave types "apply"). |
 | **Geography** | `[UNCONFIRMED]` — SA company (zerobs.co.za, prices in rand). Whether they ship outside SA is not confirmed; treat as SA-only. |
 | **Contact** | **Warren Wilensky** (info@zerobs.co.za) — decision maker. **Nicola** was copied on the 25 Sep email to request video footage for their social media; surname/role/email `[UNCONFIRMED]`. |
 | **Partner URL** | https://zerobs.co.za |
@@ -458,7 +458,7 @@ Recorded 29 Sep 2026. Neither has a hero page, welcome card, route or public men
 
 | Field | Value |
 |-------|-------|
-| **Status** | In discussion — Sam replied (undated, after Dave's 23 Sep nudge): interested, proposes starting with an exclusive member discount code. A call is still to be booked. |
+| **Status** | **Agreed in principle (Sam's email, Oct 2026):** start with a 10% member discount and shared recovery content. Nothing is live: the code is not set up. Pipeline row still "In Discussion" (moving it to Confirmed is Dave's call). |
 | **Hero page** | None yet |
 | **Welcome card** | No |
 | **Geography** | `[UNCONFIRMED]` — Get Stoked is a South African retailer and, per their site, "Therabody - Official Importer". Whether the code works outside SA is not confirmed; treat as SA-only. |
@@ -472,18 +472,26 @@ Recorded 29 Sep 2026. Neither has a hero page, welcome card, route or public men
 - **NOT offered:** a Theragun Mini every month ("wouldn't be sustainable for us from a cost perspective"); Theragun Minis are also out of stock right now, so nothing can ship immediately
 - Sam asked whether Dave is happy to start with a member code and build from there, and invited other suggestions
 
+**What Sam confirmed in her email (Oct 2026, undated in the paste):**
+- **Member discount:** "we can start by setting up an exclusive 10% discount code for SwimLoading members, valid across all Therabody products on our website." She suggested **SWIMLOADING10** unless Dave prefers another code. **Not set up yet; Dave has not chosen the code.**
+- **Content:** Get Stoked will share Therabody's existing recovery content (an article on therabody.com, soon on the .co.za site; a South African blog is being added). SwimLoading may adapt it for swimmers, but **any scientific or product-benefit claim must be supported by Therabody's approved information**. No claims of our own.
+- **Langebaan Express (Nov 2026):** still looking into sending a Therabody team / recovery area. **Not confirmed. Do not mention publicly.**
+- **Exclusivity:** happy in principle with a recovery-technology partnership kept to massage/percussion devices, compression technology and similar recovery equipment. In principle only; not written down.
+- **Carina Bruwer:** interested in exploring it. Asked for her social handles and audience demographics (follower locations, age ranges, engagement rates). **Nothing shared yet; needs Carina's OK, and it is a separate conversation from the member deal.**
+- Sam signs as Commercial & Marketing Manager, Get Stoked (importers & distributors of premium cycling & recovery brands). Contact: samantha@getstoked.co.za.
+
 **What Dave proposed earlier (per pipeline row, not confirmed by Therabody):** exclusive discount code, swim-specific recovery content, competitions.
 
 **Confirmed facts:** Get Stoked stocks bike components, apparel, wellness/recovery equipment, supplements and beauty products (getstoked.store, read 29 Sep 2026); Therabody is listed as stocked with "Official Importer" on their product pages. Contact on their site: info@getstoked.co.za.
 
 **Outstanding actions:**
-- [ ] **Reply to Sam** — agree to start with a member code and book the call (she asked to schedule one on 22 Sep; no times confirmed)
-- [ ] The actual **discount code and its percentage**, validity, exclusions and expiry `[UNCONFIRMED]` — never publish or invent a code; test it before it goes live
-- [ ] Where the code works: their store only? which products? `[UNCONFIRMED]`
+- [ ] **Reply to Sam** — choose the code (SWIMLOADING10 or other), ask which Get Stoked website it works on, ask for Therabody's approved claims and brand guidelines, say Carina will be answered separately
+- [ ] The **discount code** — 10% is confirmed, the code is not. Validity, exclusions and expiry `[UNCONFIRMED]`. Never publish a code until Get Stoked confirm it works; test it at checkout first, then set `MEMBER_CODE` on the page and update `test/getstoked-page.test.js` on purpose
+- [ ] **Which website the code works on.** Sam says "our website". The pipeline note records getstoked.store as a dealer/B2B site (contact form only) and getstokedonline.co.za as the consumer storefront. The page deliberately links to NO retailer until this is confirmed `[UNCONFIRMED]`
 - [ ] What competitions/giveaways and how often `[UNCONFIRMED]`; prizes only when stock exists
 - [ ] Educational content: who writes it, who approves the claims `[UNCONFIRMED]`
-- [ ] Logo/brand assets from them (Therabody has its own brand rules — ask before using their name or imagery in copy)
-- [ ] Decide the page's name: "Therabody" (brand) vs "Get Stoked" (the partner who signs) — ask Sam how they want it presented
+- [ ] Logo/brand assets from them. The Get Stoked logo Dave supplied (215x136 JPEG, white background) is on the page; ask for a larger or transparent version. **No Therabody logo or imagery is used** (Therabody has its own brand rules)
+- [ ] Page name: built as **"Get Stoked"** (the partner who signs), with Therabody named as what they distribute. Confirm with Sam how they want it presented
 
 **Notes:**
 - Therabody sits in the Tier 3 recovery list for Carina Bruwer (massage guns) — keep the two conversations separate unless Dave says otherwise.
