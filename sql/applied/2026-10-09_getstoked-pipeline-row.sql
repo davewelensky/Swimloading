@@ -26,16 +26,16 @@ BEGIN
 END $$;
 
 -- ================================================================
--- Migration: 2026-10-09_getstoked-pipeline-row.sql   (PENDING: not yet requested for apply)
+-- Migration: 2026-10-09_getstoked-pipeline-row.sql   (APPLIED 9 Oct 2026)
 -- Process:   see MIGRATIONS.md — no section below may be left empty
 -- ================================================================
 
 -- Purpose:
 --   Record the terms Sam confirmed in her email on the Therabody pipeline row and link it to the new partner_pages card.
---   Run AFTER 2026-10-09_getstoked-partner-page.sql (it looks the card up by hero_page).
+--   Run AFTER applied/2026-10-09_getstoked-partner-page.sql (it looks the card up by hero_page).
 
 -- Requested by:
---   Dave (not yet asked to apply)
+--   Dave ("apply the pipeline row update", 9 Oct 2026)
 
 -- ----------------------------------------------------------------
 -- PRE-CHECKS — read-only, run BEFORE applying.
