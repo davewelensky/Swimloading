@@ -81,6 +81,7 @@
   function showAuth(msg) {
     $('appView').hidden = true; $('authScreen').hidden = false;
     var e = $('authError'); if (msg) { e.textContent = msg; e.hidden = false; } else e.hidden = true;
+    $('authInfo').hidden = true;
   }
   async function boot() {
     var ok = false;
@@ -101,6 +102,15 @@
     var r = await sb.auth.signInWithPassword({ email: $('authEmail').value.trim(), password: $('authPassword').value });
     if (r.error || !r.data.user) { showAuth(r.error ? r.error.message : 'Sign in failed'); return; }
     S.user = r.data.user; await boot();
+  });
+  // Same reset mechanism as the main app: an emailed link lands on /app, where she sets a new password, then returns here.
+  $('forgot').addEventListener('click', async function () {
+    var email = $('authEmail').value.trim(), err = $('authError'), info = $('authInfo');
+    err.hidden = true; info.hidden = true;
+    if (!email) { err.textContent = 'Enter your email above first, then tap this again.'; err.hidden = false; return; }
+    var r = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/app' });
+    if (r.error) { err.textContent = 'Could not send the reset link: ' + r.error.message; err.hidden = false; return; }
+    info.textContent = 'If that email has a SwimLoading account, a reset link is on its way. Set a new password there, then come back to this page and sign in.'; info.hidden = false;
   });
   $('signOut').addEventListener('click', async function () { await sb.auth.signOut(); S.user = null; location.hash = ''; showAuth(); });
 
