@@ -458,7 +458,7 @@ Recorded 29 Sep 2026. Neither has a hero page, welcome card, route or public men
 
 | Field | Value |
 |-------|-------|
-| **Status** | **Agreed in principle (Sam's email, Oct 2026):** start with a 10% member discount and shared recovery content. Nothing is live: the code is not set up. Pipeline row still "In Discussion" (moving it to Confirmed is Dave's call). |
+| **Status** | **Agreed in principle both ways.** Sam's email (Oct 2026) offered a 10% member discount and shared recovery content; Dave replied on 8 Oct 2026 accepting, choosing the code **SWIMLOADING10**. **Nothing is live yet**: Get Stoked still have to set the code up. Pipeline row still "In Discussion" (moving it to Confirmed is Dave's call). |
 | **Hero page** | None yet |
 | **Welcome card** | No |
 | **Geography** | `[UNCONFIRMED]` — Get Stoked is a South African retailer and, per their site, "Therabody - Official Importer". Whether the code works outside SA is not confirmed; treat as SA-only. |
@@ -475,9 +475,10 @@ Recorded 29 Sep 2026. Neither has a hero page, welcome card, route or public men
 **What Sam confirmed in her email (Oct 2026, undated in the paste):**
 - **Member discount:** "we can start by setting up an exclusive 10% discount code for SwimLoading members, valid across all Therabody products on our website." She suggested **SWIMLOADING10** unless Dave prefers another code. **Not set up yet; Dave has not chosen the code.**
 - **Content:** Get Stoked will share Therabody's existing recovery content (an article on therabody.com, soon on the .co.za site; a South African blog is being added). SwimLoading may adapt it for swimmers, but **any scientific or product-benefit claim must be supported by Therabody's approved information**. No claims of our own.
-- **Langebaan Express (Nov 2026):** still looking into sending a Therabody team / recovery area. **Not confirmed. Do not mention publicly.**
-- **Exclusivity:** happy in principle with a recovery-technology partnership kept to massage/percussion devices, compression technology and similar recovery equipment. In principle only; not written down.
-- **Carina Bruwer:** interested in exploring it. Asked for her social handles and audience demographics (follower locations, age ranges, engagement rates). **Nothing shared yet; needs Carina's OK, and it is a separate conversation from the member deal.**
+- **Langebaan Express (Nov 2026):** Sam is still looking into sending a Therabody team / recovery area. Dave's 8 Oct reply says he and Derrick (event side) are keen, with the 6 km and 12 km swimmers as the first real-world activation. **Therabody has not confirmed. Do not mention publicly until they do.**
+- **Exclusivity:** both sides agreed the category (massage/percussion devices, compression technology and similar recovery equipment). The exclusivity arrangement itself is to be shaped after Langebaan. Not written down.
+- **Carina Bruwer:** Sam is interested and asked for her handles and audience demographics. Dave's 8 Oct reply attached some information and both sides agreed to keep this separate from the SwimLoading partnership. Carina swims 15 km in Durban later in Oct 2026 (event + charity); Dave is observing from the boat.
+- **Dave's own ask:** a Theragun for his personal use and testing, so he can feed his experience into the recovery content. **Sam has not answered.**
 - Sam signs as Commercial & Marketing Manager, Get Stoked (importers & distributors of premium cycling & recovery brands). Contact: samantha@getstoked.co.za.
 
 **What Dave proposed earlier (per pipeline row, not confirmed by Therabody):** exclusive discount code, swim-specific recovery content, competitions.
@@ -485,8 +486,9 @@ Recorded 29 Sep 2026. Neither has a hero page, welcome card, route or public men
 **Confirmed facts:** Get Stoked stocks bike components, apparel, wellness/recovery equipment, supplements and beauty products (getstoked.store, read 29 Sep 2026); Therabody is listed as stocked with "Official Importer" on their product pages. Contact on their site: info@getstoked.co.za.
 
 **Outstanding actions:**
-- [ ] **Reply to Sam** — choose the code (SWIMLOADING10 or other), ask which Get Stoked website it works on, ask for Therabody's approved claims and brand guidelines, say Carina will be answered separately
-- [ ] The **discount code** — 10% is confirmed, the code is not. Validity, exclusions and expiry `[UNCONFIRMED]`. Never publish a code until Get Stoked confirm it works; test it at checkout first, then set `MEMBER_CODE` on the page and update `test/getstoked-page.test.js` on purpose
+- [x] **Reply to Sam** — sent by Dave 8 Oct 2026 (code SWIMLOADING10, content approach, Langebaan, category, Carina, Theragun ask)
+- [ ] **Waiting on Sam:** confirm the code is set up and which website it works on; Langebaan decision; Therabody's approved claims and brand guidelines; the Theragun question; the Carina athlete conversation
+- [ ] **Publishing the code.** 10% and the code **SWIMLOADING10** are both chosen, but it is **not live** on their side. Validity, exclusions and expiry `[UNCONFIRMED]`. Do not publish until Get Stoked confirm it works; test it at checkout first, then set `MEMBER_CODE` on the page and update `test/getstoked-page.test.js` on purpose
 - [ ] **Which website the code works on.** Sam says "our website". The pipeline note records getstoked.store as a dealer/B2B site (contact form only) and getstokedonline.co.za as the consumer storefront. The page deliberately links to NO retailer until this is confirmed `[UNCONFIRMED]`
 - [ ] What competitions/giveaways and how often `[UNCONFIRMED]`; prizes only when stock exists
 - [ ] Educational content: who writes it, who approves the claims `[UNCONFIRMED]`
