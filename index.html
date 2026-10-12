@@ -61,7 +61,7 @@
     <!-- Lucide Icons -->
     <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
 
-    <script src="app.js?v=90"></script>
+    <script src="app.js?v=92"></script>
     <script src="app-june.js?v=27"></script>
     <script src="app-uk-challenge.js?v=3"></script>
     <script src="app-eo.js?v=4"></script>
@@ -567,7 +567,7 @@
 
             <div class="form-group">
                 <div class="form-label">Hazard Type</div>
-                <select id="hazardType">
+                <select id="hazardType" onchange="onHazardTypeChange()">
                     <option value="seal_aggression">Seal Aggression / Bite</option>
                     <option value="shark_sighting">Shark Sighting</option>
                     <option value="jellyfish">Jellyfish / Bluebottle bloom</option>
@@ -576,6 +576,21 @@
                     <option value="beach_closure">Official Beach Closure</option>
                     <option value="other">Other Hazard</option>
                 </select>
+            </div>
+
+            <!-- Seal Aggression / Bite only: guidance shown BEFORE submit. Not stored, not required. -->
+            <div class="form-group" id="hazardBiteGroup" hidden>
+                <div class="form-label">Was anyone bitten or scratched?</div>
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
+                    <div class="toggle-btn" id="biteYes" role="button" tabindex="0" onclick="selectHazardBite('yes')" style="text-align:center;padding:8px;border-radius:8px;cursor:pointer;">Yes</div>
+                    <div class="toggle-btn" id="biteNo" role="button" tabindex="0" onclick="selectHazardBite('no')" style="text-align:center;padding:8px;border-radius:8px;cursor:pointer;">No</div>
+                    <div class="toggle-btn" id="biteUnknown" role="button" tabindex="0" onclick="selectHazardBite('unknown')" style="text-align:center;padding:8px;border-radius:8px;cursor:pointer;">Unknown</div>
+                </div>
+                <div id="hazardBitePanel" hidden style="margin-top:10px;background:rgba(239,68,68,0.15);border:2px solid #ef4444;border-radius:12px;padding:14px;">
+                    <div style="font-weight:800;color:#ef4444;font-size:15px;margin-bottom:6px;display:flex;align-items:center;gap:8px;"><i data-lucide="alert-octagon" style="width:18px;height:18px;flex-shrink:0;"></i> Seal bite or scratch? Seek urgent medical care.</div>
+                    <div style="font-size:13px;color:var(--text-primary);line-height:1.5;">Wash the wound with running water and soap for at least 15 minutes and seek immediate medical assessment for possible rabies exposure.<br><strong>Do not wait for symptoms.</strong></div>
+                    <button type="button" onclick="viewEmergencyContactsFromHazard()" style="margin-top:10px;background:transparent;border:1px solid #38bdf8;color:#38bdf8;border-radius:50px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;width:auto;min-height:44px;">View emergency contacts</button>
+                </div>
             </div>
 
             <div class="form-group">
@@ -1838,7 +1853,8 @@
                                     <i data-lucide="syringe" style="width:13px;height:13px;"></i> Preventative Rabies Vaccination
                                 </div>
                                 <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;">
-                                    2 injections one week apart, then a booster a year later. Eliminates the need for post-bite immunoglobulin if bitten by a seal. Consult your GP or Medicross.
+                                    Regular ocean swimmers, surfers and others with frequent seal exposure may wish to discuss rabies pre-exposure vaccination with a healthcare professional.<br><br>
+                                    Pre-exposure vaccination can simplify treatment after potential exposure, but urgent medical assessment remains essential following any seal bite or scratch.
                                 </div>
                             </div>
                         </div>
@@ -1852,15 +1868,20 @@
 
                         <!-- Seal bites — Western Cape only, shown by JS -->
                         <div id="sealBiteSection" style="display:none;margin-bottom:16px;">
-                            <div style="font-weight:700;color:var(--text-primary);font-size:14px;margin-bottom:4px;">SEAL BITES / RABIES: MEDICAL EMERGENCY</div>
-                            <div style="font-size:12px;color:#fca5a5;font-weight:600;margin-bottom:6px;">Rabies is now considered endemic in Cape Fur Seals across the Western Cape coastline.</div>
-                            <ul style="margin:0 0 0 20px;padding:0;color:var(--text-primary);font-size:13px;line-height:1.4;">
-                                <li style="margin-bottom:4px;">Any bite or scratch requires <strong>immediate</strong> hospital treatment. Do not wait.</li>
-                                <li style="margin-bottom:4px;">Wash wound with soap + water for 10–15 minutes.</li>
-                                <li style="margin-bottom:4px;">Tell ER staff about potential rabies exposure, as post-exposure treatment is time-critical.</li>
-                                <li style="margin-bottom:4px;">Watch for seals acting lethargic, unusually friendly, or aggressive: these are red flags.</li>
-                                <li style="margin-bottom:4px;">If beach closed after seal incident: siren + red flags will be activated.</li>
-                            </ul>
+                            <div style="font-weight:700;color:var(--text-primary);font-size:14px;margin-bottom:4px;">SEAL BITES &amp; RABIES: MEDICAL EMERGENCY</div>
+                            <div id="sealRabiesLineZA" style="font-size:12px;color:#fca5a5;font-weight:600;margin-bottom:6px;">Rabies has been confirmed in Cape fur seals along the Western Cape and Northern Cape coastlines.</div>
+                            <div id="sealRabiesLineGeneral" style="display:none;font-size:12px;color:#fca5a5;font-weight:600;margin-bottom:6px;">A seal bite or scratch can be a potential rabies exposure.</div>
+                            <div style="font-size:13px;color:var(--text-primary);line-height:1.4;margin-bottom:8px;">Any seal bite, scratch or other potential rabies exposure requires urgent medical assessment.</div>
+                            <ol style="margin:0 0 0 20px;padding:0;color:var(--text-primary);font-size:13px;line-height:1.4;">
+                                <li style="margin-bottom:6px;"><strong>WASH IMMEDIATELY.</strong> Wash the affected area thoroughly with running water and soap for at least 15 minutes. Avoid causing further injury.</li>
+                                <li style="margin-bottom:6px;"><strong>APPLY ANTISEPTIC.</strong> Use povidone-iodine or chlorhexidine if available. Do not delay medical treatment to obtain antiseptic.</li>
+                                <li style="margin-bottom:6px;"><strong>SEEK URGENT MEDICAL CARE.</strong> Go to the nearest emergency medical facility immediately. Tell medical staff that the injury involved a Cape fur seal and that rabies exposure is possible.</li>
+                                <li style="margin-bottom:6px;"><strong>ASK ABOUT RABIES POST-EXPOSURE TREATMENT.</strong> A healthcare professional must assess the need for rabies vaccination and immunoglobulin, taking previous vaccination and the nature of exposure into account.</li>
+                                <li style="margin-bottom:6px;"><strong>REPORT THE INCIDENT.</strong>
+                                    <span id="sealReportZA">Once urgent medical care has been arranged, report it to the City of Cape Town and the Cape of Good Hope SPCA. Their contacts are listed under Emergency Contacts and Reporting (Western Cape) below.</span>
+                                    <span id="sealReportGeneral" style="display:none;">Contact the appropriate local coastal or wildlife authority once urgent medical care has been arranged.</span></li>
+                            </ol>
+                            <div style="font-size:13px;color:var(--text-primary);font-weight:700;margin-top:6px;">Do not wait for symptoms or confirmation that the animal was infected.</div>
                         </div>
 
                         <div>

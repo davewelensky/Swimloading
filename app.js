@@ -5520,6 +5520,43 @@
             document.getElementById('hazardDescription').value = '';
             document.getElementById('hazardDuration').value = '24';
             selectSeverity('caution');
+            onHazardTypeChange();
+        }
+
+        // Seal Aggression / Bite only: show the bitten-or-scratched question.
+        // The answer only drives on-screen guidance; it is not stored or required.
+        function onHazardTypeChange() {
+            const isSeal = document.getElementById('hazardType')?.value === 'seal_aggression';
+            const group = document.getElementById('hazardBiteGroup');
+            if (group) group.hidden = !isSeal;
+            selectHazardBite(null);
+        }
+
+        function selectHazardBite(answer) {
+            ['yes','no','unknown'].forEach(a => {
+                const el = document.getElementById('bite' + a.charAt(0).toUpperCase() + a.slice(1));
+                if (el) el.classList.toggle('active', a === answer);
+            });
+            const panel = document.getElementById('hazardBitePanel');
+            if (panel) panel.hidden = answer !== 'yes';
+        }
+
+        // Opens the existing Safety page (Emergency Contacts + Reporting cards). Does not clear
+        // the report, so the user can come back to it afterwards.
+        function viewEmergencyContactsFromHazard() {
+            const modal = document.getElementById('hazardReportModal');
+            // Show the contacts for the region chosen in the report, if any
+            const regionCode = document.getElementById('hazardRegion')?.value || '';
+            if (modal) modal.style.display = 'none';
+            showPage('safety');
+            if (regionCode) {
+                const label = domains.find(d => d.code === regionCode)?.display_name || regionCode;
+                fdSafetySelect(regionCode, label);
+            }
+            setTimeout(() => {
+                const el = document.getElementById('safetyEmergencyContacts');
+                if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 150);
         }
 
         function updateHazardSpotsByRegion() {
@@ -5893,6 +5930,14 @@
                 const el = document.getElementById(id);
                 if (el) el.style.display = showSeals ? '' : 'none';
             });
+            // South African wording and reporting contacts apply to the Western Cape
+            // group only; Namibia gets the general advice.
+            const sealZA = group === 'cape';
+            [['sealRabiesLineZA', sealZA], ['sealReportZA', sealZA],
+             ['sealRabiesLineGeneral', !sealZA], ['sealReportGeneral', !sealZA]].forEach(([id, on]) => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = on ? '' : 'none';
+            });
 
             // ── Regional alert tip card ──────────────────────────────────────────
             const alertTip = document.getElementById('regionalAlertTip');
@@ -6199,8 +6244,8 @@
             if (!el) return;
             if (hazards.length === 0) {
                 el.innerHTML = `<div style="display:flex;align-items:center;gap:8px;color:var(--text-secondary);font-size:13px;padding:8px 0;">
-                    <span style="width:8px;height:8px;border-radius:50%;background:#10b981;flex-shrink:0;display:inline-block;"></span>
-                    No active hazards reported: all clear
+                    <span style="width:8px;height:8px;border-radius:50%;background:#64748b;flex-shrink:0;display:inline-block;"></span>
+                    <span>No active community hazard reports<br><span style="font-size:12px;">Conditions can change. Always remain alert.</span></span>
                 </div>`;
                 return;
             }
