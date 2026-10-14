@@ -10938,6 +10938,13 @@ async function openMemberProfile(rosterId) {
   html += row('Squad',      squadName);
   html += row('Category',   r.category || '');
 
+  // Attendance history (Aquasharks: gated by the attendance feature). Filled in after the modal opens so the
+  // profile itself never waits on it.
+  if (window._clubFeatures?.hasAttendance) {
+    html += section('Attendance');
+    html += `<div id="memberAttendance" data-roster="${rosterId}"><div style="font-size:12px;color:var(--text-dim);padding:6px 0;">Loading attendance…</div></div>`;
+  }
+
   if (p) {
     html += row('Date of birth', p.date_of_birth || '');
     html += row('Gender',        p.gender === 'M' ? 'Male' : p.gender === 'F' ? 'Female' : p.gender || '');
@@ -11008,6 +11015,86 @@ async function openMemberProfile(rosterId) {
 
   document.getElementById('memberProfileContent').innerHTML = html;
   lucide.createIcons();
+  if (window._clubFeatures?.hasAttendance) loadMemberAttendance(rosterId);
+}
+
+// Every recorded session for this swimmer's squad(s) in the last 12 weeks, newest first, with their mark
+// (or "not recorded"), plus a summary of when they were last present. Reads the same tables as the register
+// (club_sessions + club_attendance), so it matches the Attendance page.
+async function loadMemberAttendance(rosterId) {
+  const box = () => { const el = document.getElementById('memberAttendance'); return el && el.dataset.roster === rosterId ? el : null; };
+  try {
+    const full  = allRosterFull.find(x => x.id === rosterId) || allRoster.find(x => x.id === rosterId) || {};
+    const mySquads = [full.squad_id, full.secondary_squad_id].filter(Boolean);
+    const since = localISO(new Date(Date.now() - 84 * 86400000));
+
+    const [marksRes, squadSessRes] = await Promise.all([
+      sb.from('club_attendance')
+        .select('status, session_id, club_sessions(id, session_date, start_time, squad_id, coach_name, club_id)')
+        .eq('roster_id', rosterId).limit(1000),
+      mySquads.length
+        ? sb.from('club_sessions').select('id, session_date, start_time, squad_id, coach_name')
+            .eq('club_id', currentClub.id).in('squad_id', mySquads).gte('session_date', since).limit(500)
+        : Promise.resolve({ data: [] }),
+    ]);
+    if (marksRes.error) throw new Error(marksRes.error.message);
+    if (squadSessRes.error) throw new Error(squadSessRes.error.message);
+
+    // his marks (any squad: includes trial visits and catch-ups) keyed by session
+    const marks = {};
+    const sessions = {};
+    (marksRes.data || []).forEach(m => {
+      const cs = m.club_sessions;
+      if (!cs || cs.club_id !== currentClub.id) return;
+      marks[cs.id] = m.status; sessions[cs.id] = cs;
+    });
+    const isPresent = st => st === 'present' || st === 'catch_up';
+    const lastPresent = Object.keys(marks).filter(id => isPresent(marks[id])).map(id => sessions[id].session_date).sort().pop() || null;
+
+    (squadSessRes.data || []).forEach(cs => { sessions[cs.id] = cs; });
+    const rows = Object.values(sessions).filter(cs => cs.session_date >= since)
+      .sort((a, b) => (b.session_date + (b.start_time || '')).localeCompare(a.session_date + (a.start_time || '')));
+
+    const el = box(); if (!el) return;       // the modal moved on to another swimmer
+    const label = { present:['Present','#10b981'], catch_up:['Catch-up','#38bdf8'], notice:['Notice','#f59e0b'], no_contact:['No contact','#ef4444'],
+                    no_show:['No show','#ef4444'], away:['Away','#64748b'], dnp:['Did not participate','#a78bfa'] };
+    const fmt = iso => new Date(iso + 'T12:00:00').toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+    const todayISO = localISO(new Date());
+    const daysAgo = iso => Math.round((new Date(todayISO + 'T12:00:00') - new Date(iso + 'T12:00:00')) / 86400000);
+
+    const inWindow = rows.filter(cs => isPresent(marks[cs.id]));
+    const summary = lastPresent
+      ? `<b style="color:var(--text);">Last recorded present: ${fmt(lastPresent)}</b> <span style="color:var(--text-dim);">(${daysAgo(lastPresent) === 0 ? 'today' : daysAgo(lastPresent) + ' days ago'})</span>`
+      : `<b style="color:var(--amber);">Never recorded present on the register.</b>`;
+    const counts = `${inWindow.length} present out of ${rows.length} recorded session${rows.length === 1 ? '' : 's'} in the last 12 weeks`;
+
+    if (!rows.length) {
+      el.innerHTML = `<div style="font-size:12px;color:var(--text-sec);padding:4px 0;">${summary}</div>
+        <div style="font-size:12px;color:var(--text-dim);padding:4px 0;">No register sessions recorded for this swimmer's squad in the last 12 weeks.</div>`;
+      return;
+    }
+
+    el.innerHTML = `<div style="font-size:12px;color:var(--text-sec);padding:4px 0 2px;">${summary}</div>
+      <div style="font-size:12px;color:var(--text-dim);padding:0 0 8px;">${counts}.</div>
+      <div style="max-height:260px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;">
+        ${rows.map(cs => {
+          const st = marks[cs.id];
+          const lb = label[st];
+          const sq = allSquads.find(q => q.id === cs.squad_id);
+          return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--border);font-size:12px;">
+            <div style="flex:1;min-width:0;">
+              <div style="color:var(--text);font-weight:600;">${escHtml(fmt(cs.session_date))}</div>
+              <div style="color:var(--text-dim);font-size:11px;">${escHtml(sq?.name || '')}${cs.start_time ? ' · ' + escHtml(String(cs.start_time).slice(0, 5)) : ''}</div>
+            </div>
+            ${lb ? `<span style="font-size:11px;font-weight:800;color:${lb[1]};">${lb[0]}</span>` : `<span style="font-size:11px;color:var(--text-dim);">Not recorded</span>`}
+          </div>`;
+        }).join('')}
+      </div>
+      <div style="font-size:11px;color:var(--text-dim);padding-top:6px;">"Not recorded" means no mark for him that day. It can mean he did not come or that the register was not taken for him.</div>`;
+  } catch (err) {
+    console.error('loadMemberAttendance failed:', err);
+    const el = box(); if (el) el.innerHTML = `<div style="font-size:12px;color:var(--danger);padding:4px 0;">Could not load attendance: ${escHtml(err.message || 'unknown error')}</div>`;
+  }
 }
 
 let editProfileRosterId = null;
