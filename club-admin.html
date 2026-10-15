@@ -14097,33 +14097,45 @@ async function csvProceedToPreview() {
   csvGoToStep(3);
 }
 
+// Maps a CSV squad value to a squad id. Order: exact name, then the first word ("seniors" -> "Senior Squad").
+// A first word shared by more than one squad ("OW Masters 6-7" / "OW Masters 7-8", or "Bronze Squad" and a school
+// squad starting "Bronze") is AMBIGUOUS and returns no match: the old version let the last squad created win, which
+// silently put swimmers in the wrong squad. Returns { id, reason } where reason is 'exact' | 'keyword' | 'ambiguous' | 'none'.
+function buildSquadResolver(squads) {
+  const byName = {}, byKeyword = {};
+  const add = (map, k, id) => { (map[k] = map[k] || new Set()).add(id); };
+  (squads || []).forEach(sq => {
+    const name = String(sq.name || '').toLowerCase().trim();
+    add(byName, name, sq.id);
+    add(byKeyword, name.split(/[\s,\(]/)[0], sq.id);
+  });
+  const one = (set) => (set && set.size === 1 ? [...set][0] : null);
+  return function resolve(raw) {
+    if (!raw || !String(raw).trim()) return { id: null, reason: 'none' };
+    const key = String(raw).trim().toLowerCase();
+    let ambiguous = false;
+    const tryMap = (map, k) => { if (!k || !map[k]) return null; const id = one(map[k]); if (!id) ambiguous = true; return id; };
+    const firstWord = key.split(/[\s,\(]/)[0];
+    const hit = tryMap(byName, key);
+    if (hit) return { id: hit, reason: 'exact' };
+    if (ambiguous) return { id: null, reason: 'ambiguous' };
+    for (const k of [key, key.replace(/s$/, ''), firstWord, firstWord.replace(/s$/, '')]) {
+      const id = tryMap(byKeyword, k);
+      if (id) return { id, reason: 'keyword' };
+      if (ambiguous) return { id: null, reason: 'ambiguous' };
+    }
+    return { id: null, reason: 'none' };
+  };
+}
+
 async function executeCsvImport() {
   const btn = document.getElementById('csvImportBtn');
   btn.disabled = true;
   document.getElementById('csvImportBtnLabel').textContent = 'Importing…';
 
-  // Resolve squad names → ids once
-  // Build two maps: exact name and first-keyword (handles "SENIORS" → "Senior Squad")
-  const squadByName = {};
-  const squadByKeyword = {};
-  (allSquads || []).forEach(s => {
-    squadByName[s.name.toLowerCase()] = s.id;
-    const keyword = s.name.toLowerCase().split(/[\s,\(]/)[0];
-    squadByKeyword[keyword] = s.id;
-  });
-  const resolveSquad = raw => {
-    if (!raw) return null;
-    const key = raw.trim().toLowerCase();
-    if (squadByName[key]) return squadByName[key];           // exact: "senior squad"
-    if (squadByKeyword[key]) return squadByKeyword[key];     // keyword: "senior"
-    const singular = key.replace(/s$/, '');                  // strip plural: "seniors" → "senior"
-    if (squadByKeyword[singular]) return squadByKeyword[singular];
-    const firstWord = key.split(/[\s,\(]/)[0];               // first word of CSV value
-    if (squadByKeyword[firstWord]) return squadByKeyword[firstWord];
-    const firstSingular = firstWord.replace(/s$/, '');
-    if (squadByKeyword[firstSingular]) return squadByKeyword[firstSingular];
-    return null;
-  };
+  // Resolve squad names → ids once (see buildSquadResolver: ambiguous names are never guessed)
+  const resolveSquad = buildSquadResolver(allSquads || []);
+  const squadProblems = {};   // raw CSV value -> { rows, reason }
 
   let added = 0, updated = 0, errors = 0;
   let firstError = null;   // must live OUTSIDE the loop — referenced in the completion handler below
@@ -14138,8 +14150,12 @@ async function executeCsvImport() {
     // Resolve squad — always apply if CSV has a squad column (even for updates)
     let squadId = item.existing?.squad_id || null;
     if (m.squad) {
-      const resolved = resolveSquad(m.squad);
-      if (resolved) squadId = resolved;
+      const hit = resolveSquad(m.squad);
+      if (hit.id) squadId = hit.id;
+      else {
+        const k = String(m.squad).trim();
+        (squadProblems[k] = squadProblems[k] || { rows: 0, reason: hit.reason }).rows++;
+      }
     }
 
     // Parse boolean fields
@@ -14216,11 +14232,22 @@ async function executeCsvImport() {
   const msg = [added && `${added} added`, updated && `${updated} updated`, errors && `${errors} failed`]
     .filter(Boolean).join(', ');
 
+  const problemNames = Object.keys(squadProblems);
+  if (problemNames.length) {
+    const lines = problemNames.map(k => `"${k}" (${squadProblems[k].rows} row${squadProblems[k].rows === 1 ? '' : 's'}): ` +
+      (squadProblems[k].reason === 'ambiguous' ? 'matches more than one squad, use the full squad name' : 'no squad with that name'));
+    const errEl = document.getElementById('csvImportError');
+    errEl.textContent = 'Squad not set for some rows (new swimmers have no squad; existing swimmers kept their squad). Fix in Roster, or re-import with the exact squad name. ' + lines.join('; ');
+    errEl.style.display = 'block';
+  }
+
   if (errors === 0) {
     btn.textContent = '✓ Import complete: ' + msg;
     btn.style.background = 'var(--green)';
     btn.style.color = '#fff';
-    setTimeout(() => { closeCsvImportModal(); allRoster = []; loadRoster(); }, 2000);
+    // Leave the dialog open when a squad name needs attention, so the note above can be read.
+    if (!problemNames.length) setTimeout(() => { closeCsvImportModal(); allRoster = []; loadRoster(); }, 2000);
+    else { allRoster = []; loadRoster(); }
   } else {
     btn.disabled = false;
     btn.textContent = 'Import all rows';
