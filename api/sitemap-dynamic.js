@@ -28,6 +28,7 @@ const STATIC_PAGES = [
   { path: '/intel',               priority: '0.7', changefreq: 'weekly'  },
   { path: '/pricing',             priority: '0.6', changefreq: 'monthly' },
   { path: '/pro',                 priority: '0.6', changefreq: 'monthly' },
+  { path: '/partner-kit',          priority: '0.6', changefreq: 'monthly' },
   { path: '/partners/maurten',    priority: '0.7', changefreq: 'monthly' },
   { path: '/partners/sis',        priority: '0.7', changefreq: 'monthly' },
   { path: '/partners/blu-smooth', priority: '0.7', changefreq: 'monthly' },
