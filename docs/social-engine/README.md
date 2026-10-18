@@ -71,3 +71,21 @@ nightly job: refill the reserve queue to >= 6 validated evergreen posts; build t
 ## Update: photography-first visuals (v2)
 
 See [MEDIA_LIBRARY.md](MEDIA_LIBRARY.md). The six examples were regenerated with the media catalogue, deterministic image selection with rotation, three visual approaches (photography-led, map-led, product-led) and pixel-level quality checks. `social-poc/` now shows before (v1) and after (v2) side by side in the Caption Agent "Auto-post preview" tab.
+
+## Update: publishing step built, dormant (Stage C)
+
+Built and unit-tested; **nothing posts**: `social_settings.paused` ships TRUE, and without Meta credentials the cron only reports what it would do.
+
+| Piece | File |
+|---|---|
+| Rules: pause, one post per run, publish-time re-check, reserve swap, per-platform idempotency/retry/backoff, FAILED + notify | [publisher.js](../../api/_lib/social/publisher.js) |
+| Meta Graph client (Facebook Page + Instagram, single + carousel; token only in POST body, scrubbed from errors; `dry` mode) | [meta.js](../../api/_lib/social/meta.js) |
+| Supabase REST store (public image URLs, idempotency claim) | [store.js](../../api/_lib/social/store.js) |
+| Hourly cron (`0 * * * *`, `requireCronAuth`) | [api/cron/social-publish.js](../../api/cron/social-publish.js) |
+| Operate the queue: status, list, enqueue, approve, reject, reserve, schedule, pause, resume | [scripts/social-queue.mjs](../../scripts/social-queue.mjs) |
+| Tables + public `social-posts` bucket (generated images only) | [sql/applied/2026-10-18_social-publishing.sql](../../sql/applied/2026-10-18_social-publishing.sql) (once applied) |
+| Tests (13) | [test/social-publish.test.js](../../test/social-publish.test.js) |
+
+Flow: `render-social-poc.mjs` (local Chromium) -> `social-queue.mjs enqueue` (uploads slides to the public bucket, inserts rows: AUTO_ELIGIBLE -> APPROVED, REVIEW_REQUIRED -> PENDING_REVIEW) -> `approve`/`reserve` -> `schedule` (next Tue/Thu/Sat 10:00 SAST) -> cron publishes at the slot. Rendering stays off Vercel on purpose (Chromium on Vercel is unproven for this renderer, fonts must be bundled first).
+
+**To go live (all yours, none done):** create a Meta app + Facebook Page linked to an Instagram Business account and pass app review; set `META_PAGE_ID`, `META_IG_USER_ID`, `META_PAGE_TOKEN` (and optionally `META_GRAPH_VERSION`) as Vercel env secrets; **re-verify `meta.js` against Meta's current docs** (Graph version, permissions, container flow, daily cap); pilot on a test Page/IG account; then `node scripts/social-queue.mjs resume --confirm-live`. Token expiry monitoring is not built yet.
