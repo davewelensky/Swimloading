@@ -243,6 +243,7 @@
     <button class="type-btn" onclick="setType('strava',this)"><i data-lucide="activity"></i>Strava Feature</button>
     <button class="type-btn" onclick="setType('community',this)"><i data-lucide="award"></i>Community Story</button>
     <button class="type-btn" onclick="setType('growth',this)"><i data-lucide="trending-up"></i>Growth Milestone</button>
+    <button class="type-btn" onclick="setType('socialpoc',this)"><i data-lucide="calendar-clock"></i>Auto-post preview</button>
   </div>
 
   <!-- CONDITIONS -->
@@ -660,6 +661,14 @@
     </div>
   </div>
 
+  <div class="type-section" id="section-socialpoc">
+    <div class="card" style="padding:22px;">
+      <div style="font:600 15px 'DM Sans';margin-bottom:6px;">Social Content Engine: proof of concept</div>
+      <p style="color:var(--text-sec);font-size:13px;line-height:1.6;margin-bottom:18px;">Posts built from real SwimLoading data. Nothing here is published to Facebook or Instagram. Regenerate with <code>node scripts/render-social-poc.mjs</code>. Existing generators above are unchanged.</p>
+      <div id="socialpoc-list" style="display:flex;flex-direction:column;gap:22px;"><div style="color:var(--text-sec);font-size:13px;">Loading previews...</div></div>
+    </div>
+  </div>
+
   <button class="generate-btn" id="gen-btn" onclick="generateCaptions()">
     <div class="spinner"></div>
     <span class="btn-text">Generate 3 caption options</span>
@@ -884,6 +893,56 @@ document.getElementById('gate-input').addEventListener('keydown', e => {
 const storedPw = sessionStorage.getItem(STORAGE_KEY);
 if (storedPw) { SESSION_PASSWORD = storedPw; document.getElementById('gate').classList.add('hidden'); }
 
+
+// ─── AUTO-POST PREVIEW (Social Content Engine POC; read-only, publishes nothing) ───
+let socialPocLoaded = false;
+function spEl(tag, css, text) { const e = document.createElement(tag); if (css) e.style.cssText = css; if (text != null) e.textContent = text; return e; }
+function loadSocialPoc() {
+  if (socialPocLoaded) return;
+  const host = document.getElementById('socialpoc-list');
+  fetch('/social-poc/posts.json', { cache: 'no-store' }).then(r => { if (!r.ok) throw new Error('No previews generated yet'); return r.json(); }).then(d => {
+    socialPocLoaded = true;
+    host.textContent = '';
+    d.posts.forEach(p => host.appendChild(renderSocialPocCard(p)));
+  }).catch(err => { host.textContent = err.message; });
+}
+function renderSocialPocCard(p) {
+  const card = spEl('div', 'border:1px solid var(--border);border-radius:14px;padding:18px;background:var(--bg-input);');
+  card.appendChild(spEl('div', 'font:600 14px DM Sans;margin-bottom:4px;', p.label));
+  if (p.status !== 'GENERATED') { card.appendChild(spEl('div', 'color:var(--amber);font-size:13px;', (p.status === 'GAP' ? 'Data gap: ' + p.gap : 'Error: ' + p.error))); return card; }
+  const risk = p.eligibility.risk;
+  const col = risk === 'AUTO_ELIGIBLE' ? 'var(--green)' : risk === 'REVIEW_REQUIRED' ? 'var(--amber)' : 'var(--danger)';
+  card.appendChild(spEl('div', 'font:700 11px DM Sans;letter-spacing:2px;color:' + col + ';margin-bottom:10px;', risk.replace('_', ' ')));
+  const strip = (label, list) => {
+    card.appendChild(spEl('div', 'font:600 11px DM Sans;letter-spacing:2px;color:var(--text-sec);margin:6px 0 6px;', label));
+    const row = spEl('div', 'display:flex;gap:10px;overflow-x:auto;margin-bottom:10px;');
+    list.forEach(src => { const i = document.createElement('img'); i.src = '/social-poc/' + src; i.alt = ''; i.style.cssText = 'height:300px;border-radius:10px;border:1px solid var(--border);'; row.appendChild(i); });
+    card.appendChild(row);
+  };
+  if (p.previousImages && p.previousImages.length) strip('BEFORE (v1, text cards)', p.previousImages);
+  strip('AFTER (v2, ' + (p.template || '') + ')', p.images);
+  if (p.selections) {
+    const sel = spEl('div', 'font-size:12px;line-height:1.6;color:var(--text-sec);margin-bottom:8px;');
+    p.selections.forEach((s, n) => sel.appendChild(spEl('div', '', (p.selections.length > 1 ? 'Slide ' + (n + 1) + ': ' : 'Image: ') + s.tier + (s.assetId ? ' (' + s.assetId + ')' : '') + (s.illustrative ? ', labelled illustrative' : '') + '. ' + s.reason + (s.source && s.source.attribution ? ' Credit: ' + s.source.attribution + '.' : ''))));
+    card.appendChild(sel);
+  }
+  [['Instagram caption', p.instagramCaption], ['Facebook caption', p.facebookCaption]].forEach(([h, t]) => {
+    card.appendChild(spEl('div', 'font:600 12px DM Sans;color:var(--cyan);margin:10px 0 4px;', h));
+    card.appendChild(spEl('pre', 'white-space:pre-wrap;font:13px/1.5 DM Sans;background:var(--bg);padding:12px;border-radius:8px;', t));
+  });
+  const det = document.createElement('details'); det.style.marginTop = '10px';
+  det.appendChild(spEl('summary', 'cursor:pointer;font-size:13px;color:var(--text-sec);', 'Source, facts, freshness, checks'));
+  const body = spEl('div', 'font-size:12px;line-height:1.6;color:var(--text-sec);padding-top:8px;');
+  body.appendChild(spEl('div', '', 'Source: ' + p.sourceUrl));
+  body.appendChild(spEl('div', '', 'Freshness: ' + p.freshness));
+  if (p.eligibility.reasons.length) body.appendChild(spEl('div', 'color:var(--amber);', 'Review reasons: ' + p.eligibility.reasons.join(' | ')));
+  if (p.eligibility.warnings.length) body.appendChild(spEl('div', '', 'Notes: ' + p.eligibility.warnings.join(' | ')));
+  body.appendChild(spEl('div', 'margin-top:6px;', 'Facts used:'));
+  p.facts.forEach(f => body.appendChild(spEl('div', '', '- ' + f.text + '   [' + (f.source.table || f.source.file) + (f.kind === 'time_sensitive' ? ', time-sensitive' : '') + ']')));
+  det.appendChild(body); card.appendChild(det);
+  return card;
+}
+
 // ─── TYPE SWITCHER ───
 let currentType = 'conditions';
 let selectedTone = 'community';
@@ -897,6 +956,8 @@ function setType(type, btn) {
   document.getElementById('output').classList.remove('visible');
   document.getElementById('error-box').classList.remove('visible');
   selectedTone = 'community';
+  document.getElementById('gen-btn').style.display = type === 'socialpoc' ? 'none' : '';
+  if (type === 'socialpoc') loadSocialPoc();
   lucide.createIcons();
 }
 
