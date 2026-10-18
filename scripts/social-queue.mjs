@@ -75,7 +75,7 @@ if (cmd === 'status') {
   await store.update(p.id, patch);
   console.log(`${cmd}: ${p.source_key} -> ${JSON.stringify(patch)}`);
 } else if (cmd === 'schedule') {
-  const rows = await store.rest('social_posts?select=id,source_key,status,is_reserve,scheduled_for&status=in.(APPROVED,SCHEDULED)&is_reserve=eq.false&order=created_at');
+  const rows = await store.rest('social_posts?select=id,source_key,status,is_reserve,scheduled_for&status=in.(APPROVED,SCHEDULED)&is_reserve=eq.false&order=expires_at.asc.nullslast,created_at');   // soonest-expiring first
   const taken = new Set(rows.filter((r) => r.scheduled_for).map((r) => new Date(r.scheduled_for).toISOString()));
   const todo = rows.filter((r) => !r.scheduled_for);
   const slots = nextSlots(new Date(), todo.length + taken.size + 3).filter((s) => !taken.has(s));
