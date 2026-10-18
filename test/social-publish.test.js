@@ -111,3 +111,12 @@ test('Meta: request shapes for single/carousel on both platforms; token only in 
   await assert.rejects(live.publishFacebook({ caption: 'c', imageUrls: ['u'] }), (e) => !e.message.includes('SECRET') && /190/.test(e.message));
   await assert.rejects(createMeta({ pageId: 'P', igUserId: 'I', token: 't', dry: true }).publishInstagram({ caption: 'c', imageUrls: Array(11).fill('u') }), /at most 10/);
 });
+
+test('store: an empty 201/204 body (Prefer: return=minimal) is not a JSON error', async () => {
+  const { createStore } = await import('../api/_lib/social/store.js');
+  const empty = createStore({ key: 'k', fetchImpl: async () => ({ ok: true, status: 201, text: async () => '' }) });
+  assert.equal(await empty.update('id1', { status: 'APPROVED' }), null);
+  const rows = createStore({ key: 'k', fetchImpl: async () => ({ ok: true, status: 200, text: async () => '[{"paused":true}]' }) });
+  assert.equal((await rows.getSettings()).paused, true);
+  await assert.rejects(createStore({ key: 'k', fetchImpl: async () => ({ ok: false, status: 401, text: async () => 'Invalid API key' }) }).getSettings(), /HTTP 401/);
+});

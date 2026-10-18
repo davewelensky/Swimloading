@@ -9,7 +9,8 @@ export function createStore({ key = process.env.SUPABASE_SERVICE_KEY, fetchImpl 
   const rest = async (path, init = {}) => {
     const res = await fetchImpl(`${URL_()}/rest/v1/${path}`, { ...init, headers: { ...H, ...(init.headers || {}) } });
     if (!res.ok) throw new Error(`supabase ${path.split('?')[0]}: HTTP ${res.status} ${(await res.text()).slice(0, 160)}`);
-    return res.status === 204 ? null : res.json();
+    const text = await res.text();   // Prefer: return=minimal gives an empty 201/204 body
+    return text ? JSON.parse(text) : null;
   };
   return {
     rest,
