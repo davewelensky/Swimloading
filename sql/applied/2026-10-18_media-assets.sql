@@ -1,8 +1,53 @@
--- PROPOSED, NOT APPLIED. Media catalogue table for the Social Content Engine.
--- Until applied, media-library/catalogue.json is the source of truth (same fields, camelCase there).
--- Follow MIGRATIONS.md (dry-run, Dave types "apply", verify, move to sql/applied/). New table: no backup needed.
--- Originals go in a PRIVATE Storage bucket 'social-media' (create in the dashboard; never public: files may carry EXIF
--- location and show identifiable swimmers). Generated post images contain no EXIF and may be served publicly.
+-- ================================================================
+-- SwimLoading — Migration Template
+-- Copy this header into EVERY new migration file.
+-- The safety block hard-fails if you are in the wrong project.
+-- ================================================================
+
+-- ⚠️  SAFETY CHECK — runs first, aborts everything if wrong project
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM _project_identity
+    WHERE key = 'project_name' AND value = 'swimloading'
+  ) THEN
+    RAISE EXCEPTION
+      E'\n\n'
+      '╔══════════════════════════════════════════════════════════╗\n'
+      '║  WRONG PROJECT — MIGRATION ABORTED                       ║\n'
+      '║                                                          ║\n'
+      '║  This migration is for: SwimLoading                     ║\n'
+      '║  Expected project ref:  szgkzuswelntnevobnoh            ║\n'
+      '║                                                          ║\n'
+      '║  You are connected to a DIFFERENT Supabase project.     ║\n'
+      '║  No changes have been made. Check your browser URL.     ║\n'
+      '╚══════════════════════════════════════════════════════════╝'
+    USING HINT = 'Check the project ref in your Supabase dashboard URL';
+  END IF;
+  RAISE NOTICE '✅ Project identity confirmed: swimloading (szgkzuswelntnevobnoh)';
+END $$;
+
+-- ================================================================
+-- Migration: 2026-10-18_media-assets.sql
+-- Process:   see MIGRATIONS.md
+-- ================================================================
+
+-- Purpose:
+--   Production home for the Social Content Engine media catalogue (media_assets, social_post_media)
+--   plus the PRIVATE 'social-media' Storage bucket for original photographs. New objects only.
+
+-- Requested by:
+--   Dave
+
+-- PRE-CHECKS (read-only, run 18 Oct 2026): project = swimloading; media_assets / social_post_media / social_posts
+--   do not exist; spots.id is uuid; bucket 'social-media' does not exist.
+
+-- BACKUP: not required - creates new objects only, no DELETE/UPDATE/DROP/TRUNCATE.
+
+-- MIGRATION
+BEGIN;
+
+INSERT INTO storage.buckets (id, name, public) VALUES ('social-media', 'social-media', false);  -- private; no storage policies = service role only
 
 CREATE TABLE media_assets (
   id                   text PRIMARY KEY,
@@ -58,3 +103,14 @@ ALTER TABLE media_assets      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE social_post_media ENABLE ROW LEVEL SECURITY;
 CREATE POLICY media_assets_dave      ON media_assets      FOR ALL USING (auth.email() = 'dave.welensky@gmail.com') WITH CHECK (auth.email() = 'dave.welensky@gmail.com');
 CREATE POLICY social_post_media_dave ON social_post_media FOR ALL USING (auth.email() = 'dave.welensky@gmail.com') WITH CHECK (auth.email() = 'dave.welensky@gmail.com');
+
+COMMIT;
+
+-- ROLLBACK (new objects, nothing else depends on them):
+--   DROP TABLE social_post_media; DROP TABLE media_assets; DELETE FROM storage.buckets WHERE id='social-media';  -- bucket must be empty first
+
+-- VERIFY (read-only, after applying):
+--   SELECT count(*) FROM media_assets;                                                    -- expect 0
+--   SELECT relrowsecurity FROM pg_class WHERE relname IN ('media_assets','social_post_media');  -- expect true, true
+--   SELECT count(*) FROM pg_policies WHERE tablename IN ('media_assets','social_post_media');   -- expect 2
+--   SELECT public FROM storage.buckets WHERE id='social-media';                           -- expect false
