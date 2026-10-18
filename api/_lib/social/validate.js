@@ -3,6 +3,7 @@
 import { RISK, SOCIAL_DEFAULTS } from './config.js';
 import { plainText } from './sources.js';
 import { eventIneligibility } from './sources.js';
+import { imageVerdict } from './media.js';
 
 const EVENT_MAX_VERIFICATION_AGE_DAYS = 90;
 
@@ -103,4 +104,14 @@ export function ungroundedNumbers(caption, facts, extraAllowed = []) {
   const allowed = facts.map((f) => f.text).join(' ') + ' ' + extraAllowed.join(' ');
   const nums = (caption.match(/\d[\d.,]*\d|\d/g) || []).map((n) => n.replace(/[.,]$/, ''));
   return [...new Set(nums.filter((n) => !allowed.includes(n)))];
+}
+
+/** validatePost + the media checks for the selected image. Photo licences/consent come from the catalogue, not the post. */
+export function validateWithImage(post, selection, opts = {}) {
+  const base = validatePost({ ...post, image: { url: null, licenceVerified: true } }, opts);
+  const iv = imageVerdict(selection, post, opts);
+  const out = { ...base, checks: [...base.checks, ...iv.checks], reasons: [...base.reasons, ...iv.review] };
+  if (iv.review.length && out.risk === RISK.AUTO) out.risk = RISK.REVIEW;
+  if (iv.checks.some((c) => !c.pass)) { out.risk = RISK.BLOCKED; out.reasons.push('failed image check: ' + iv.checks.filter((c) => !c.pass).map((c) => c.name).join(', ')); }
+  return out;
 }

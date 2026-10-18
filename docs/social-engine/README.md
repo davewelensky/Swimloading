@@ -67,3 +67,7 @@ nightly job: refill the reserve queue to >= 6 validated evergreen posts; build t
 * **Global pause** is `social_settings.paused`, shipped ON. Nothing posts until you turn it off.
 * **Token handling:** a long-lived Page token stored as a Vercel env secret (never in the DB or browser), expiry checked daily, alert 14 days before expiry. Re-verify Meta's current requirements before Stage C.
 * **Pilot first:** run with `paused = true` generating and validating for two weeks, then publish to a test Page/IG account, then enable approved categories only.
+
+## Update: photography-first visuals (v2)
+
+See [MEDIA_LIBRARY.md](MEDIA_LIBRARY.md). The six examples were regenerated with the media catalogue, deterministic image selection with rotation, three visual approaches (photography-led, map-led, product-led) and pixel-level quality checks. `social-poc/` now shows before (v1) and after (v2) side by side in the Caption Agent "Auto-post preview" tab.

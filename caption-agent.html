@@ -913,9 +913,19 @@ function renderSocialPocCard(p) {
   const risk = p.eligibility.risk;
   const col = risk === 'AUTO_ELIGIBLE' ? 'var(--green)' : risk === 'REVIEW_REQUIRED' ? 'var(--amber)' : 'var(--danger)';
   card.appendChild(spEl('div', 'font:700 11px DM Sans;letter-spacing:2px;color:' + col + ';margin-bottom:10px;', risk.replace('_', ' ')));
-  const imgs = spEl('div', 'display:flex;gap:10px;overflow-x:auto;margin-bottom:12px;');
-  p.images.forEach(src => { const i = document.createElement('img'); i.src = '/social-poc/' + src; i.alt = ''; i.style.cssText = 'height:300px;border-radius:10px;border:1px solid var(--border);'; imgs.appendChild(i); });
-  card.appendChild(imgs);
+  const strip = (label, list) => {
+    card.appendChild(spEl('div', 'font:600 11px DM Sans;letter-spacing:2px;color:var(--text-sec);margin:6px 0 6px;', label));
+    const row = spEl('div', 'display:flex;gap:10px;overflow-x:auto;margin-bottom:10px;');
+    list.forEach(src => { const i = document.createElement('img'); i.src = '/social-poc/' + src; i.alt = ''; i.style.cssText = 'height:300px;border-radius:10px;border:1px solid var(--border);'; row.appendChild(i); });
+    card.appendChild(row);
+  };
+  if (p.previousImages && p.previousImages.length) strip('BEFORE (v1, text cards)', p.previousImages);
+  strip('AFTER (v2, ' + (p.template || '') + ')', p.images);
+  if (p.selections) {
+    const sel = spEl('div', 'font-size:12px;line-height:1.6;color:var(--text-sec);margin-bottom:8px;');
+    p.selections.forEach((s, n) => sel.appendChild(spEl('div', '', (p.selections.length > 1 ? 'Slide ' + (n + 1) + ': ' : 'Image: ') + s.tier + (s.assetId ? ' (' + s.assetId + ')' : '') + (s.illustrative ? ', labelled illustrative' : '') + '. ' + s.reason + (s.source && s.source.attribution ? ' Credit: ' + s.source.attribution + '.' : ''))));
+    card.appendChild(sel);
+  }
   [['Instagram caption', p.instagramCaption], ['Facebook caption', p.facebookCaption]].forEach(([h, t]) => {
     card.appendChild(spEl('div', 'font:600 12px DM Sans;color:var(--cyan);margin:10px 0 4px;', h));
     card.appendChild(spEl('pre', 'white-space:pre-wrap;font:13px/1.5 DM Sans;background:var(--bg);padding:12px;border-radius:8px;', t));

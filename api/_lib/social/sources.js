@@ -87,6 +87,9 @@ export async function crossingFromDb(slug) {
     category: CATEGORIES.CROSSING_INTELLIGENCE, angle: 'qualifying-swim',
     sourceKey: `crossing:${c.id}`, sourceUrl: `${SITE}/english-channel`,
     crossing: c, facts, conflicts,
+    geo: c.start_lat != null && c.end_lat != null ? { route: true, points: [
+      { lat: Number(c.start_lat), lng: Number(c.start_lng), label: c.start_location.split(',')[0] },
+      { lat: Number(c.end_lat), lng: Number(c.end_lng), label: c.end_location.split(',')[0] }] } : null,
     image: { url: null, credit: null, licenceVerified: true, note: 'Brand graphic with route pins, no third-party imagery.' },
     freshnessAssessment: 'Evergreen. Requirements can change: re-check governing-body rules before each reuse.',
   };
@@ -102,7 +105,7 @@ export function partnerFromPage({ name, file, url, logo, quotes, chipState = 'li
   return {
     category: CATEGORIES.BEHIND_THE_BRAND, angle: 'product-benefit',
     sourceKey: `partner:${slugify(name)}`, sourceUrl: `${SITE}${url}`,
-    partner: { name, chipState, logo }, facts,
+    partner: { name, slug: slugify(name), chipState, logo }, facts,
     image: { url: null, credit: 'Partner logo supplied for SwimLoading partner page', licenceVerified: true, localLogo: logo },
     freshnessAssessment: 'Evergreen product copy. The sponsored challenge on the page is excluded (challenges are time-bound).',
   };
@@ -110,7 +113,7 @@ export function partnerFromPage({ name, file, url, logo, quotes, chipState = 'li
 
 // ── 4. SWIMLOADING DISCOVERS: three real spots in a region ─────────────────
 export async function discoversRegion({ region, areaLike, countryCode }) {
-  const rows = await dbGet(`spots?select=id,name,water_type,area&country_code=eq.${countryCode}&active=eq.true&area=ilike.*${areaLike}*&order=name`);
+  const rows = await dbGet(`spots?select=id,name,water_type,area,latitude,longitude&country_code=eq.${countryCode}&active=eq.true&area=ilike.*${areaLike}*&order=name`);
   if (!rows || rows.length < 3) return { gap: `Fewer than 3 spots found for ${region}.` };
   // Single-sex ponds are not a general "start here" recommendation. Variety of water type first, then A-Z.
   const pool = rows.filter((r) => !/Mens|Ladies/.test(r.name));
@@ -122,7 +125,9 @@ export async function discoversRegion({ region, areaLike, countryCode }) {
   return {
     category: CATEGORIES.DISCOVERS, angle: 'regional-directory',
     sourceKey: `region:${countryCode}:${slugify(region)}`, sourceUrl: `${SITE}/spots/united-kingdom`,
-    region, spots: three.map((s) => ({ name: s.name, type: WATER[s.water_type] || s.water_type, area: s.area })),
+    region,
+    geo: three.every((x) => x.latitude != null) ? { points: three.map((x, i) => ({ lat: Number(x.latitude), lng: Number(x.longitude), label: x.name, n: i + 1 })) } : null,
+    spots: three.map((s) => ({ name: s.name, type: WATER[s.water_type] || s.water_type, area: s.area })),
     facts: [
       fact('region', region, { table: 'spots', column: 'area', filter: `country_code=${countryCode}` }),
       ...three.map((s, i) => fact(`spot${i}`, `${s.name}: ${WATER[s.water_type] || s.water_type}${s.area ? `, ${s.area}` : ''}`, { table: 'spots', row: s.id })),
@@ -176,7 +181,7 @@ async function exploreWindow({ from, windowDays, max }) {
   const tiers = SOCIAL_DEFAULTS.event.autoTiers.join(',');
   const rows = await dbGet(
     `event_editions?select=id,slug,title,discipline,start_date,end_date,status,verification_tier,registration_status,official_url,date_confirmed,last_verified_at,is_searchable,is_indexable,` +
-    `event_venues(display_name,city,region,country_code),event_distances(original_label,distance_metres)` +
+    `event_venues(display_name,city,region,country_code,latitude,longitude),event_distances(original_label,distance_metres)` +
     `&is_searchable=eq.true&status=eq.announced&date_confirmed=eq.true&verification_tier=in.(${tiers})` +
     `&start_date=gte.${start}&start_date=lte.${end}&order=start_date&limit=60`);
   if (!rows) return { gap: 'Explore query failed.' };
@@ -207,6 +212,7 @@ async function exploreWindow({ from, windowDays, max }) {
     return {
       id: e.id, title: e.title, date: fmtDate(e.start_date), isoDate: e.start_date,
       place: [v.city || v.display_name, countryName(v.country_code)].filter(Boolean).join(', '),
+      lat: v.latitude != null ? Number(v.latitude) : null, lng: v.longitude != null ? Number(v.longitude) : null,
       distance: dist, tier: e.verification_tier, officialUrl: e.official_url, lastVerifiedAt: e.last_verified_at,
       url: `${SITE}/events/${e.slug}`,
     };

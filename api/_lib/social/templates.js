@@ -125,3 +125,113 @@ export function renderHtml(post, assets) {
   if (!fn) throw new Error(`no template for ${post.category}`);
   return [fn(post, assets)];
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// v2: photography-first visuals. Three approaches chosen by image selection
+// (media.js): photography-led, map-led, product-led. The v1 cards above remain
+// as the deliberately designed "branded graphic" fallback.
+// ════════════════════════════════════════════════════════════════════════════
+import { mapView, MAP_ATTRIBUTION } from './map.js';
+
+const CSS2 = `
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1080px;height:1350px;background:#080f1a;color:#f1f5f9;font-family:'DM Sans',sans-serif;overflow:hidden}
+.s2{position:relative;width:1080px;height:1350px;overflow:hidden;background:#080f1a}
+.bg{position:absolute;inset:0;background-size:cover;background-repeat:no-repeat}
+.mapbg{position:absolute;inset:0;overflow:hidden;filter:brightness(2.2) contrast(1.12) saturate(1.1)}
+.shade{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(5,10,18,.45) 0%,rgba(5,10,18,0) 20%,rgba(5,10,18,0) 40%,rgba(5,10,18,.58) 64%,rgba(5,10,18,.93) 100%)}
+.shade.heavy{background:linear-gradient(to bottom,rgba(5,10,18,.55) 0%,rgba(5,10,18,.25) 30%,rgba(5,10,18,.6) 60%,rgba(5,10,18,.94) 100%)}
+.top{position:absolute;left:64px;right:64px;top:56px;display:flex;justify-content:space-between;align-items:flex-start}
+.k{font:700 22px 'DM Sans';letter-spacing:4px;text-transform:uppercase;color:#38bdf8;background:rgba(8,15,26,.7);border-radius:50px;padding:11px 24px}
+.k.o{color:#f97316}
+.ill{font:500 20px 'DM Sans';letter-spacing:1px;color:rgba(255,255,255,.85);background:rgba(8,15,26,.6);border-radius:50px;padding:9px 18px}
+.plate{background:#fff;border-radius:16px;padding:14px 22px;display:flex;align-items:center}
+.plate img{height:48px;max-width:240px;object-fit:contain;display:block}
+.stack{position:absolute;left:64px;right:64px;bottom:150px}
+.kick{font:400 84px/1 'Bebas Neue';color:#f97316;margin-bottom:6px}
+.stack h1{font:400 150px/.92 'Bebas Neue';letter-spacing:1px;color:#fff;text-shadow:0 2px 18px rgba(0,0,0,.35)}
+.stack .sb{font:500 38px/1.3 'DM Sans';color:rgba(255,255,255,.92);margin-top:18px;text-shadow:0 1px 10px rgba(0,0,0,.5)}
+.chip2{display:inline-block;margin-top:22px;font:700 26px 'DM Sans';color:#38bdf8;background:rgba(8,15,26,.72);border-radius:50px;padding:10px 24px}
+.cr{position:absolute;bottom:100px;font:400 19px 'DM Sans';color:rgba(255,255,255,.72)}
+.b2{position:absolute;left:64px;right:64px;bottom:46px;display:flex;justify-content:space-between;align-items:center}
+.b2 .l{display:flex;align-items:center;gap:12px;font:800 30px 'DM Sans';letter-spacing:-.4px;color:#fff}
+.b2 img{height:34px}.b2 .u{font:500 22px 'DM Sans';color:rgba(255,255,255,.72)}
+.pin{position:absolute;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;background:#f97316;border:4px solid #fff;box-shadow:0 2px 12px rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;font:700 16px 'DM Sans';color:#fff}
+.pin.c{background:#38bdf8}
+.pl{position:absolute;font:700 30px 'DM Sans';color:#fff;background:rgba(8,15,26,.82);border-radius:40px;padding:8px 18px;white-space:nowrap}
+.rt{position:absolute;font:500 20px 'DM Sans';letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.8);background:rgba(8,15,26,.7);border-radius:40px;padding:6px 14px}
+`;
+
+const frame2 = (inner) => `<!doctype html><html><head><meta charset="utf-8"><style>${CSS2}</style></head><body>${inner}</body></html>`;
+const hSize = (t) => (t.length <= 14 ? 150 : t.length <= 22 ? 124 : t.length <= 34 ? 100 : 82);
+const brand2 = (a, url) => `<div class="b2"><div class="l"><img src="${a.logo}" alt="">SwimLoading</div><div class="u">${esc(url)}</div></div>`;
+const orangeCat = (c) => [CATEGORIES.BEHIND_THE_BRAND, CATEGORIES.THIS_WEEK].includes(c);
+
+/** The minimal on-image copy. Everything else lives in the caption. */
+export function visualCopy(post, i = null) {
+  const F = (k) => post.facts.find((f) => f.key === k)?.text;
+  switch (post.category) {
+    case CATEGORIES.SWIM_SPOTLIGHT: {
+      const opened = F('opened');
+      return { headline: F('name'), sub: opened ? `${opened} · ${F('area')}` : `${F('region')}, ${F('country')}`, chip: F('water_type') };
+    }
+    case CATEGORIES.CROSSING_INTELLIGENCE: {
+      const q = post.facts.find((f) => f.key === 'qualifying')?.value;
+      return { headline: F('name'), sub: `${F('distance')} · ${q / 60} hour qualifying swim`, chip: null };
+    }
+    case CATEGORIES.BEHIND_THE_BRAND:
+      return { headline: F('claim'), sub: 'Official SwimLoading partner', chip: F('range') };
+    case CATEGORIES.DISCOVERS:
+      return { headline: `Outdoor swimming around ${post.region}`, sub: 'Three places to start', chip: null };
+    case CATEGORIES.THIS_WEEK: {
+      if (i == null) return { headline: `${post.events.length} listed swims`, sub: post.windowDays === 7 ? 'This week · swipe for dates and places' : `Next ${post.windowDays} days · swipe for dates and places`, chip: null };
+      const e = post.events[i];
+      return { kicker: e.date, headline: e.title, sub: e.place, chip: e.distance };
+    }
+  }
+  throw new Error(`no visual copy for ${post.category}`);
+}
+
+/**
+ * One slide. @param spec { template, post, asset (catalogue entry or null), photoUri, illustrative,
+ * logo, partnerLogo, copy, geo: {points:[{lat,lng,label?,n?}], route?:bool, maxZoom?}, url, orange }
+ */
+export function visualSlide(spec) {
+  const { template, post, asset, photoUri, illustrative, copy } = spec;
+  const a = { logo: spec.logo };
+  const fs = hSize(copy.headline);
+  let bg = '', extra = '', credit = '', shade = 'shade', topRight = '';
+  if (template === 'map-led') {
+    const pts = spec.geo.points;
+    const rect = { x0: 150, y0: 190, x1: 930, y1: 830 };
+    const v = mapView(pts, rect, { maxZoom: spec.geo.maxZoom || 13 });
+    bg = v.tilesHtml;
+    const proj = pts.map((p) => ({ ...p, ...v.project(p.lat, p.lng) }));
+    if (spec.geo.route && proj.length === 2) {
+      const [s, e] = proj;
+      extra += `<svg style="position:absolute;inset:0" width="1080" height="1350"><line x1="${s.x}" y1="${s.y}" x2="${e.x}" y2="${e.y}" stroke="#38bdf8" stroke-width="6" stroke-dasharray="2 16" stroke-linecap="round"/></svg>`;
+      extra += `<div class="rt" style="left:${(s.x + e.x) / 2 + 24}px;top:${(s.y + e.y) / 2 - 14}px">Indicative route</div>`;
+    }
+    proj.forEach((p, i) => {
+      extra += `<div class="pin ${spec.geo.route && i === 1 ? 'c' : ''}" style="left:${p.x}px;top:${p.y}px">${p.n || ''}</div>`;
+      if (p.label) { const right = p.x < 640; extra += `<div class="pl" style="top:${p.y - 24}px;${right ? `left:${p.x + 28}px` : `right:${1080 - p.x + 28}px`}">${esc(p.label)}</div>`; }
+    });
+    credit = `<div class="cr" style="right:64px">${esc(MAP_ATTRIBUTION)}</div>`;
+    shade = 'shade heavy';
+  } else {
+    const pos = asset?.focus ? `${asset.focus.x}% ${asset.focus.y}%` : '50% 50%';
+    bg = `<div class="bg" style="background-image:url('${photoUri}');background-position:${pos}"></div>`;
+    if (asset?.attribution) credit = `<div class="cr" style="left:64px">${esc(asset.attribution)}</div>`;
+    if (template === 'product-led') { shade = 'shade heavy'; topRight = `<div class="plate"><img src="${spec.partnerLogo}" alt="${esc(post.partner.name)}"></div>`; }
+    else if (illustrative) topRight = '<div class="ill">Illustrative photo</div>';
+    if (template === 'product-led' && illustrative) credit += '<div class="cr" style="right:64px">Illustrative photo, not a product image</div>';
+  }
+  return frame2(`<div class="s2" data-template="${template}">${bg}<div class="${shade}"></div>${extra}
+    <div class="top"><div class="k ${spec.orange ? 'o' : ''}">${esc(post.category)}</div>${topRight}</div>
+    <div class="stack">${copy.kicker ? `<div class="kick" data-hl>${esc(copy.kicker)}</div>` : ''}
+      <h1 data-hl style="font-size:${fs}px">${esc(copy.headline)}</h1>
+      ${copy.sub ? `<div class="sb" data-hl>${esc(copy.sub)}</div>` : ''}
+      ${copy.chip ? `<div class="chip2">${esc(copy.chip)}</div>` : ''}</div>
+    ${credit}${brand2(a, spec.url)}</div>`);
+}

@@ -14,6 +14,13 @@ export const SOCIAL_DEFAULTS = {
   dedupeDays: 90,
   reserveMin: 6,                      // validated evergreen posts held back as fallback
   partnerMaxShare: 0.10,              // never more than this share of recent posts
+  media: {
+    rotationPosts: 3,        // a photograph from the same session as any of the last N posts' photographs is skipped
+    dupDistance: 10,         // dHash Hamming distance (of 64) at or below which two images count as the same shot
+    repeatDays: 21,          // do not reuse the same photograph inside this window if an alternative exists
+    maxUpscale: 1.6,         // a full-bleed crop may enlarge the source at most this much
+    acceptShareAlike: false, // CC BY-SA images need one policy decision from Dave; until then they route to review
+  },
   event: {
     windowDays: 21,
     // An event today or tomorrow is not worth a post by the time it is seen. Earliest start = publish date + this.
