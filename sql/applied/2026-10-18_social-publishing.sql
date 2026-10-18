@@ -1,7 +1,44 @@
--- PROPOSED, NOT APPLIED. Social Content Engine library (Stage B-4).
--- Follow MIGRATIONS.md: read-only dry-run, Dave types "apply", apply via supabase-admin, verify, move to sql/applied/.
--- All tables are new, so no backup table is needed. RLS: Dave only, same pattern as partner_pages (pp_dave_all).
--- The publish job (Stage C) will use the service key, which bypasses RLS; nothing here is readable by anon.
+-- ================================================================
+-- SwimLoading — Migration Template
+-- Copy this header into EVERY new migration file.
+-- The safety block hard-fails if you are in the wrong project.
+-- ================================================================
+
+-- ⚠️  SAFETY CHECK — runs first, aborts everything if wrong project
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM _project_identity
+    WHERE key = 'project_name' AND value = 'swimloading'
+  ) THEN
+    RAISE EXCEPTION
+      E'\n\n'
+      '╔══════════════════════════════════════════════════════════╗\n'
+      '║  WRONG PROJECT — MIGRATION ABORTED                       ║\n'
+      '║                                                          ║\n'
+      '║  This migration is for: SwimLoading                     ║\n'
+      '║  Expected project ref:  szgkzuswelntnevobnoh            ║\n'
+      '║                                                          ║\n'
+      '║  You are connected to a DIFFERENT Supabase project.     ║\n'
+      '║  No changes have been made. Check your browser URL.     ║\n'
+      '╚══════════════════════════════════════════════════════════╝'
+    USING HINT = 'Check the project ref in your Supabase dashboard URL';
+  END IF;
+  RAISE NOTICE '✅ Project identity confirmed: swimloading (szgkzuswelntnevobnoh)';
+END $$;
+
+-- ================================================================
+-- Migration: 2026-10-18_social-publishing.sql   (see MIGRATIONS.md)
+-- ================================================================
+-- Purpose:      Social Content Engine publishing queue: social_settings (paused = TRUE by default), social_posts,
+--               social_source_state, and the PUBLIC 'social-posts' bucket for GENERATED post images only
+--               (no originals, no EXIF; Instagram/Facebook need a public image URL to fetch).
+-- Requested by: Dave
+-- PRE-CHECKS:   none of the three tables exist; bucket 'social-posts' does not exist (verify read-only before applying).
+-- BACKUP:       not required - new objects only.
+BEGIN;
+
+INSERT INTO storage.buckets (id, name, public) VALUES ('social-posts', 'social-posts', true);  -- public READ of objects only; writes need the service key
 
 CREATE TABLE social_settings (
   id            boolean PRIMARY KEY DEFAULT true CHECK (id),          -- single row
@@ -55,3 +92,10 @@ ALTER TABLE social_source_state ENABLE ROW LEVEL SECURITY;
 CREATE POLICY social_settings_dave     ON social_settings     FOR ALL USING (auth.email() = 'dave.welensky@gmail.com') WITH CHECK (auth.email() = 'dave.welensky@gmail.com');
 CREATE POLICY social_posts_dave        ON social_posts        FOR ALL USING (auth.email() = 'dave.welensky@gmail.com') WITH CHECK (auth.email() = 'dave.welensky@gmail.com');
 CREATE POLICY social_source_state_dave ON social_source_state FOR ALL USING (auth.email() = 'dave.welensky@gmail.com') WITH CHECK (auth.email() = 'dave.welensky@gmail.com');
+
+COMMIT;
+-- ROLLBACK:     DROP TABLE social_source_state; DROP TABLE social_posts; DROP TABLE social_settings;
+--               DELETE FROM storage.buckets WHERE id='social-posts';   -- empty the bucket first
+-- VERIFY:       SELECT paused FROM social_settings;                                  -- expect true (1 row)
+--               SELECT relname, relrowsecurity FROM pg_class WHERE relname LIKE 'social_%' AND relkind='r';  -- expect 3 rows, all true
+--               SELECT public FROM storage.buckets WHERE id='social-posts';          -- expect true
