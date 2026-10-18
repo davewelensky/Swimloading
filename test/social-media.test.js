@@ -1,7 +1,7 @@
 // Media catalogue, image selection, rotation, and the location-honesty rules. No network.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync, mkdtempSync, copyFileSync } from 'node:fs';
+import { readFileSync, existsSync, mkdtempSync, mkdirSync, copyFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -19,7 +19,7 @@ const TOOTING = { id: 'tooting', name: 'Tooting Bec Lido' };
 test('catalogue: real files load with dimensions, orientation, and a hash', () => {
   const c = loadCatalogue();
   assert.ok(c.length >= 5);
-  for (const a of c) { assert.ok(a.exists, a.id); assert.ok(a.width > 0 && a.height > 0); assert.ok(['landscape', 'portrait', 'square'].includes(a.orientation)); assert.match(a.dhash, /^[0-9a-f]{16}$/, a.id); assert.ok(a.subject === 'location' || a.subject === 'generic'); }
+  for (const a of c) { if (a.source === 'google-photos-export' && !a.exists) continue; /* originals are local-only (gitignored) */ assert.ok(a.exists, a.id); assert.ok(a.width > 0 && a.height > 0); assert.ok(['landscape', 'portrait', 'square'].includes(a.orientation)); assert.match(a.dhash, /^[0-9a-f]{16}$/, a.id); assert.ok(a.subject === 'location' || a.subject === 'generic'); }
 });
 test('imageSize reads JPEG and PNG headers', () => {
   assert.deepEqual(imageSize(readFileSync('partner-kit/hero-photo-underwater.jpg')), { w: 1920, h: 1440 });
@@ -152,11 +152,20 @@ test('import script: dry run skips a near-duplicate of an existing photo and imp
   const dir = mkdtempSync(join(tmpdir(), 'media-import-'));
   copyFileSync('partner-kit/hero-photo-underwater.jpg', join(dir, 'copy-of-underwater.jpg'));
   copyFileSync('partner-kit/hero-photo-whale.jpg', join(dir, 'zzz-new-photo.jpg'));
-  const r = spawnSync('node', ['scripts/import-media.mjs', dir, '--album', 'Test Album', '--owner', 'Test', '--dry-run'], { encoding: 'utf8', env: { ...process.env, LAB_CHROME_PATH: CHROME } });
+  mkdirSync(join(dir, 'Some Album')); copyFileSync('icons/logo-wave.png', join(dir, 'Some Album', 'fresh.png'));
+  const r = spawnSync('node', ['scripts/import-media.mjs', dir, '--album', 'Test Album', '--owner', 'Test', '--keep-dups', '--dry-run'], { encoding: 'utf8', env: { ...process.env, LAB_CHROME_PATH: CHROME } });
   assert.equal(r.status, 0, r.stderr);
-  assert.match(r.stdout, /copy-of-underwater\.jpg: near-duplicate of sl-hero-underwater/);
+  assert.match(r.stdout, /copy-of-underwater\.jpg: (exact |near-)duplicate of sl-hero-underwater/);
   assert.match(r.stdout, /whale/i.test(r.stdout) ? /near-duplicate|unapproved/ : /unapproved/);
-  assert.match(r.stdout, /unapproved|skipped/);
+  assert.match(r.stdout, /zzz-new-photo\.jpg: exact duplicate of sl-hero-whale/);
+  assert.match(r.stdout, /\+ Some Album\/fresh\.png .*Some Album .*unapproved/, 'recurses into sub-folders, album = folder name, unapproved by default');
   const bad = spawnSync('node', ['scripts/import-media.mjs', dir, '--album', 'T', '--owner', 'T', '--approve', '--dry-run'], { encoding: 'utf8', env: { ...process.env, LAB_CHROME_PATH: CHROME } });
   assert.notEqual(bad.status, 0, '--approve without --people must refuse');
+});
+
+test('quality (1-5, default 3) breaks ties between equally unused photos; rotation still comes first', () => {
+  const cat = [A({ id: 'a-murky', quality: 1, sessionId: 's1', dhash: '00000000000000ff' }), A({ id: 'b-bright', quality: 5, sessionId: 's2', dhash: 'ff00000000000000' })];
+  assert.equal(selectImage({}, cat, { now: NOW }).asset.id, 'b-bright');
+  const again = selectImage({}, cat, { now: NOW, history: [{ assetId: 'b-bright', usedAt: '2026-10-19T00:00:00Z' }] });
+  assert.equal(again.asset.id, 'a-murky', 'recently used bright photo is rotated out');
 });

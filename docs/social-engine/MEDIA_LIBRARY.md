@@ -18,23 +18,28 @@ Gaps found: **no approved product photography** for any partner (Maurten has onl
 
 Shared album links cannot be imported programmatically, and I did not try to scrape them. As I understand Google's current policy (re-verify before relying on it): the Photos Library API only reads items an app uploaded itself, and its replacement, the Photos Picker API, needs an interactive person-picks-photos session that returns links which expire within about an hour. Neither suits unattended publishing, and temporary Google URLs must not be stored.
 
-Supported route (about ten minutes per album, then never again):
+Supported route:
 
-1. Open each album in Google Photos, choose the three-dot menu, **Download all**. Unzip.
-2. Dry-run, then import:
+1. Download the album(s) into one folder, one sub-folder per album (the sub-folder name becomes the album; loose files use `--album`). The folder is scanned recursively.
+2. Dry-run, import, review, approve:
 
 ```bash
-node scripts/import-media.mjs ~/Downloads/Bakoven --album "K8 Bakoven" --owner "Dave Welensky" --approve --people none --dry-run
-node scripts/import-media.mjs ~/Downloads/Bakoven --album "K8 Bakoven" --owner "Dave Welensky" --approve --people none --manifest bakoven.csv
+node scripts/import-media.mjs ~/Downloads/SwimLoading-Photos --owner "Dave Welensky" --region "Cape Town" --country ZA --tags "ocean|cape-town" --dry-run
+node scripts/import-media.mjs ~/Downloads/SwimLoading-Photos --owner "Dave Welensky" --region "Cape Town" --country ZA --tags "ocean|cape-town"
+node scripts/media-approve.mjs --list --unapproved
+node scripts/media-approve.mjs --album "Clifton C4" --people none      # or --people some --consent confirmed
+node scripts/media-approve.mjs --album "Clifton C4" --revoke           # take an album back out
 ```
 
-* Without `--approve`, photos import **unapproved** and are never selected.
-* `--people none|some` is required with `--approve` (identifiable swimmers need recorded consent, otherwise posts using them go to review).
-* Optional `manifest.csv`: `filename,location,country,spot,region,subject,tags,photographer,session`. Set `spot` only when the photo documents exactly that SwimLoading spot (for example `Bakoven`); set `region` (for example `Cape Town`) when the beach is unknown; leave both empty for generic open-water imagery.
-* Near-duplicates of photos already in the catalogue are skipped automatically. Photos from one album within the same three-hour block share a session.
-* Run `node --test` afterwards; the catalogue test checks every file loads and has a hash.
+* Defaults on the command line apply to every photo: `--album --owner --photographer --permission owned|cc-by|cc-by-sa|partner-supplied --attribution --location --country --spot --region --subject --tags a|b`. A `manifest.csv` (`filename,location,country,spot,region,subject,tags,photographer,session`) overrides them per photo.
+* Import without `--approve` is unapproved and never selected. Approving records that you hold the rights and whether identifiable swimmers appear (`--people none|some`); identifiable swimmers without `--consent confirmed` still route posts to review.
+* Set `--spot` only when the photo documents exactly that SwimLoading spot; use `--region` when the beach is unknown. A region photo can only illustrate posts in that region.
+* Duplicates: identical bytes (SHA-1, across the whole library) and near-identical shots (dHash, including earlier photos in the same batch) are skipped; `--keep-dups` keeps near-duplicates. Photos from one album within one three-hour block share a session so consecutive posts do not reuse one swim.
+* Safe: existing entries and files are never modified or overwritten; the catalogue is backed up to `media-library/.backups/` (git-ignored), re-read just before an atomic write, and must parse before it replaces the original. Re-running the same import is a no-op.
+* 480px thumbnails are written to `media-library/thumbs/` (macOS `sips`).
+* Run `node --test test/social-media.test.js` afterwards.
 
-Founder effort afterwards: drop new photos in occasionally and run one command. No per-post choosing.
+**Local vs production.** The catalogue and files are local and committed to git; the engine renders locally through Chromium, so this is a working store, not a proof of concept to throw away. Originals (4000x3000 JPEGs, EXIF location) should not live in the public repo long-term: when `sql/proposed/2026-10-18_media-assets_PROPOSED.sql` is applied, move originals to the private `social-media` bucket, load the catalogue into `media_assets` (same fields, snake_case; `sha1` unique), and swap `loadCatalogue()` for a table read. The selector only takes an array of assets, so nothing else changes.
 
 ## 3. Catalogue
 

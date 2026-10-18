@@ -7,7 +7,9 @@
 CREATE TABLE media_assets (
   id                   text PRIMARY KEY,
   storage_path         text NOT NULL,                 -- bucket 'social-media', or repo path in file mode
+  thumb_path           text,                          -- 480px JPEG thumbnail (no EXIF); may be served publicly
   original_filename    text,
+  sha1                 text UNIQUE,                   -- exact-duplicate detection across the whole library
   kind                 text NOT NULL DEFAULT 'photo' CHECK (kind IN ('photo','product','logo')),
   source               text NOT NULL,                 -- 'google-photos-export' | 'wikimedia-commons' | 'swimloading-site' | 'partner'
   source_album         text,

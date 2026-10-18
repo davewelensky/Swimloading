@@ -102,7 +102,7 @@ export function selectImage(post, catalogue, { history = [], now = new Date() } 
   for (const h of history) if (!lastUsed[h.assetId] || h.usedAt > lastUsed[h.assetId]) lastUsed[h.assetId] = h.usedAt;
   const recent = history.slice(0, cfg.rotationPosts).map((h) => byId.get(h.assetId)).filter(Boolean);
   const blocked = (a) => recent.some((r) => sameShot(a, r, cfg)) || (lastUsed[a.id] && (now - new Date(lastUsed[a.id])) / 86400e3 < cfg.repeatDays);
-  const order = (a, b) => (lastUsed[a.id] || '').localeCompare(lastUsed[b.id] || '') || a.id.localeCompare(b.id);
+  const order = (a, b) => (lastUsed[a.id] || '').localeCompare(lastUsed[b.id] || '') || (b.quality || 3) - (a.quality || 3) || a.id.localeCompare(b.id); // never-used first, then higher `quality` (1-5, default 3), then id
   const pick = (list) => {
     const f = list.filter((a) => !blocked(a)).sort(order);
     if (f.length) return { asset: f[0], repeat: false };
