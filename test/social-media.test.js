@@ -169,3 +169,23 @@ test('quality (1-5, default 3) breaks ties between equally unused photos; rotati
   const again = selectImage({}, cat, { now: NOW, history: [{ assetId: 'b-bright', usedAt: '2026-10-19T00:00:00Z' }] });
   assert.equal(again.asset.id, 'a-murky', 'recently used bright photo is rotated out');
 });
+
+test('production store: row <-> asset mapping round-trips, table read falls back to JSON', async () => {
+  const { assetToRow, rowToAsset, loadCatalogueAuto, materialise } = await import('../api/_lib/social/media.js');
+  const src = loadCatalogue().find((a) => a.source === 'google-photos-export') || loadCatalogue()[0];
+  const row = assetToRow({ ...src, quality: 4 }, { w: 4000, h: 3000 });
+  assert.equal(row.approved_for_social, !!src.approvedForSocial);
+  assert.equal(row.quality, 4);
+  const back = rowToAsset({ ...row, quality: 4 });
+  for (const k of ['id', 'subject', 'region', 'spotId', 'sessionId', 'dhash', 'consent', 'permission', 'tags']) assert.deepEqual(back[k], src[k] ?? back[k], k);
+  assert.equal(back.orientation, 'landscape');
+  assert.deepEqual(back.focus, src.focus);
+  // no key: JSON; failing table: JSON; empty table: JSON; good table: table
+  assert.equal((await loadCatalogueAuto({ key: '' })).source, 'catalogue.json');
+  const bad = await loadCatalogueAuto({ key: 'k', fetchImpl: async () => ({ ok: false, status: 401 }) });
+  assert.equal(bad.source, 'catalogue.json');
+  assert.equal((await loadCatalogueAuto({ key: 'k', fetchImpl: async () => ({ ok: true, json: async () => [] }) })).source, 'catalogue.json');
+  const ok = await loadCatalogueAuto({ key: 'k', fetchImpl: async () => ({ ok: true, json: async () => [row] }) });
+  assert.equal(ok.source, 'supabase'); assert.equal(ok.assets[0].id, src.id);
+  await assert.rejects(materialise({ id: 'x', abs: '/nonexistent/x.jpg', inStorage: true, file: 'originals/x.jpg' }, { key: '' }), /not available locally/);
+});

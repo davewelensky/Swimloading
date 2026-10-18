@@ -2,7 +2,7 @@
 // same usage history always select the same image, and the reason is stored with the post.
 // Catalogue source today: media-library/catalogue.json (see MEDIA_LIBRARY.md). The selector only
 // takes an array of assets, so the proposed `media_assets` table can replace the file later.
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
@@ -33,6 +33,61 @@ export function loadCatalogue(path = resolve(ROOT, 'media-library/catalogue.json
     try { ({ w, h } = imageSize(readFileSync(resolve(ROOT, a.file)))); } catch { exists = false; }
     return { ...a, abs: resolve(ROOT, a.file), width: w, height: h, exists, orientation: !w ? null : w > h ? 'landscape' : w < h ? 'portrait' : 'square' };
   });
+}
+
+// ---- Production store: Supabase `media_assets` table + private `social-media` bucket -------------------------
+// The selector only takes an array of assets, so the source is swappable. `loadCatalogueAuto` reads the table when a
+// service key is present (RLS allows only Dave's login otherwise) and falls back to catalogue.json on any failure.
+const SB_URL = () => process.env.SUPABASE_URL || 'https://szgkzuswelntnevobnoh.supabase.co';
+export const BUCKET = 'social-media';
+
+/** catalogue.json asset -> media_assets row. `size` = { w, h } read from the file. */
+export function assetToRow(a, size = {}) {
+  return {
+    id: a.id, storage_path: a.storagePath || a.file, thumb_path: a.thumbStoragePath || a.thumb || null, original_filename: a.filename || null, sha1: a.sha1 || null,
+    kind: a.kind || 'photo', source: a.source, source_album: a.album || null, source_url: a.sourceUrl || null, owner: a.owner || null, photographer: a.photographer || null,
+    location: a.location || null, country: a.country || null, spot_id: a.spotId || null, region: a.region || null, crossing_slug: a.crossingSlug || null, partner: a.partner || null,
+    subject: a.subject || 'generic', tags: a.tags || [], width: size.w ?? a.width ?? null, height: size.h ?? a.height ?? null, permission: a.permission || 'owned', attribution: a.attribution || null,
+    approved_for_social: !!a.approvedForSocial, provenance_confirmed: !!a.provenanceConfirmed, identifiable_people: a.identifiablePeople ?? null, consent: a.consent || 'n/a',
+    session_id: a.sessionId || null, captured_at: a.capturedAt || null, dhash: a.dhash || null, focus_x: a.focus?.x ?? 50, focus_y: a.focus?.y ?? 50, quality: a.quality ?? null, notes: a.notes || null,
+  };
+}
+/** media_assets row -> asset in the shape the selector uses. Files not on disk are fetched by `materialise`. */
+export function rowToAsset(r, root = ROOT) {
+  const cache = resolve(root, 'media-library/.cache', r.id + (/\.png$/i.test(r.storage_path) ? '.png' : '.jpg'));
+  const repoFile = resolve(root, r.storage_path);
+  const local = existsSync(repoFile) ? repoFile : cache;
+  const w = r.width, h = r.height;
+  return {
+    id: r.id, file: r.storage_path, thumb: r.thumb_path, filename: r.original_filename, sha1: r.sha1, kind: r.kind, source: r.source, album: r.source_album, sourceUrl: r.source_url,
+    owner: r.owner, photographer: r.photographer, location: r.location, country: r.country, spotId: r.spot_id, region: r.region, crossingSlug: r.crossing_slug, partner: r.partner,
+    subject: r.subject, tags: r.tags || [], permission: r.permission, attribution: r.attribution, approvedForSocial: r.approved_for_social, provenanceConfirmed: r.provenance_confirmed,
+    identifiablePeople: r.identifiable_people, consent: r.consent, sessionId: r.session_id, capturedAt: r.captured_at, dhash: r.dhash, focus: { x: r.focus_x, y: r.focus_y },
+    quality: r.quality ?? undefined, notes: r.notes, abs: local, width: w, height: h, exists: !!(w && h), inStorage: !existsSync(repoFile), orientation: !w ? null : w > h ? 'landscape' : w < h ? 'portrait' : 'square',
+  };
+}
+/** Make sure the original is on disk (downloads from the private bucket into the git-ignored media-library/.cache). */
+export async function materialise(a, { key = process.env.SUPABASE_SERVICE_KEY, fetchImpl = fetch } = {}) {
+  if (existsSync(a.abs)) return a.abs;
+  if (!a.inStorage || !key) throw new Error(`original for ${a.id} is not available locally`);
+  const res = await fetchImpl(`${SB_URL()}/storage/v1/object/${BUCKET}/${a.file}`, { headers: { Authorization: `Bearer ${key}`, apikey: key } });
+  if (!res.ok) throw new Error(`storage download ${a.id}: HTTP ${res.status}`);
+  mkdirSync(resolve(a.abs, '..'), { recursive: true });
+  writeFileSync(a.abs, Buffer.from(await res.arrayBuffer()));
+  return a.abs;
+}
+/** Table when reachable, otherwise the JSON file. Returns { assets, source }. */
+export async function loadCatalogueAuto({ key = process.env.SUPABASE_SERVICE_KEY, fetchImpl = fetch, jsonPath } = {}) {
+  if (key) {
+    try {
+      const res = await fetchImpl(`${SB_URL()}/rest/v1/media_assets?select=*&order=id`, { headers: { Authorization: `Bearer ${key}`, apikey: key } });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const rows = await res.json();
+      if (Array.isArray(rows) && rows.length) return { assets: rows.map((r) => rowToAsset(r)), source: 'supabase' };
+      console.warn('media_assets is empty: using catalogue.json');
+    } catch (e) { console.warn(`media_assets unavailable (${e.message}): using catalogue.json`); }
+  }
+  return { assets: loadCatalogue(jsonPath), source: 'catalogue.json' };
 }
 
 const OUT = { w: 1080, h: 1350 };

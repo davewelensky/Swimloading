@@ -10,7 +10,7 @@ import { buildCaptions } from '../api/_lib/social/captions.js';
 import { renderHtml, visualSlide, visualCopy } from '../api/_lib/social/templates.js';
 import { renderSlides } from '../api/_lib/social/render.js';
 import { nextSlots, CATEGORIES } from '../api/_lib/social/config.js';
-import { loadCatalogue, selectImage } from '../api/_lib/social/media.js';
+import { loadCatalogueAuto, materialise, selectImage } from '../api/_lib/social/media.js';
 import { dbGet } from '../api/seo-utils.js';
 
 process.env.LAB_CHROME_PATH ||= '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
@@ -19,7 +19,8 @@ const now = new Date();
 const uri = (path, mime) => `data:${mime};base64,${readFileSync(path).toString('base64')}`;
 const logo = uri('icons/logo-wave.png', 'image/png');
 const maurtenLogo = uri('icons/Maurten logo.jpg', 'image/jpeg');
-const catalogue = loadCatalogue();
+const { assets: catalogue, source: catalogueSource } = await loadCatalogueAuto();
+console.log(`media catalogue: ${catalogueSource} (${catalogue.length} assets)`);
 const photoUri = (a) => uri(a.abs, /\.png$/i.test(a.abs) ? 'image/png' : 'image/jpeg');
 
 const specs = [
@@ -58,7 +59,7 @@ for (const [i, spec] of specs.entries()) {
     // Image selection (deterministic) + slide specs.
     const base = { post, logo, partnerLogo: maurtenLogo, orange: [CATEGORIES.BEHIND_THE_BRAND, CATEGORIES.THIS_WEEK].includes(post.category) };
     const slideSpecs = [], selections = [];
-    const addSlide = (subPost, copy, urlText, geoOverride) => {
+    const addSlide = async (subPost, copy, urlText, geoOverride) => {
       let sel = selectImage({ ...subPost, geo: geoOverride !== undefined ? geoOverride : subPost.geo }, catalogue, { history, now });
       // One photograph is never repeated across the slides of a single post: fall back to a designed graphic.
       if (sel.asset && selections.some((x) => x.assetId === sel.asset.id) && selections.length > 0) {
@@ -67,6 +68,7 @@ for (const [i, spec] of specs.entries()) {
       }
       selections.push({ tier: sel.tier, template: sel.template, assetId: sel.asset?.id || null, reason: sel.reason, illustrative: sel.illustrative, subject: sel.subject,
         source: sel.asset ? { file: sel.asset.file, attribution: sel.asset.attribution, permission: sel.asset.permission, sourceUrl: sel.asset.sourceUrl || null } : sel.tier === 'licensed-map' ? { attribution: '© OpenStreetMap contributors © CARTO' } : null });
+      if (sel.asset) await materialise(sel.asset);
       if (sel.asset) history.unshift({ assetId: sel.asset.id, usedAt: slots[i] || now.toISOString() });
       slideSpecs.push({ sel, spec: { ...base, template: sel.template, asset: sel.asset, photoUri: sel.asset ? photoUri(sel.asset) : null, illustrative: sel.illustrative,
         copy, geo: sel.template === 'map-led' ? (geoOverride !== undefined ? geoOverride : subPost.geo) : null, url: urlText } });
@@ -75,10 +77,10 @@ for (const [i, spec] of specs.entries()) {
     const urlText = post.sourceUrl.replace('https://www.', '').replace(/\?.*/, '');
     let primary;
     if (isWeek) {
-      primary = addSlide({ ...post, preferPhoto: true }, visualCopy(post), 'swimloading.com/explore', null);
-      post.events.forEach((e, n) => addSlide({ ...post, preferPhoto: false }, visualCopy(post, n), 'swimloading.com/explore',
-        e.lat != null ? { points: [{ lat: e.lat, lng: e.lng, label: e.place.split(',')[0] }], maxZoom: 7 } : null));
-    } else primary = addSlide(post, visualCopy(post), urlText);
+      primary = await addSlide({ ...post, preferPhoto: true }, visualCopy(post), 'swimloading.com/explore', null);
+      for (const [n, e] of post.events.entries()) await addSlide({ ...post, preferPhoto: false }, visualCopy(post, n), 'swimloading.com/explore',
+        e.lat != null ? { points: [{ lat: e.lat, lng: e.lng, label: e.place.split(',')[0] }], maxZoom: 7 } : null);
+    } else primary = await addSlide(post, visualCopy(post), urlText);
 
     const rendered = await renderSlides(slideSpecs.map((s, n) => s.sel.template === 'graphic'
       ? { html: renderHtml(post, { logo, partnerLogo: maurtenLogo, photo: null })[isWeek ? n : 0], template: undefined }
