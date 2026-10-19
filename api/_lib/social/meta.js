@@ -2,16 +2,17 @@
 // every request shape is testable offline. Nothing here runs unless the publisher is given a live client;
 // `dry: true` returns the requests it WOULD make and touches nothing.
 //
-// VERIFY BEFORE GOING LIVE (written from recollection of Meta's docs, not checked against them today): the
-// Graph API version (META_GRAPH_VERSION), the publish permissions your app review grants, the Instagram
-// container flow (create container -> poll status_code -> media_publish; carousels need child containers), the
-// daily Instagram publish cap, and that image_url must be a public JPEG.
+// Checked against Meta's docs on 19 Oct 2026 (Instagram content-publishing + Pages posts pages; examples use v26.0):
+// Facebook Login route via graph.facebook.com and a Page access token; image_url must be a public JPEG; carousel = child
+// containers (is_carousel_item) -> CAROUSEL container -> poll status_code until FINISHED (docs: about once a minute, up to
+// 5 minutes) -> media_publish. NOT confirmed by the docs: the Pages `attached_media` multi-photo feed post (the Pages page
+// documents only single-photo posts), and the Instagram daily cap (docs say both 100 and 50 per 24h). Re-test on a test Page.
 //
 // The access token is only ever sent in the POST body and is scrubbed from every error message.
 
 const BASE = 'https://graph.facebook.com';
 
-export function createMeta({ pageId, igUserId, token, version = process.env.META_GRAPH_VERSION || 'v21.0', fetchImpl = fetch, dry = false, sleep = (ms) => new Promise((r) => setTimeout(r, ms)), pollMs = 2000, pollMax = 15 } = {}) {
+export function createMeta({ pageId, igUserId, token, version = process.env.META_GRAPH_VERSION || 'v26.0', fetchImpl = fetch, dry = false, sleep = (ms) => new Promise((r) => setTimeout(r, ms)), pollMs = 5000, pollMax = 24 } = {}) {
   const planned = [];
   const scrub = (s) => (token ? String(s).split(token).join('[token]') : String(s));
   async function call(path, params, method = 'POST') {
