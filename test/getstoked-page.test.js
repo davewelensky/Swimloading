@@ -9,14 +9,12 @@ const read = (f) => fs.readFileSync(path.join(root, f), 'utf8');
 const page = read('partners/getstoked.html');
 const text = page.replace(/<script[\s\S]*?<\/script>/g, ' ').replace(/<style[\s\S]*?<\/style>/g, ' ').replace(/<[^>]+>/g, ' ');
 
-test('no discount code is published until Get Stoked confirm it works (PARTNERS.md rule 1)', () => {
-  // Sam suggested SWIMLOADING10 as a default but nothing is set up yet. When the code is confirmed in writing, change
-  // MEMBER_CODE on the page AND update this test on purpose.
-  assert.match(page, /var MEMBER_CODE = null;/);
-  assert.doesNotMatch(page, /SWIMLOADING10/i);
-  assert.ok(page.includes('id="codeBlock" hidden'), 'the code block ships hidden');
-  // .soon-block { display:flex } beats the hidden attribute unless this rule exists (found by rendering the page: an empty "member code" box was visible)
-  assert.match(page, /\[hidden\]\s*\{\s*display:\s*none\s*!important/);
+test('the member code is published and matches what Get Stoked confirmed (Sam, 20 Oct 2026: SWIMLOADING10, 10% off all products on therabody.co.za)', () => {
+  assert.match(page, /SWIMLOADING10/);
+  assert.match(text, /10% off all products on therabody\.co\.za/);
+  // personal one-off codes must never reach a public page
+  assert.doesNotMatch(page, /\bDAVE\d+[A-Z]*\b/i);
+  assert.doesNotMatch(page, /MEMBER_CODE/);
 });
 
 test('the page makes no product or benefit claims; those must come from Therabody-approved material', () => {
@@ -30,8 +28,8 @@ test('no Therabody logo or imagery, and members are not sent to the dealer-only 
   assert.ok(fs.existsSync(path.join(root, 'icons/getstoked-logo.jpg')));
 });
 
-test('does not mention things that are not agreed: Langebaan, Carina, competitions, exclusivity', () => {
-  assert.doesNotMatch(text, /langebaan|carina|bruwer|giveaway|competition|exclusivity|exclusive (partner|supplier|recovery|rights)/i);
+test('does not mention things that are not agreed: Langebaan, Carina, Theragun stock, competitions, exclusivity', () => {
+  assert.doesNotMatch(text, /langebaan|carina|bruwer|theragun|giveaway|competition|exclusivity|exclusive (partner|supplier|recovery|rights)/i);
 });
 
 test('routed with no-cache, tracked under its own key, and counted in the stats dashboard', () => {
