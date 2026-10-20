@@ -6,6 +6,7 @@
 //   node scripts/social-queue.mjs approve <id|source_key>      PENDING_REVIEW/DRAFT -> APPROVED
 //   node scripts/social-queue.mjs reject  <id|source_key>
 //   node scripts/social-queue.mjs reserve <id|source_key>      mark an APPROVED evergreen post as reserve (fallback)
+//   node scripts/social-queue.mjs unschedule <id|source_key>   SCHEDULED -> APPROVED, slot cleared (then run schedule again)
 //   node scripts/social-queue.mjs schedule [--dry-run]         give APPROVED non-reserve posts the next free Tue/Thu/Sat slots
 //   node scripts/social-queue.mjs pause
 //   node scripts/social-queue.mjs resume --confirm-live        TURNS PUBLISHING ON. Nothing posts without Meta creds + this.
@@ -77,6 +78,12 @@ if (cmd === 'status') {
   const patch = cmd === 'approve' ? { status: 'APPROVED' } : cmd === 'reject' ? { status: 'REJECTED' } : { is_reserve: true, scheduled_for: null };
   await store.update(p.id, patch);
   console.log(`${cmd}: ${p.source_key} -> ${JSON.stringify(patch)}`);
+} else if (cmd === 'unschedule') {
+  if (!arg) { console.error('usage: unschedule <id|source_key>'); process.exit(1); }
+  const p = await find(arg);
+  if (p.status !== 'SCHEDULED') { console.error(`only SCHEDULED posts can be unscheduled (this one is ${p.status})`); process.exit(1); }
+  await store.update(p.id, { status: 'APPROVED', scheduled_for: null });
+  console.log(`unschedule: ${p.source_key} -> APPROVED, slot cleared (was ${p.scheduled_for})`);
 } else if (cmd === 'schedule') {
   const rows = await store.rest('social_posts?select=id,source_key,status,is_reserve,scheduled_for&status=in.(APPROVED,SCHEDULED)&is_reserve=eq.false&order=expires_at.asc.nullslast,created_at');   // soonest-expiring first
   const taken = new Set(rows.filter((r) => r.scheduled_for).map((r) => new Date(r.scheduled_for).toISOString()));
