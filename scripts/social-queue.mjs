@@ -49,7 +49,10 @@ if (cmd === 'status') {
   const { posts } = JSON.parse(readFileSync(f, 'utf8'));
   const existing = await store.rest('social_posts?select=source_key,status,created_at&status=neq.REJECTED');
   const cutoff = Date.now() - 90 * 86400e3;
+  // Posts already published by hand through scripts/publish-facebook.mjs live only in the local ledger, not the database.
+  const ledger = existsSync('social-poc/publish-ledger.json') ? JSON.parse(readFileSync('social-poc/publish-ledger.json', 'utf8')) : {};
   for (const p of posts.filter((x) => x.status === 'GENERATED')) {
+    if (ledger[`fb:${p.id}`]?.facebookId) { console.log(`skip (already published to Facebook)  ${p.sourceKey}`); continue; }
     if (p.eligibility.risk === 'BLOCKED') { console.log(`skip (blocked)  ${p.sourceKey}`); continue; }
     if (existing.some((e) => e.source_key === p.sourceKey && new Date(e.created_at) > cutoff)) { console.log(`skip (already queued in last 90 days)  ${p.sourceKey}`); continue; }
     const dir = `${p.generatedAt.slice(0, 10)}/${slug(p.sourceKey)}`;
