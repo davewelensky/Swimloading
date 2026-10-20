@@ -6,6 +6,7 @@ import { createStore, publicUrl } from '../_lib/social/store.js';
 import { metaFromEnv } from '../_lib/social/meta.js';
 import { runPublisher, eventIdsOf } from '../_lib/social/publisher.js';
 import { revalidateEvents } from '../_lib/social/validate.js';
+import { verifyPage, PublishError } from '../_lib/social/facebook.js';
 
 const FRESH = 'id,title,discipline,status,date_confirmed,start_date,verification_tier,official_url,event_venues(display_name,city,country_code)';
 
@@ -22,9 +23,17 @@ export default async function handler(req, res) {
   if (!process.env.SUPABASE_SERVICE_KEY) return res.status(503).json({ error: 'SUPABASE_SERVICE_KEY not set' });
   try {
     const store = createStore();
-    const { configured, client } = metaFromEnv();
-    const dry = req.query?.dry === '1' || !configured;
-    const meta = dry ? metaFromEnv({ dry: true }).client : client;
+    // Facebook only until Instagram is connected: SOCIAL_PLATFORMS=fb (default). Set "fb,ig" later.
+    const platforms = (process.env.SOCIAL_PLATFORMS || 'fb').split(',').map((x) => x.trim()).filter(Boolean);
+    const { configured, client } = metaFromEnv({}, platforms);
+    // Second lock: even with the DB switch off (paused=false), nothing is posted unless SOCIAL_PUBLISH_ENABLED=true on Vercel.
+    const live = process.env.SOCIAL_PUBLISH_ENABLED === 'true';
+    const dry = req.query?.dry === '1' || !configured || !live;
+    const meta = dry ? metaFromEnv({ dry: true }, platforms).client : client;
+    const preflight = async () => {
+      try { const v = await verifyPage({ pageId: process.env.META_PAGE_ID, token: process.env.META_PAGE_TOKEN }); return v.ok ? { ok: true } : { ok: false, message: `Token belongs to a different Page (${v.name}).` }; }
+      catch (e) { return { ok: false, message: e instanceof PublishError && e.kind === 'token' ? e.message : `Could not verify the Facebook token: ${e.message}` }; }
+    };
     // Event posts must be re-validated against live data immediately before they go out.
     const recheck = async (post) => {
       const ids = eventIdsOf(post);
@@ -34,8 +43,8 @@ export default async function handler(req, res) {
       const v = revalidateEvents({ events: ids.map((id) => ({ id, title: id })) }, fresh, changes);
       return v.ok ? { ok: true } : { ok: false, reason: `event check: ${JSON.stringify(v.dropped)}` };
     };
-    const result = await runPublisher({ store, meta, recheck, notify: notifyDave, dry, publicUrl });
-    return res.status(200).json({ ...result, metaConfigured: configured });
+    const result = await runPublisher({ store, meta, recheck, notify: notifyDave, dry, publicUrl, platforms, preflight });
+    return res.status(200).json({ ...result, metaConfigured: configured, platforms, live });
   } catch (e) {
     if (/PGRST205|42P01|HTTP 404/.test(e.message)) return res.status(200).json({ status: 'not-initialised', note: 'social_* tables not created yet' });
     console.error('social-publish failed', e.message);

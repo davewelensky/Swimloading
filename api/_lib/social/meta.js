@@ -43,6 +43,16 @@ export function createMeta({ pageId, igUserId, token, version = process.env.META
   }
   return {
     planned,
+    /** Crash/ambiguity recovery: did a post with this caption already land on the Page? Returns {id} or null. Never throws. */
+    async findFacebookPost({ caption }) {
+      if (dry || !pageId) return null;
+      try {
+        const res = await fetchImpl(`${BASE}/${version}/${pageId}/feed?fields=id,message&limit=5`, { headers: { Authorization: `Bearer ${token}` } });
+        const j = await res.json().catch(() => ({}));
+        const head = String(caption).slice(0, 60);
+        return (j.data || []).find((p) => (p.message || '').startsWith(head)) || null;
+      } catch { return null; }
+    },
     /** @returns {{externalId}} Facebook Page post id. One image = photo post; several = unpublished photos attached to one feed post. */
     async publishFacebook({ caption, imageUrls }) {
       if (!pageId) throw new Error('META_PAGE_ID not set');
@@ -73,7 +83,7 @@ export function createMeta({ pageId, igUserId, token, version = process.env.META
   };
 }
 
-export function metaFromEnv(opts = {}) {
+export function metaFromEnv(opts = {}, platforms = ['fb', 'ig']) {
   const { META_PAGE_TOKEN: token, META_PAGE_ID: pageId, META_IG_USER_ID: igUserId } = process.env;
-  return { configured: !!(token && pageId && igUserId), client: createMeta({ pageId, igUserId, token, ...opts }) };
+  return { configured: !!(token && pageId && (!platforms.includes('ig') || igUserId)), client: createMeta({ pageId, igUserId, token, ...opts }) };
 }

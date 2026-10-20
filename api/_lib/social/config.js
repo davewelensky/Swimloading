@@ -60,3 +60,18 @@ export function nextSlots(from = new Date(), n = 3, cadence = SOCIAL_DEFAULTS.ca
   }
   return out.sort().slice(0, n);
 }
+
+/** Scheduled slots (Africa/Johannesburg) that started within the last `windowHours`. UTC ISO strings, oldest first. */
+export function recentSlots(now = new Date(), windowHours = 2, cadence = SOCIAL_DEFAULTS.cadence) {
+  const SAST = 2 * 3600e3, out = [];
+  const local = new Date(now.getTime() + SAST);
+  for (let d = 0; d >= -1; d--) {
+    const day = new Date(Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate() + d));
+    for (const c of cadence) {
+      if (day.getUTCDay() !== c.day) continue;
+      const at = Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate(), c.hour, c.minute) - SAST;
+      if (at <= now.getTime() && now.getTime() - at <= windowHours * 3600e3) out.push(new Date(at).toISOString());
+    }
+  }
+  return out.sort();
+}

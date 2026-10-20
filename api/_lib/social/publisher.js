@@ -11,7 +11,9 @@
 //     only the failed one is retried, with backoff, up to `maxAttempts`, then FAILED + notification.
 //  5. Dry run records and changes nothing.
 
-export const PUBLISH_RULES = { lateHours: 12, maxAttempts: 3, backoffMinutes: [15, 60, 240] };
+import { recentSlots } from './config.js';
+
+export const PUBLISH_RULES = { lateHours: 12, maxAttempts: 3, backoffMinutes: [15, 60, 240], slotAlertHours: 2 };
 const PLATFORMS = [
   { key: 'fb', result: 'fb_result', caption: 'fb_caption', publish: (m, a) => m.publishFacebook(a) },
   { key: 'ig', result: 'ig_result', caption: 'ig_caption', publish: (m, a) => m.publishInstagram(a) },
@@ -33,10 +35,24 @@ function retryWait(result, now, rules) {
   return Math.max(0, new Date(result.lastAttemptAt).getTime() + waitMin * 60e3 - now.getTime());
 }
 
-export async function runPublisher({ store, meta, recheck = async () => ({ ok: true }), notify = async () => {}, now = new Date(), dry = false, rules = PUBLISH_RULES, publicUrl }) {
+export async function runPublisher({ store, meta, recheck = async () => ({ ok: true }), notify = async () => {}, now = new Date(), dry = false, rules = PUBLISH_RULES, publicUrl,
+  platforms = ['fb', 'ig'], preflight = null }) {
   const log = { at: now.toISOString(), dry, actions: [] };
   const settings = await store.getSettings();
   if (!settings || settings.paused !== false) return { ...log, status: 'paused' };
+  const active = PLATFORMS.filter((p) => platforms.includes(p.key));      // e.g. Facebook only until Instagram is connected
+  const day = now.toISOString().slice(0, 10);
+  // One email per problem per day (store.alertOnce is insert-if-absent). Never alerts during a dry run.
+  const alertOnce = async (key, subject, text) => { if (dry) return; if (store.alertOnce && !(await store.alertOnce(`${key}:${day}`))) return; await notify(subject, text); };
+
+  // 0. Token check before anything is attempted: an expired token is reported once, not as a failed post.
+  if (preflight && !dry) {
+    const t = await preflight();
+    if (!t.ok) { await alertOnce('token', 'Facebook token problem', `${t.message} Publishing was skipped. Create a new Page token (docs/social-engine/FACEBOOK_SETUP.md).`); return { ...log, status: 'token-problem', reason: t.message }; }
+  }
+  // Reserve queue health (alerted at most once a day).
+  const reserveCount = (await store.listReserves()).length;
+  if (store.alertOnce && reserveCount < (settings.reserve_min ?? 6)) await alertOnce('reserve-low', 'Social reserve queue is low', `${reserveCount} validated reserve posts (minimum ${settings.reserve_min ?? 6}). Queue more evergreen posts.`);
 
   const posts = (await store.listPublishable()).sort((a, b) => String(a.scheduled_for).localeCompare(String(b.scheduled_for)));
   for (const p of posts) if (isDue(p, now, rules) === 'missed') {
@@ -44,7 +60,15 @@ export async function runPublisher({ store, meta, recheck = async () => ({ ok: t
     if (!dry) { await store.update(p.id, { status: 'APPROVED', scheduled_for: null }); await notify(`Social post missed its slot`, `Post ${p.source_key} missed ${p.scheduled_for} and was un-slotted, not posted late.`); }
   }
   let post = posts.find((p) => isDue(p, now, rules) === 'due');
-  if (!post) return { ...log, status: 'nothing-due' };
+  if (!post) {
+    // A cadence slot started and nothing is scheduled for it (and nothing already went out): tell Dave once.
+    const slot = recentSlots(now, rules.slotAlertHours, settings.cadence || undefined).at(-1);
+    if (slot && store.alertOnce && store.publishedForSlot && !(await store.publishedForSlot(slot))) {
+      log.actions.push({ action: 'no-content-for-slot', slot });
+      await alertOnce(`nocontent:${slot}`, 'Nothing was scheduled for a posting slot', `No approved post was scheduled for ${slot}, and the reserve queue is not used for empty slots. Run: node scripts/social-queue.mjs schedule`);
+    }
+    return { ...log, status: 'nothing-due' };
+  }
 
   // 3. Re-validate at publish time.
   const expired = post.expires_at && new Date(post.expires_at) <= now;
@@ -71,12 +95,19 @@ export async function runPublisher({ store, meta, recheck = async () => ({ ok: t
   if (!dry && !(await store.claim(post, key))) return { ...log, status: 'claimed-elsewhere' };
   const imageUrls = (post.image_paths || []).map(publicUrl);
   const patch = {}, outcome = {};
-  for (const p of PLATFORMS) {
+  for (const p of active) {
     const prev = post[p.result];
     if (prev?.externalId) { outcome[p.key] = 'already-published'; continue; }
     if ((prev?.attempts || 0) >= rules.maxAttempts) { outcome[p.key] = 'gave-up'; continue; }
     if (retryWait(prev, now, rules) > 0) { outcome[p.key] = 'backoff'; continue; }
     if (!post[p.caption] || !imageUrls.length) { patch[p.result] = { ...prev, attempts: rules.maxAttempts, error: 'missing caption or images', lastAttemptAt: now.toISOString() }; outcome[p.key] = 'invalid'; continue; }
+    // A previous attempt may have landed even though we never recorded it (a crash, or a timeout after sending).
+    // Before posting again, look for our caption on the Page: never create a duplicate.
+    if (p.key === 'fb' && (prev?.inflight || (prev?.attempts || 0) > 0) && meta.findFacebookPost) {
+      const hit = await meta.findFacebookPost({ caption: post[p.caption] });
+      if (hit) { patch[p.result] = { externalId: hit.id, publishedAt: now.toISOString(), attempts: prev?.attempts || 1, recovered: true }; outcome[p.key] = 'recovered'; continue; }
+    }
+    if (!dry) await store.update(post.id, { [p.result]: { ...prev, inflight: true, lastAttemptAt: now.toISOString() } });   // marks "a call may be in flight"
     try {
       const r = await p.publish(meta, { caption: post[p.caption], imageUrls });
       patch[p.result] = { externalId: r.externalId, publishedAt: now.toISOString(), attempts: (prev?.attempts || 0) + 1 };
@@ -87,8 +118,8 @@ export async function runPublisher({ store, meta, recheck = async () => ({ ok: t
     }
   }
   const merged = { ...post, ...patch };
-  const done = PLATFORMS.every((p) => merged[p.result]?.externalId);
-  const exhausted = PLATFORMS.some((p) => !merged[p.result]?.externalId && (merged[p.result]?.attempts || 0) >= rules.maxAttempts);
+  const done = active.every((p) => merged[p.result]?.externalId);
+  const exhausted = active.some((p) => !merged[p.result]?.externalId && (merged[p.result]?.attempts || 0) >= rules.maxAttempts);
   patch.status = done ? 'PUBLISHED' : exhausted ? 'FAILED' : 'SCHEDULED';
   log.actions.push({ post: post.id, action: 'publish', outcome, status: patch.status });
   if (!dry) {

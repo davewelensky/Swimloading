@@ -18,6 +18,12 @@ export function createStore({ key = process.env.SUPABASE_SERVICE_KEY, fetchImpl 
     listPublishable: () => rest('social_posts?select=*&status=in.(APPROVED,SCHEDULED)&scheduled_for=not.is.null&order=scheduled_for'),
     listReserves: () => rest('social_posts?select=*&is_reserve=eq.true&status=eq.APPROVED&risk=eq.AUTO_ELIGIBLE&order=created_at'),
     update: (id, patch) => rest(`social_posts?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ ...patch, updated_at: new Date().toISOString() }), headers: { Prefer: 'return=minimal' } }),
+    /** Insert-if-absent marker so an alert is emailed once per problem per day. True = first caller. */
+    async alertOnce(key) {
+      try { await rest('social_source_state', { method: 'POST', body: JSON.stringify({ source_key: `alert:${key}` }), headers: { Prefer: 'return=minimal' } }); return true; }
+      catch (e) { if (/HTTP 409/.test(e.message)) return false; throw e; }
+    },
+    async publishedForSlot(slot) { return (await rest(`social_posts?select=id&status=eq.PUBLISHED&scheduled_for=eq.${encodeURIComponent(slot)}&limit=1`))[0] || null; },
     /** Set the idempotency key only if unset (or already ours). False means another run owns this slot. */
     async claim(post, idemKey) {
       if (post.idempotency_key === idemKey) return true;
