@@ -416,11 +416,11 @@ Recorded 29 Sep 2026. Neither has a hero page, welcome card, route or public men
 
 | Field | Value |
 |-------|-------|
-| **Status** | Agreed to participate — Warren replied 25 Sep 2026: "happy to participate", "happy to sponsor products at this time. Prizes and samples". Products only, no cash. |
-| **Hero page** | `/partners/getstoked` (built 9 Oct 2026, route in vercel.json, tracked as `partner_getstoked_*`). Shows "discount being set up"; the code block is hidden until `MEMBER_CODE` is set in the page. |
-| **Welcome card** | Yes, via a `partner_pages` row (section `coming_soon`, chip "Discount Coming"). Migration `sql/2026-10-09_getstoked-partner-page.sql` (applied only after Dave types "apply"). |
+| **Status** | **Confirmed 20 Oct 2026** (Yael Shapiro, via Nicola): **350 Shade samples** + **three sports packs as prizes**, products only. Dave confirmed to Nicola there are **no content fees**; Zero BS supplies product, SwimLoading coordinates the activation, Nicola may attend Langebaan Express to capture her own content. Paid athlete content (Carina/Ryan) is a separate, NOT agreed arrangement. Dave also asked for a few extra products/caps for Derrick's registration team. |
+| **Hero page** | `/partners/zerobs` (built 20 Oct 2026, route in vercel.json, tracked as `partner_zerobs_*`, test/zerobs-page.test.js). Text wordmark only: no logo file yet. States only: Shade samples in the Langebaan Express goodie bags, three sports packs as prizes, no member discount. Never publish sample counts, athlete names or contact names. |
+| **Welcome card** | Via `partner_pages` (the "New sponsors" placeholder row becomes Zero BS). Migration `sql/2026-10-20_getstoked-live-zerobs-partner.sql`, applied only after Dave types "apply". |
 | **Geography** | `[UNCONFIRMED]` — SA company (zerobs.co.za, prices in rand). Whether they ship outside SA is not confirmed; treat as SA-only. |
-| **Contact** | **Warren Wilensky** (info@zerobs.co.za) — decision maker. **Nicola** was copied on the 25 Sep email to request video footage for their social media; surname/role/email `[UNCONFIRMED]`. |
+| **Contact** | **Warren Wilensky** (info@zerobs.co.za), **Nicola Amon** (content/social, main day-to-day contact), **Yael Shapiro** (decides quantities). Nicola asked Dave on 20 Oct for delivery details (full name, cell, delivery address) and the sample deadline: outstanding. |
 | **Partner URL** | https://zerobs.co.za |
 | **Pipeline row** | `growth_sponsors` id c672cfa2… — still status "Contacted"; should move to "Confirmed"/"In Discussion" (data change, needs the migrations workflow) |
 
@@ -439,7 +439,10 @@ Recorded 29 Sep 2026. Neither has a hero page, welcome card, route or public men
 - Black-and-white logo, minimalist style. Logo file: `[NOT YET OBTAINED]`
 
 **Outstanding actions:**
-- [ ] **Decide what footage Nicola is asking for** — the 25 Sep email says they "request certain video footage for our social media". What that means and whether SwimLoading agrees is `[UNCONFIRMED]`. Reply to Warren/Nicola.
+- [x] ~~Decide what footage Nicola is asking for~~ resolved 20 Oct: Nicola captures her own content at Langebaan Express; no fees
+- [ ] Send Nicola delivery details + agree sample deadline (asked 20 Oct)
+- [ ] Sports pack contents, extra caps/merch for Derrick's team, logo, whether Nicola attends
+- [x] (old) Decide what footage — the 25 Sep email says they "request certain video footage for our social media". What that means and whether SwimLoading agrees is `[UNCONFIRMED]`. Reply to Warren/Nicola.
 - [ ] Which month is Zero BS's challenge? Calendar has Jun–Sep taken (THEMAGIC5, Blu Smooth, Maurten ×2); Oct onward is open. `[UNCONFIRMED]`
 - [ ] Prize: exact bundle contents and value `[UNCONFIRMED]`; samples: for whom and how many `[UNCONFIRMED]`
 - [ ] Shipping of prize/samples to Dave: who ships, when `[UNCONFIRMED]`
@@ -458,9 +461,9 @@ Recorded 29 Sep 2026. Neither has a hero page, welcome card, route or public men
 
 | Field | Value |
 |-------|-------|
-| **Status** | **Agreed in principle both ways.** Sam's email (Oct 2026) offered a 10% member discount and shared recovery content; Dave replied on 8 Oct 2026 accepting, choosing the code **SWIMLOADING10**. **Nothing is live yet**: Get Stoked still have to set the code up. Pipeline row still "In Discussion" (moving it to Confirmed is Dave's call). |
-| **Hero page** | None yet |
-| **Welcome card** | No |
+| **Status** | **Live 20 Oct 2026.** Sam confirmed `SWIMLOADING10` is set up: 10% off ALL products on **therabody.co.za**, members may use it. Published on /partners/getstoked. Not published, by design: Dave's personal one-off code, the Theragun stock answer, Carina (Sam thinks her audience may be too international for their SA focus), and Langebaan (Therabody have NOT confirmed attending; staffing is the blocker). Pipeline row moves to Confirmed in `sql/2026-10-20_getstoked-live-zerobs-partner.sql`. |
+| **Hero page** | `/partners/getstoked` (live; code shown; tracked as `partner_getstoked_*`) |
+| **Welcome card** | Yes, via `partner_pages` (flipped to active / "10% Member Code" in the 20 Oct migration) |
 | **Geography** | `[UNCONFIRMED]` — Get Stoked is a South African retailer and, per their site, "Therabody - Official Importer". Whether the code works outside SA is not confirmed; treat as SA-only. |
 | **Contact** | **Samantha (Sam)** — samantha@getstoked.co.za (from the pipeline row); surname/role `[UNCONFIRMED]`. Brett is also on the thread `[UNCONFIRMED]`. |
 | **Partner URL** | https://getstoked.store (Therabody dealer page: https://getstoked.store/brand/therabody/) |
