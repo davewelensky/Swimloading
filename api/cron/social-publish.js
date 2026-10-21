@@ -4,11 +4,9 @@
 import { requireCronAuth } from './_auth.js';
 import { createStore, publicUrl } from '../_lib/social/store.js';
 import { metaFromEnv } from '../_lib/social/meta.js';
-import { runPublisher, eventIdsOf } from '../_lib/social/publisher.js';
-import { revalidateEvents } from '../_lib/social/validate.js';
+import { runPublisher } from '../_lib/social/publisher.js';
+import { makeRecheck } from '../_lib/social/recheck.js';
 import { verifyPage, PublishError } from '../_lib/social/facebook.js';
-
-const FRESH = 'id,title,discipline,status,date_confirmed,start_date,verification_tier,official_url,event_venues(display_name,city,country_code)';
 
 async function notifyDave(subject, text) {
   if (!process.env.RESEND_API_KEY) return;
@@ -34,15 +32,8 @@ export default async function handler(req, res) {
       try { const v = await verifyPage({ pageId: process.env.META_PAGE_ID, token: process.env.META_PAGE_TOKEN }); return v.ok ? { ok: true } : { ok: false, message: `Token belongs to a different Page (${v.name}).` }; }
       catch (e) { return { ok: false, message: e instanceof PublishError && e.kind === 'token' ? e.message : `Could not verify the Facebook token: ${e.message}` }; }
     };
-    // Event posts must be re-validated against live data immediately before they go out.
-    const recheck = async (post) => {
-      const ids = eventIdsOf(post);
-      if (!ids.length) return { ok: true };
-      const fresh = await store.rest(`event_editions?select=${FRESH}&id=in.(${ids.join(',')})`);
-      const changes = await store.rest(`event_change_log?select=edition_id,change_type&edition_id=in.(${ids.join(',')})&change_type=in.(date_changed,venue_changed,cancelled,postponed)&changed_at=gt.${encodeURIComponent(post.created_at)}`);
-      const v = revalidateEvents({ events: ids.map((id) => ({ id, title: id })) }, fresh, changes);
-      return v.ok ? { ok: true } : { ok: false, reason: `event check: ${JSON.stringify(v.dropped)}` };
-    };
+    // Time-sensitive posts (Explore events, measured temperatures) and partner posts are re-validated immediately before they go out.
+    const recheck = makeRecheck(store.rest);
     const result = await runPublisher({ store, meta, recheck, notify: notifyDave, dry, publicUrl, platforms, preflight });
     return res.status(200).json({ ...result, metaConfigured: configured, platforms, live });
   } catch (e) {

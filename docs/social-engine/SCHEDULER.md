@@ -47,4 +47,4 @@ Instagram later: connect the account to the Page, set `META_IG_USER_ID`, and `SO
 
 * The Facebook client used by the cron posts by public image URL from the `social-posts` bucket; the earlier direct-upload client (`facebook.js`) is still used by the manual CLI.
 * Multi-photo (carousel) feed posts via `attached_media` are not documented by Meta for Pages. Test on the real Page before relying on them.
-* Posts queued so far are from the proof-of-concept run: generating fresh posts weekly (rendering, validation, queueing) is still a manual step. Automating that is the next piece.
+* Generating fresh posts is now automated by the autopilot (daily cron, dormant): see [AUTOPILOT.md](AUTOPILOT.md). The publisher's re-check also covers measured-temperature and partner posts.

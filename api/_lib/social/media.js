@@ -5,6 +5,7 @@
 import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 import { SOCIAL_DEFAULTS } from './config.js';
@@ -54,7 +55,9 @@ export function assetToRow(a, size = {}) {
 }
 /** media_assets row -> asset in the shape the selector uses. Files not on disk are fetched by `materialise`. */
 export function rowToAsset(r, root = ROOT) {
-  const cache = resolve(root, 'media-library/.cache', r.id + (/\.png$/i.test(r.storage_path) ? '.png' : '.jpg'));
+  // Serverless bundles are read-only: originals pulled from the private bucket go to the OS temp dir there.
+  const cacheDir = process.env.SOCIAL_MEDIA_CACHE || (process.env.VERCEL ? resolve(tmpdir(), 'social-media-cache') : resolve(root, 'media-library/.cache'));
+  const cache = resolve(cacheDir, r.id + (/\.png$/i.test(r.storage_path) ? '.png' : '.jpg'));
   const repoFile = resolve(root, r.storage_path);
   const local = existsSync(repoFile) ? repoFile : cache;
   const w = r.width, h = r.height;
@@ -165,6 +168,8 @@ export function selectImage(post, catalogue, { history = [], now = new Date() } 
     return any.length ? { asset: any[0], repeat: true } : null;
   };
   const considered = catalogue.length;
+  // Data tables (measured temperatures) are always a designed graphic: text over a photograph would hurt legibility.
+  if (post.graphicOnly) return { tier: TIERS.GRAPHIC, template: 'graphic', asset: null, illustrative: false, considered, subject: null, reason: 'Data table: designed branded graphic.' };
   const done = (tier, template, pk, reason, illustrative) => ({
     tier, template, asset: pk.asset, illustrative, considered, subject: pk.asset.subject,
     reason: reason + (pk.repeat ? ` Reused: every approved alternative is the same session or was used in the last ${cfg.repeatDays} days.` : ''),

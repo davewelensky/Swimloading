@@ -161,20 +161,20 @@ export async function spotFromDb(name) {
 }
 
 // ── 6. THIS WEEK IN OPEN WATER: Explore editions ─────────────────────────
-export async function exploreUpcoming({ from, max = 4 }) {
+export async function exploreUpcoming({ from, max = 4, excludeIds = new Set() }) {
   const f = new Date(from);
   const lead = new Date(Date.UTC(f.getUTCFullYear(), f.getUTCMonth(), f.getUTCDate() + SOCIAL_DEFAULTS.event.minLeadDays));
   from = `${lead.getUTCFullYear()}-${String(lead.getUTCMonth() + 1).padStart(2, '0')}-${String(lead.getUTCDate()).padStart(2, '0')}`;
   // "This week" means 7 days. Widen only if fewer than 3 events qualify, and say so honestly in the title.
   let last;
   for (const days of [7, 14, SOCIAL_DEFAULTS.event.windowDays]) {
-    last = await exploreWindow({ from, windowDays: days, max });
+    last = await exploreWindow({ from, windowDays: days, max, excludeIds });
     if (!last.gap) return last;
   }
   return last;
 }
 
-async function exploreWindow({ from, windowDays, max }) {
+async function exploreWindow({ from, windowDays, max, excludeIds = new Set() }) {
   const start = from.slice(0, 10);
   const endD = new Date(Date.UTC(+start.slice(0, 4), +start.slice(5, 7) - 1, +start.slice(8, 10) + windowDays));
   const end = `${endD.getUTCFullYear()}-${String(endD.getUTCMonth() + 1).padStart(2, '0')}-${String(endD.getUTCDate()).padStart(2, '0')}`;
@@ -191,7 +191,7 @@ async function exploreWindow({ from, windowDays, max }) {
   const rejected = [];
   const eligible = [];
   for (const e of rows) {
-    const why = eventIneligibility(e, recentlyChanged);
+    const why = excludeIds.has(e.id) ? 'already featured in a recent post' : eventIneligibility(e, recentlyChanged);
     if (why) rejected.push({ title: e.title, reason: why }); else eligible.push(e);
   }
   // Prefer confirmed tier, then earliest date, and at most one event per country so the slide is not one-sided.

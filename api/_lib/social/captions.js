@@ -36,20 +36,37 @@ const BUILDERS = {
       tags: ['#openwaterswimming', '#capetown', '#swimloading'],
     };
   },
-  [CATEGORIES.CROSSING_INTELLIGENCE]: (p) => ({
-    body: `Planning the ${F(p, 'name')}?\n\nThe route runs ${F(p, 'distance')} from ${F(p, 'route')}.\n\n${F(p, 'qualifying')}. ${F(p, 'observer')}.\n\nCheck the governing body's current rules before you plan your training.`,
-    fbCta: 'Crossing intelligence, conditions and preparation:',
-    tags: ['#englishchannel', '#channelswimming', '#openwaterswimming', '#swimloading'],
-  }),
-  [CATEGORIES.BEHIND_THE_BRAND]: (p) => ({
+  [CATEGORIES.CROSSING_INTELLIGENCE]: (p) => {
+    const obs = F(p, 'observer');
+    const tags = p.tags || ['#channelswimming', '#openwaterswimming', '#swimloading'];
+    if (p.angle === 'season') return {
+      body: `${F(p, 'name')}: when do people swim it?\n\n${F(p, 'season')}.${F(p, 'distance') ? ` Distance: ${F(p, 'distance')}.` : ''}${F(p, 'governing') ? ` ${F(p, 'governing')}.` : ''}\n\nConfirm the current season, rules and requirements with the governing body before you plan.`,
+      fbCta: 'Crossing intelligence, conditions and preparation:', tags };
+    if (p.angle === 'route') return {
+      body: `The ${F(p, 'name')} route.\n\n${F(p, 'route')}, ${F(p, 'distance')}. The line on the map is indicative only; the actual swim path depends on tide and conditions.\n\nConfirm the current rules with the governing body before you plan.`,
+      fbCta: 'Crossing intelligence, conditions and preparation:', tags };
+    return {
+      body: `Planning the ${F(p, 'name')}?\n\n${F(p, 'route') ? `The route runs ${F(p, 'distance')} from ${F(p, 'route')}.` : `The route is ${F(p, 'distance')}.`}\n\n${F(p, 'qualifying')}.${obs ? ` ${obs}.` : ''}\n\nCheck the governing body's current rules before you plan your training.`,
+      fbCta: 'Crossing intelligence, conditions and preparation:', tags };
+  },
+  [CATEGORIES.BEHIND_THE_BRAND]: (p) => F(p, 'claim') ? ({
     body: `${p.partner.name} and SwimLoading.\n\n${F(p, 'claim')}\n\n${F(p, 'range')} ${F(p, 'stock')}`,
     fbCta: `Read more on the ${p.partner.name} partner page:`,
     tags: ['#openwaterswimming', '#swimnutrition', '#swimloading'],
+  }) : ({
+    body: `${p.partner.name} and SwimLoading.\n\n${F(p, 'blurb')}`,
+    fbCta: `Read more on the ${p.partner.name} partner page:`,
+    tags: ['#openwaterswimming', '#swimloading'],
   }),
   [CATEGORIES.DISCOVERS]: (p) => ({
-    body: `Outdoor swimming around ${p.region}: three places to start.\n\n${p.spots.map((s) => `- ${s.name}: ${s.type}${s.area ? `, ${s.area}` : ''}`).join('\n')}\n\nSwipe for each one.`,
+    body: `Outdoor swimming ${p.regionPrep || 'around'} ${p.region}: three places to start.\n\n${p.spots.map((s) => `- ${s.name}: ${s.type}${s.area ? `, ${s.area}` : ''}`).join('\n')}`,
     fbCta: `Every ${p.region} swimming spot we list:`,
-    tags: ['#londonswimming', '#wildswimming', '#openwaterswimming', '#swimloading'],
+    tags: p.tags || ['#wildswimming', '#openwaterswimming', '#swimloading'],
+  }),
+  [CATEGORIES.OPEN_WATER_INTEL]: (p) => ({
+    body: `Measured water temperatures, ${p.asOf}.\n\n${p.readings.map((r) => `- ${r.spot}, ${r.place}: ${r.temp}. ${r.source}, ${r.station}, observed ${r.observed}.`).join('\n')}\n\nThese are readings from monitoring stations near each spot, not forecasts. Conditions change by the hour and by the tide.`,
+    fbCta: 'Spot pages with recent water temperatures:',
+    tags: ['#openwaterswimming', '#watertemperature', '#swimloading'],
   }),
   [CATEGORIES.THIS_WEEK]: (p) => ({
     body: `${p.windowDays === 7 ? 'This week in open water' : `Coming up in open water, next ${p.windowDays} days`}: ${p.events.length} listed swims.\n\n${p.events.map((e) => `- ${e.date}: ${e.title}, ${e.place}${e.distance ? ` (${e.distance})` : ''}`).join('\n')}\n\nListed on SwimLoading Explore. Check each organiser's page for dates, entry and conditions before you travel.`,

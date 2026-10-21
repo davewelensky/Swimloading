@@ -11,7 +11,8 @@
 //   node scripts/social-queue.mjs pause
 //   node scripts/social-queue.mjs resume --confirm-live        TURNS PUBLISHING ON. Nothing posts without Meta creds + this.
 import { readFileSync, existsSync } from 'node:fs';
-import { createStore, POSTS_BUCKET } from '../api/_lib/social/store.js';
+import { createStore } from '../api/_lib/social/store.js';
+import { uploadImage, slugForPath, slotMs } from '../api/_lib/social/queue.js';
 import { nextSlots } from '../api/_lib/social/config.js';
 
 const [cmd = 'status', arg] = process.argv.slice(2);
@@ -27,13 +28,8 @@ const find = async (a) => {
   if (!r.length) { console.error(`no post matches ${a}`); process.exit(1); }
   return r[0];
 };
-async function upload(path, file) {
-  const res = await fetch(`${URL_}/storage/v1/object/${POSTS_BUCKET}/${path}`, { method: 'POST', headers: { Authorization: `Bearer ${KEY}`, apikey: KEY, 'Content-Type': 'image/jpeg', 'x-upsert': 'false' }, body: readFileSync(file) });
-  if (res.ok) return;
-  const t = await res.text();
-  if (!(res.status === 409 || /already exists|Duplicate/i.test(t))) throw new Error(`upload ${path}: HTTP ${res.status} ${t.slice(0, 120)}`);
-}
-const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const upload = (path, file) => uploadImage(path, readFileSync(file), { key: KEY, url: URL_ });   // shared with the autopilot: api/_lib/social/queue.js
+const slug = slugForPath;
 
 if (cmd === 'status') {
   const s = await store.getSettings();
@@ -86,7 +82,7 @@ if (cmd === 'status') {
   console.log(`unschedule: ${p.source_key} -> APPROVED, slot cleared (was ${p.scheduled_for})`);
 } else if (cmd === 'schedule') {
   const rows = await store.rest('social_posts?select=id,source_key,status,is_reserve,scheduled_for&status=in.(APPROVED,SCHEDULED)&is_reserve=eq.false&order=expires_at.asc.nullslast,created_at');   // soonest-expiring first
-  const taken = new Set(rows.filter((r) => r.scheduled_for).map((r) => new Date(r.scheduled_for).toISOString()));
+  const taken = new Set(rows.filter((r) => r.scheduled_for).map((r) => new Date(slotMs(r.scheduled_for)).toISOString()));
   const todo = rows.filter((r) => !r.scheduled_for);
   const slots = nextSlots(new Date(), todo.length + taken.size + 3).filter((s) => !taken.has(s));
   for (const [i, r] of todo.entries()) {

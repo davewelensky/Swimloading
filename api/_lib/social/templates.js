@@ -2,13 +2,13 @@
 // image. No AI imagery, no third-party map tiles. Pure functions: (post, assets) -> HTML string.
 // Brand: dark navy, cyan #38bdf8, orange accent, Bebas Neue + DM Sans, wave logo, no emojis.
 import { CATEGORIES } from './config.js';
+import { fontCss } from './fonts.js';
 
 export const SIZE = { w: 1080, h: 1350 };
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const F = (p, k) => p.facts.find((f) => f.key === k)?.text;
 
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap');
 :root{--bg:#080f1a;--card:#0d1728;--cyan:#38bdf8;--orange:#f97316;--text:#f1f5f9;--sec:#94a3b8}
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{width:1080px;height:1350px;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;overflow:hidden}
@@ -46,7 +46,7 @@ const brand = (a, url = 'swimloading.com') =>
 const wave = `<svg width="1080" height="120" viewBox="0 0 1080 120" style="position:absolute;left:0;bottom:190px;opacity:.12"><path d="M0 60 Q 90 0 180 60 T 360 60 T 540 60 T 720 60 T 900 60 T 1080 60 V120 H0Z" fill="#38bdf8"/></svg>`;
 
 function frame(inner) {
-  return `<!doctype html><html><head><meta charset="utf-8"><style>${CSS}</style></head><body>${inner}</body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><style>${fontCss()}${CSS}</style></head><body>${inner}</body></html>`;
 }
 
 const T = {
@@ -66,32 +66,49 @@ const T = {
       ${brand(a)}</div>`);
   },
   [CATEGORIES.CROSSING_INTELLIGENCE](p, a) {
+    const q = p.facts.find((f) => f.key === 'qualifying')?.value;
+    const season = F(p, 'season');
+    const stats = [
+      F(p, 'distance') && `<div class="stat"><b>${esc(F(p, 'distance'))}</b><span>Route distance</span></div>`,
+      q ? `<div class="stat"><b>${esc(String(q / 60))} H</b><span>Qualifying swim listed</span></div>` : null,
+      season && p.angle === 'season' ? `<div class="stat"><b style="font-size:72px">${esc(season.replace(/^Season listed on SwimLoading: /, ''))}</b><span>Season listed on SwimLoading</span></div>` : null,
+    ].filter(Boolean).slice(0, 2);
+    const foot = [F(p, 'observer'), F(p, 'governing')].filter(Boolean).join('. ');
     return frame(`<div class="slide">${wave}
       <div class="tag">${esc(p.category)}</div>
       <h1 style="margin-top:70px">${esc(F(p, 'name'))}</h1>
-      <div class="sub" style="margin-top:20px">${esc(F(p, 'route'))}</div>
+      ${F(p, 'route') ? `<div class="sub" style="margin-top:20px">${esc(F(p, 'route'))}</div>` : ''}
       <svg width="936" height="110" style="margin:46px 0 10px"><line x1="30" y1="55" x2="906" y2="55" stroke="#38bdf8" stroke-width="5" stroke-dasharray="4 16" stroke-linecap="round"/><circle cx="30" cy="55" r="20" fill="#f97316"/><circle cx="906" cy="55" r="20" fill="#38bdf8"/></svg>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:20px">
-        <div class="stat"><b>${esc(F(p, 'distance'))}</b><span>Route distance</span></div>
-        <div class="stat"><b>${esc(String(p.facts.find((f) => f.key === 'qualifying').value / 60))} H</b><span>Witnessed continuous swim in the qualifying requirement</span></div>
-      </div>
-      <div class="sub" style="margin-top:36px">${esc(F(p, 'observer'))}. Check the governing body's current rules before you plan.</div>
-      ${brand(a, 'swimloading.com/english-channel')}</div>`);
+      <div style="display:grid;grid-template-columns:${stats.length > 1 ? '1fr 1fr' : '1fr'};gap:28px;margin-top:20px">${stats.join('')}</div>
+      <div class="sub" style="margin-top:36px">${foot ? esc(foot) + '. ' : ''}Check the governing body's current rules before you plan.</div>
+      ${brand(a, p.sourceUrl.replace('https://www.', '').replace(/\?.*/, ''))}</div>`);
   },
   [CATEGORIES.BEHIND_THE_BRAND](p, a) {
     return frame(`<div class="slide">${wave}
       <div class="tag o">${esc(p.category)}</div>
-      <div style="margin-top:56px;background:#fff;border-radius:28px;padding:44px;display:flex;justify-content:center"><img src="${a.partnerLogo}" style="height:150px;max-width:760px;object-fit:contain" alt="${esc(p.partner.name)}"></div>
-      <h1 class="m" style="margin-top:64px">${esc(F(p, 'claim'))}</h1>
+      <div style="margin-top:56px;background:#fff;border-radius:28px;padding:44px;display:flex;justify-content:center">${a.partnerLogo ? `<img src="${a.partnerLogo}" style="height:150px;max-width:760px;object-fit:contain" alt="${esc(p.partner.name)}">` : `<span style="font:400 110px/1 'Bebas Neue';color:#080f1a">${esc(p.partner.name)}</span>`}</div>
+      ${F(p, 'claim') ? `<h1 class="m" style="margin-top:64px">${esc(F(p, 'claim'))}</h1>
       <div class="sub" style="margin-top:30px">${esc(F(p, 'range'))}</div>
-      <div class="sub cy" style="margin-top:14px">${esc(F(p, 'stock'))}</div>
+      <div class="sub cy" style="margin-top:14px">${esc(F(p, 'stock'))}</div>`
+        : `<h1 class="m" style="margin-top:64px">${esc(p.partner.name)}</h1>
+      <div class="sub" style="margin-top:30px">${esc(F(p, 'blurb'))}</div>`}
       <div class="sub" style="margin-top:auto;font-size:28px">Official SwimLoading partner</div>
-      ${brand(a, 'swimloading.com/partners/maurten')}</div>`);
+      ${brand(a, p.sourceUrl.replace('https://www.', ''))}</div>`);
+  },
+  [CATEGORIES.OPEN_WATER_INTEL](p, a) {
+    return frame(`<div class="slide">${wave}
+      <div class="tag">${esc(p.category)}</div>
+      <h1 class="s" style="margin-top:34px;font-size:88px;line-height:.95">Measured water<br><span class="cy">temperatures</span></h1>
+      <div class="sub" style="margin-top:10px;font-size:30px">Latest station readings, ${esc(p.asOf)}</div>
+      <div style="display:flex;flex-direction:column;gap:14px;margin-top:30px">
+        ${p.readings.map((r) => `<div class="row" style="padding:16px 30px;gap:26px"><div class="n" style="width:215px;font-size:72px;white-space:nowrap">${esc(r.temp)}</div><div class="fit" style="flex:1;min-width:0"><div class="t" style="font-size:46px">${esc(r.spot)}</div><div class="a" style="font-size:23px;margin-top:4px">${esc(r.place)}</div><div class="a" style="font-size:23px;margin-top:1px">${esc(r.source)} · ${esc(r.observed)}</div></div></div>`).join('')}
+      </div>
+      ${brand(a, 'swimloading.com/spots')}</div>`);
   },
   [CATEGORIES.DISCOVERS](p, a) {
     return frame(`<div class="slide">
       <div class="tag">${esc(p.category)}</div>
-      <h1 class="m" style="margin-top:56px">Outdoor swimming<br><span class="cy">around ${esc(p.region)}</span></h1>
+      <h1 class="m" style="margin-top:56px">Outdoor swimming<br><span class="cy">${esc(p.regionPrep || 'around')} ${esc(p.region)}</span></h1>
       <div style="display:flex;flex-direction:column;gap:26px;margin-top:56px">
         ${p.spots.map((s, i) => `<div class="row"><div class="n">${i + 1}</div><div class="fit"><div class="t">${esc(s.name)}</div><div class="a">${esc(s.type)}${s.area ? ' · ' + esc(s.area) : ''}</div></div></div>`).join('')}
       </div>
@@ -134,7 +151,6 @@ export function renderHtml(post, assets) {
 import { mapView, MAP_ATTRIBUTION } from './map.js';
 
 const CSS2 = `
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap');
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{width:1080px;height:1350px;background:#080f1a;color:#f1f5f9;font-family:'DM Sans',sans-serif;overflow:hidden}
 .s2{position:relative;width:1080px;height:1350px;overflow:hidden;background:#080f1a}
@@ -163,7 +179,7 @@ html,body{width:1080px;height:1350px;background:#080f1a;color:#f1f5f9;font-famil
 .rt{position:absolute;font:500 20px 'DM Sans';letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.8);background:rgba(8,15,26,.7);border-radius:40px;padding:6px 14px}
 `;
 
-const frame2 = (inner) => `<!doctype html><html><head><meta charset="utf-8"><style>${CSS2}</style></head><body>${inner}</body></html>`;
+const frame2 = (inner) => `<!doctype html><html><head><meta charset="utf-8"><style>${fontCss()}${CSS2}</style></head><body>${inner}</body></html>`;
 const hSize = (t) => (t.length <= 14 ? 150 : t.length <= 22 ? 124 : t.length <= 34 ? 100 : 82);
 const brand2 = (a, url) => `<div class="b2"><div class="l"><img src="${a.logo}" alt="">SwimLoading</div><div class="u">${esc(url)}</div></div>`;
 const orangeCat = (c) => [CATEGORIES.BEHIND_THE_BRAND, CATEGORIES.THIS_WEEK].includes(c);
@@ -178,12 +194,17 @@ export function visualCopy(post, i = null) {
     }
     case CATEGORIES.CROSSING_INTELLIGENCE: {
       const q = post.facts.find((f) => f.key === 'qualifying')?.value;
+      if (post.angle === 'season') return { headline: F('name'), sub: F('season').replace('Season listed on SwimLoading: ', 'Season: '), chip: F('distance') };
+      if (post.angle === 'route') return { headline: F('name'), sub: F('route'), chip: F('distance') };
       return { headline: F('name'), sub: `${F('distance')} · ${q / 60} hour qualifying swim`, chip: null };
     }
     case CATEGORIES.BEHIND_THE_BRAND:
+      if (!F('claim')) return { headline: post.partner.name, sub: 'Official SwimLoading partner', chip: null };
       return { headline: F('claim'), sub: 'Official SwimLoading partner', chip: F('range') };
     case CATEGORIES.DISCOVERS:
-      return { headline: `Outdoor swimming around ${post.region}`, sub: 'Three places to start', chip: null };
+      return { headline: `Outdoor swimming ${post.regionPrep || 'around'} ${post.region}`, sub: 'Three places to start', chip: null };
+    case CATEGORIES.OPEN_WATER_INTEL:
+      return { headline: 'Measured water temperatures', sub: `Latest station readings, ${post.asOf}`, chip: null };
     case CATEGORIES.THIS_WEEK: {
       if (i == null) return { headline: `${post.events.length} listed swims`, sub: post.windowDays === 7 ? 'This week · swipe for dates and places' : `Next ${post.windowDays} days · swipe for dates and places`, chip: null };
       const e = post.events[i];
@@ -213,9 +234,15 @@ export function visualSlide(spec) {
       extra += `<svg style="position:absolute;inset:0" width="1080" height="1350"><line x1="${s.x}" y1="${s.y}" x2="${e.x}" y2="${e.y}" stroke="#38bdf8" stroke-width="6" stroke-dasharray="2 16" stroke-linecap="round"/></svg>`;
       extra += `<div class="rt" style="left:${(s.x + e.x) / 2 + 24}px;top:${(s.y + e.y) / 2 - 14}px">Indicative route</div>`;
     }
+    const placed = [];                                              // label boxes, so close-together spots do not hide each other
     proj.forEach((p, i) => {
       extra += `<div class="pin ${spec.geo.route && i === 1 ? 'c' : ''}" style="left:${p.x}px;top:${p.y}px">${p.n || ''}</div>`;
-      if (p.label) { const right = p.x < 640; extra += `<div class="pl" style="top:${p.y - 24}px;${right ? `left:${p.x + 28}px` : `right:${1080 - p.x + 28}px`}">${esc(p.label)}</div>`; }
+      if (p.label) {
+        const right = p.x < 640; let top = p.y - 24;
+        while (placed.some((q) => Math.abs(q.top - top) < 54 && Math.abs(q.x - p.x) < 340)) top += 58;
+        placed.push({ top, x: p.x });
+        extra += `<div class="pl" style="top:${top}px;${right ? `left:${p.x + 28}px` : `right:${1080 - p.x + 28}px`}">${esc(p.label)}</div>`;
+      }
     });
     credit = `<div class="cr" style="right:64px">${esc(MAP_ATTRIBUTION)}</div>`;
     shade = 'shade heavy';
@@ -223,7 +250,7 @@ export function visualSlide(spec) {
     const pos = asset?.focus ? `${asset.focus.x}% ${asset.focus.y}%` : '50% 50%';
     bg = `<div class="bg" style="background-image:url('${photoUri}');background-position:${pos}"></div>`;
     if (asset?.attribution) credit = `<div class="cr" style="left:64px">${esc(asset.attribution)}</div>`;
-    if (template === 'product-led') { shade = 'shade heavy'; topRight = `<div class="plate"><img src="${spec.partnerLogo}" alt="${esc(post.partner.name)}"></div>`; }
+    if (template === 'product-led') { shade = 'shade heavy'; topRight = `<div class="plate">${spec.partnerLogo ? `<img src="${spec.partnerLogo}" alt="${esc(post.partner.name)}">` : `<span style="font:400 40px/1 'Bebas Neue';color:#080f1a;letter-spacing:1px">${esc(post.partner.name)}</span>`}</div>`; }
     else if (illustrative) topRight = '<div class="ill">Illustrative photo</div>';
     if (template === 'product-led' && illustrative) credit += '<div class="cr" style="right:64px">Illustrative photo, not a product image</div>';
   }

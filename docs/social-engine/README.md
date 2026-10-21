@@ -89,3 +89,7 @@ Built and unit-tested; **nothing posts**: `social_settings.paused` ships TRUE, a
 Flow: `render-social-poc.mjs` (local Chromium) -> `social-queue.mjs enqueue` (uploads slides to the public bucket, inserts rows: AUTO_ELIGIBLE -> APPROVED, REVIEW_REQUIRED -> PENDING_REVIEW) -> `approve`/`reserve` -> `schedule` (next Tue/Thu/Sat 10:00 SAST) -> cron publishes at the slot. Rendering stays off Vercel on purpose (Chromium on Vercel is unproven for this renderer, fonts must be bundled first).
 
 **To go live (all yours, none done):** create a Meta app + Facebook Page linked to an Instagram Business account and pass app review; set `META_PAGE_ID`, `META_IG_USER_ID`, `META_PAGE_TOKEN` (and optionally `META_GRAPH_VERSION`) as Vercel env secrets; `meta.js` was checked against Meta's docs on 19 Oct 2026 (Graph v26.0; see its header for what is still unconfirmed: Facebook multi-photo `attached_media`, and the Instagram daily cap) - confirm both on a test Page; pilot on a test Page/IG account; then `node scripts/social-queue.mjs resume --confirm-live`. Token expiry monitoring is not built yet.
+
+## Update: autopilot (weekly generator)
+
+See [AUTOPILOT.md](AUTOPILOT.md): `scripts/social-autopilot.mjs`, `api/_lib/social/autopilot*.js`, `series.js`, bundled fonts, dormant `api/cron/social-generate.js`. Tests: `test/social-autopilot.test.js`.

@@ -21,6 +21,22 @@ export const SOCIAL_DEFAULTS = {
     maxUpscale: 1.6,         // a full-bleed crop may enlarge the source at most this much
     acceptShareAlike: false, // CC BY-SA images need one policy decision from Dave; until then they route to review
   },
+  // Weekly autopilot (api/_lib/social/autopilot.js).
+  autopilot: {
+    horizonDays: 14,            // plan the next N days of slots
+    lateBindingHours: 30,       // measured-conditions posts are only built when their slot is this close (readings age)
+    reviewPerRun: 3,            // at most this many PENDING_REVIEW items created per run (never blocks the schedule)
+    reserveBatch: 6,            // at most this many reserves built per run
+    recentWindow: 20,           // posts looked at for mix and partner-share maths
+    exploreExcludeDays: 14,     // an Explore event already in a post this recent is not repeated
+    regionMaxPages: 3,          // distinct "three spots" posts per region before it counts as exhausted
+    regionMaxSpanKm: 700,       // the three spots must fit one regional map
+    conditions: {
+      maxStationKm: 10,         // reading must come from a primary station this close to the spot
+      minReadings: 3, maxReadings: 4,
+      publishMaxAgeHours: 48,   // RECENT ceiling from temperature-freshness.js: older is never shown
+    },
+  },
   event: {
     windowDays: 21,
     // An event today or tomorrow is not worth a post by the time it is seen. Earliest start = publish date + this.
@@ -43,6 +59,17 @@ export const CATEGORIES = {
   DISCOVERS: 'SWIMLOADING DISCOVERS',
   THIS_WEEK: 'THIS WEEK IN OPEN WATER',
   NEW_ON: 'NEW ON SWIMLOADING',
+};
+
+/** Mix group each category counts toward (keys of SOCIAL_DEFAULTS.mix). */
+export const MIX_GROUP = {
+  [CATEGORIES.THIS_WEEK]: 'explore',
+  [CATEGORIES.SWIM_SPOTLIGHT]: 'locations',
+  [CATEGORIES.DISCOVERS]: 'locations',
+  [CATEGORIES.CROSSING_INTELLIGENCE]: 'crossings',
+  [CATEGORIES.OPEN_WATER_INTEL]: 'ocean',
+  [CATEGORIES.BEHIND_THE_BRAND]: 'partners',
+  [CATEGORIES.NEW_ON]: 'clubsAndPlatform',
 };
 
 /** Next publish slots (Africa/Johannesburg, UTC+2, no DST) after `from`. Returns ISO strings in UTC. */
