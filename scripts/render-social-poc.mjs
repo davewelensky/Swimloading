@@ -5,7 +5,7 @@
 //   node scripts/render-social-poc.mjs            (needs network: fonts, map tiles; uses local Chrome)
 import { mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import { spotlightFromVenueMap, crossingFromDb, partnerFromPage, discoversRegion, spotFromDb, exploreUpcoming } from '../api/_lib/social/sources.js';
-import { validateWithImage, revalidateEvents, ungroundedNumbers } from '../api/_lib/social/validate.js';
+import { validateWithImage, revalidateEvents, ungroundedNumbers, derivedNumbers } from '../api/_lib/social/validate.js';
 import { buildCaptions } from '../api/_lib/social/captions.js';
 import { renderHtml, visualSlide, visualCopy } from '../api/_lib/social/templates.js';
 import { renderSlides } from '../api/_lib/social/render.js';
@@ -88,7 +88,7 @@ for (const [i, spec] of specs.entries()) {
 
     const captions = buildCaptions(post);
     const stripUrl = (t) => t.replace(/https?:\/\/\S+/g, '');
-    const windowNote = post.windowDays ? [String(post.windowDays)] : [];
+    const windowNote = derivedNumbers(post);
     const ungrounded = [...new Set([...ungroundedNumbers(stripUrl(captions.facebook), post.facts, windowNote), ...ungroundedNumbers(captions.instagram, post.facts, windowNote)])];
     const verdict = validateWithImage(post, primary, { now });
     const extraSelChecks = selections.slice(1).map((s) => s);

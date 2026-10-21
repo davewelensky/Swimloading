@@ -4,7 +4,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { resolve, extname } from 'node:path';
 import { CATEGORIES } from './config.js';
 import { selectImage, materialise } from './media.js';
-import { validateWithImage, ungroundedNumbers } from './validate.js';
+import { validateWithImage, ungroundedNumbers, derivedNumbers } from './validate.js';
 import { buildCaptions } from './captions.js';
 import { renderHtml, visualSlide, visualCopy } from './templates.js';
 import { renderSlides } from './render.js';
@@ -50,7 +50,7 @@ export async function renderPost(post, ctx) {
     : { html: visualSlide(s.spec), template: s.sel.template }));
 
   const captions = buildCaptions(post);
-  const windowNote = post.windowDays ? [String(post.windowDays)] : [];
+  const windowNote = derivedNumbers(post);
   const ungrounded = [...new Set([...ungroundedNumbers(stripUrl(captions.facebook), post.facts, windowNote), ...ungroundedNumbers(captions.instagram, post.facts, windowNote)])];
   const verdict = validateWithImage(post, primary, { now, ...(ctx.validateOpts || {}) });
   if (ungrounded.length) { verdict.reasons.push(`caption contains numbers not in facts: ${ungrounded}`); verdict.risk = 'BLOCKED'; }

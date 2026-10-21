@@ -115,3 +115,8 @@ export function validateWithImage(post, selection, opts = {}) {
   if (iv.checks.some((c) => !c.pass)) { out.risk = RISK.BLOCKED; out.reasons.push('failed image check: ' + iv.checks.filter((c) => !c.pass).map((c) => c.name).join(', ')); }
   return out;
 }
+
+/** Numbers a caption may state because they are counted from the post's own data, not typed in: the event window and the number of listed events. */
+export function derivedNumbers(post) {
+  return [...(post.windowDays ? [String(post.windowDays)] : []), ...(post.events ? [String(post.events.length)] : [])];
+}

@@ -233,7 +233,7 @@ async function exploreWindow({ from, windowDays, max, excludeIds = new Set() }) 
   };
 }
 
-export const NOT_OPEN_WATER_TITLE = /\(\s*25\s*m\s*\)|\b25\s*m(ts)?\b|\b50\s*m\b|art[ií]stic|synchro|\bdiving\b|water\s*polo|\bpool\b|\btriathlon\b|duathlon|aquathlon|acuatl[oó]n/i;
+export const NOT_OPEN_WATER_TITLE = /\(\s*25\s*m\s*\)|\b25\s*m(ts)?\b|\b50\s*m\b|art[ií]stic|synchro|\bdiving\b|water\s*polo|\bpool\b|\btriathlon\b|duathlon|aquathlon|acuatl[oó]n|swim\s+team/i;
 
 /** Why an Explore edition may NOT be promoted. null = eligible. */
 export function eventIneligibility(e, recentlyChanged = new Set(), today = null) {

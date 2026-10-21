@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { nextSlots, RISK, CATEGORIES } from '../api/_lib/social/config.js';
 import { fact, fmtDate } from '../api/_lib/social/facts.js';
 import { eventIneligibility, NOT_OPEN_WATER_TITLE, partnerFromPage } from '../api/_lib/social/sources.js';
-import { validatePost, revalidateEvents, ungroundedNumbers } from '../api/_lib/social/validate.js';
+import { validatePost, revalidateEvents, ungroundedNumbers, derivedNumbers } from '../api/_lib/social/validate.js';
 import { buildCaptions } from '../api/_lib/social/captions.js';
 import { renderHtml } from '../api/_lib/social/templates.js';
 
@@ -47,6 +47,7 @@ for (const [name, patch, re] of [
   ['no source URL', { official_url: null }, /source/],
   ['triathlon leg', { discipline: 'multisport_swim_leg' }, /not open water/],
   ['pool meet mis-tagged open_water', { title: 'Winter Blast 2026 (25m)' }, /pool/],
+  ['swim-team season listed as an event', { title: 'Lakewood Rangers Swim Team Winter 26-27' }, /pool|non-open/],
   ['artistic swimming mis-tagged', { title: 'PANAMERICANO MASTER – ARTISTICA' }, /pool|non-open/],
 ]) test(`event eligibility: ${name} is held back`, () => assert.match(eventIneligibility(goodEdition(patch)), re));
 
@@ -145,4 +146,15 @@ test('templates render every category, one slide per event plus a cover, without
   assert.equal(renderHtml(POSTS.discovers, ASSETS).length, 1);
   assert.equal(renderHtml(POSTS.week, ASSETS).length, 3);
   for (const p of Object.values(POSTS)) for (const h of renderHtml(p, ASSETS)) { assert.ok(!/undefined|null/.test(h.replace(/<style>[\s\S]*?<\/style>/, ''))); assert.ok(!/\p{Extended_Pictographic}/u.test(h)); }
+});
+
+test('an events caption may state the number of listed swims and the window, because both are counted from the post', () => {
+  const post = { category: CATEGORIES.THIS_WEEK, sourceUrl: 'https://www.swimloading.com/explore', windowDays: 14,
+    facts: [fact('e0.title', 'Swim A', { table: 'event_editions', row: 'x' })],
+    events: [{ date: 'Sun 1 Nov', title: 'Swim A', place: 'Cape Town, South Africa', distance: null }, { date: 'Mon 2 Nov', title: 'Swim B', place: 'X, Y', distance: null }, { date: 'Tue 3 Nov', title: 'C', place: 'P, Q', distance: null }, { date: 'Wed 4 Nov', title: 'D', place: 'R, S', distance: null }] };
+  const c = buildCaptions(post);
+  assert.deepEqual(derivedNumbers(post), ['14', '4']);
+  const stray = ungroundedNumbers(c.instagram, post.facts, derivedNumbers(post)).filter((n) => !/^(1|2|3|4)$/.test(n));
+  assert.deepEqual(stray, [], 'only the dates in the list remain, and those come from the event rows');
+  assert.ok(ungroundedNumbers(c.instagram, post.facts, []).includes('4'), 'without the derived numbers the same caption is still refused');
 });
