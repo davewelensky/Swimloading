@@ -7959,8 +7959,9 @@ async function loadSettingsPage() {
           if (allTimetableSessions.length) {
             const sessionIds = allTimetableSessions.map(s => s.id);
             sb.from('club_session_assignments')
-              .select('session_id')
+              .select('session_id, club_roster!inner(is_active)')
               .eq('club_id', currentClub.id)
+              .eq('club_roster.is_active', true)
               .in('session_id', sessionIds)
               .then(({ data: counts }) => {
                 (counts || []).forEach(a => {
@@ -8039,8 +8040,9 @@ async function loadTimetablePage() {
     if (allTimetableSessions.length) {
       const sessionIds = allTimetableSessions.map(s => s.id);
       const { data: counts } = await sb.from('club_session_assignments')
-        .select('session_id')
+        .select('session_id, club_roster!inner(is_active)')
         .eq('club_id', currentClub.id)
+        .eq('club_roster.is_active', true)
         .in('session_id', sessionIds);
       sessionAssignmentCounts = {};
       (counts || []).forEach(a => {
@@ -8362,7 +8364,7 @@ async function loadWeeklyReportPage() {
   if ((allWeekSessions || []).length && !Object.keys(sessionAssignmentCounts || {}).length) {
     const sessionIds = allWeekSessions.map(s => s.id);
     const { data: counts } = await sb.from('club_session_assignments')
-      .select('session_id').eq('club_id', currentClub.id).in('session_id', sessionIds);
+      .select('session_id, club_roster!inner(is_active)').eq('club_id', currentClub.id).eq('club_roster.is_active', true).in('session_id', sessionIds);
     sessionAssignmentCounts = {};
     (counts || []).forEach(a => { sessionAssignmentCounts[a.session_id] = (sessionAssignmentCounts[a.session_id] || 0) + 1; });
   }
@@ -10497,15 +10499,21 @@ async function renderRosterEditAttends(r, groupId, listId) {
   if (!window._clubFeatures?.hasDaySlotScheduling) { group.style.display = 'none'; return; }
 
   const squadIds = [r.squad_id, r.secondary_squad_id].filter(Boolean);
-  if (!squadIds.length) { group.style.display = 'none'; return; }
 
   if (!allWeekSessions.length) await loadSquads();
 
-  const sessions = allWeekSessions
-    .filter(s => squadIds.includes(s.squad_id))
-    .sort((a, b) => a.day_of_week - b.day_of_week || (a.start_time || '').localeCompare(b.start_time || ''));
+  const byTime = (a, b) => a.day_of_week - b.day_of_week || (a.start_time || '').localeCompare(b.start_time || '');
+  const sessions = allWeekSessions.filter(s => squadIds.includes(s.squad_id)).sort(byTime);
+  // Sessions the swimmer is still assigned to but whose squad they have since left. These used to
+  // be invisible here, so a stale slot (e.g. an old Learn to Swim time) could never be removed and
+  // kept inflating that coach's count on the timetable.
+  const orphans = allWeekSessions
+    .filter(s => !squadIds.includes(s.squad_id) && (allWeekAssignments[s.id] || []).includes(r.id))
+    .sort(byTime);
 
-  if (!sessions.length) {
+  if (!squadIds.length && !orphans.length) { group.style.display = 'none'; return; }
+
+  if (!sessions.length && !orphans.length) {
     group.style.display = '';
     list.innerHTML = `<div style="font-size:12px;color:var(--text-dim);">No sessions scheduled yet for this squad. Set them up in Settings → Timetable first.</div>`;
     return;
@@ -10525,9 +10533,7 @@ async function renderRosterEditAttends(r, groupId, listId) {
   };
   const hasCosmeticRows = sessions.some(s => !isLoadBearing(s));
 
-  list.innerHTML =
-    (hasCosmeticRows ? `<div style="font-size:11px;color:var(--text-dim);margin-bottom:6px;">Ticking is required for Learn to Swim and cross-squad sessions (e.g. Nippers), since those build their register from this list. For a regular squad session, everyone in the squad already appears on the register; ticking just records their real day here.</div>` : '') +
-    sessions.map(s => {
+  const rowHtml = s => {
     const squad = allSquads.find(q => q.id === s.squad_id);
     const isLTS = (squad?.name || '').toLowerCase().includes('learn to swim');
     const cosmetic = !isLoadBearing(s);
@@ -10542,7 +10548,12 @@ async function renderRosterEditAttends(r, groupId, listId) {
         <span style="flex:1;min-width:0;">${dayShort} ${(s.start_time||'').slice(0,5)}–${(s.end_time||'').slice(0,5)} · ${label}${s.coach_name ? ` (${s.coach_name})` : ''}${cosmetic ? ` <span style="color:var(--text-dim);font-size:11px;">· auto-included</span>` : ''}</span>
         ${isLTS ? `<input type="time" class="attends-slot" data-session-id="${s.id}" value="${existingSlot}" style="width:88px;padding:5px 6px;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;" ${checked ? '' : 'disabled'}>` : ''}
       </label>`;
-  }).join('');
+  };
+
+  list.innerHTML =
+    (hasCosmeticRows ? `<div style="font-size:11px;color:var(--text-dim);margin-bottom:6px;">Ticking is required for Learn to Swim and cross-squad sessions (e.g. Nippers), since those build their register from this list. For a regular squad session, everyone in the squad already appears on the register; ticking just records their real day here.</div>` : '') +
+    sessions.map(rowHtml).join('') +
+    (orphans.length ? `<div style="font-size:11px;color:var(--amber);margin:10px 0 4px;">Still assigned to sessions outside this swimmer's squad. Untick any that no longer apply, then Save.</div>` + orphans.map(rowHtml).join('') : '');
 }
 
 function onAttendsCheckToggle(cb) {
@@ -11337,8 +11348,9 @@ async function loadSquads() {
     if (allWeekSessions.length) {
       const allIds = allWeekSessions.map(s => s.id);
       const { data: assignData } = await sb.from('club_session_assignments')
-        .select('session_id, roster_id, time_slot')
+        .select('session_id, roster_id, time_slot, club_roster!inner(is_active)')
         .eq('club_id', currentClub.id)
+        .eq('club_roster.is_active', true)
         .in('session_id', allIds);
       (assignData || []).forEach(a => {
         if (!allWeekAssignments[a.session_id]) allWeekAssignments[a.session_id] = [];
