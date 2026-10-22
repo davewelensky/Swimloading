@@ -107,7 +107,7 @@ test('Meta: request shapes for single/carousel on both platforms; token only in 
   assert.match(dry.planned[3].params['attached_media[1]'], /media_fbid/);
   assert.equal(dry.planned[8].params.media_type, 'CAROUSEL');
   assert.ok(!JSON.stringify(dry.planned).includes('SECRET'), 'dry plan never contains the token');
-  const live = createMeta({ pageId: 'PAGE', igUserId: 'IG', token: 'SECRET', fetchImpl: async (u, init) => { assert.ok(!String(u).includes('SECRET')); return { ok: false, status: 400, json: async () => ({ error: { message: 'bad token SECRET', code: 190 } }) }; } });
+  const live = createMeta({ pageId: 'PAGE', igUserId: 'IG', token: 'SECRET', fetchImpl: async (u, init) => { assert.ok(!String(u).includes('SECRET')); if (!/graph\.facebook/.test(String(u))) return { ok: true, arrayBuffer: async () => new Uint8Array([1]).buffer }; return { ok: false, status: 400, json: async () => ({ error: { message: 'bad token SECRET', code: 190 } }) }; } });
   await assert.rejects(live.publishFacebook({ caption: 'c', imageUrls: ['u'] }), (e) => !e.message.includes('SECRET') && /190/.test(e.message));
   await assert.rejects(createMeta({ pageId: 'P', igUserId: 'I', token: 't', dry: true }).publishInstagram({ caption: 'c', imageUrls: Array(11).fill('u') }), /at most 10/);
 });
@@ -119,4 +119,19 @@ test('store: an empty 201/204 body (Prefer: return=minimal) is not a JSON error'
   const rows = createStore({ key: 'k', fetchImpl: async () => ({ ok: true, status: 200, text: async () => '[{"paused":true}]' }) });
   assert.equal((await rows.getSettings()).paused, true);
   await assert.rejects(createStore({ key: 'k', fetchImpl: async () => ({ ok: false, status: 401, text: async () => 'Invalid API key' }) }).getSettings(), /HTTP 401/);
+});
+
+test('Facebook photos are uploaded as bytes (multipart source), never by url, with the token in a header', async () => {
+  const calls = [];
+  const fetchImpl = async (u, init = {}) => {
+    calls.push({ u: String(u), init });
+    if (!/graph\.facebook/.test(String(u))) return { ok: true, arrayBuffer: async () => new Uint8Array([255, 216, 1]).buffer };
+    return { ok: true, json: async () => ({ id: `ph${calls.length}`, post_id: 'PAGE_1' }) };
+  };
+  const m = createMeta({ pageId: 'PAGE', token: 'SECRET', fetchImpl });
+  assert.equal((await m.publishFacebook({ caption: 'c', imageUrls: ['https://img.test/a.jpg'] })).externalId, 'PAGE_1');
+  const up = calls.find((c) => /graph/.test(c.u));
+  assert.ok(up.init.body instanceof FormData && up.init.body.get('source') instanceof Blob && !up.init.body.has('url'));
+  assert.equal(up.init.headers.Authorization, 'Bearer SECRET'); assert.ok(!up.u.includes('SECRET'));
+  await assert.rejects(createMeta({ pageId: 'PAGE', token: 'SECRET', fetchImpl: async () => ({ ok: false, status: 404 }) }).publishFacebook({ caption: 'c', imageUrls: ['https://img.test/x.jpg'] }), /could not download/);
 });

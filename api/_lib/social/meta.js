@@ -56,12 +56,28 @@ export function createMeta({ pageId, igUserId, token, version = process.env.META
     /** @returns {{externalId}} Facebook Page post id. One image = photo post; several = unpublished photos attached to one feed post. */
     async publishFacebook({ caption, imageUrls }) {
       if (!pageId) throw new Error('META_PAGE_ID not set');
+      // Photos are uploaded as BYTES (multipart `source`), not by `url`: Facebook's own fetcher rejected our public Supabase URLs
+      // (code 324, 22 Oct 2026) while the byte upload is what published the first post on 20 Oct.
+      const upload = async (imageUrl, fields) => {
+        planned.push({ method: 'POST', path: `${pageId}/photos`, params: { url: imageUrl, ...fields } });
+        if (dry) return { id: `dry-${planned.length}` };
+        const img = await fetchImpl(imageUrl);
+        if (!img.ok) throw new Error(`could not download ${imageUrl}: HTTP ${img.status}`);
+        const f = new FormData();
+        f.set('source', new Blob([Buffer.from(await img.arrayBuffer())], { type: 'image/jpeg' }), 'slide.jpg');
+        for (const [k, v] of Object.entries(fields)) f.set(k, v);
+        const res = await fetchImpl(`${BASE}/${version}/${pageId}/photos`, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: f });
+        let json = {};
+        try { json = await res.json(); } catch { /* non-JSON error body */ }
+        if (!res.ok || json.error) throw new Error(scrub(`Meta ${pageId}/photos: ${json.error?.message || `HTTP ${res.status}`}${json.error?.code ? ` (code ${json.error.code})` : ''}`));
+        return json;
+      };
       if (imageUrls.length === 1) {
-        const r = await call(`${pageId}/photos`, { url: imageUrls[0], caption, published: 'true' });
+        const r = await upload(imageUrls[0], { caption, published: 'true' });
         return { externalId: r.post_id || r.id };
       }
       const ids = [];
-      for (const url of imageUrls) ids.push((await call(`${pageId}/photos`, { url, published: 'false' })).id);
+      for (const url of imageUrls) ids.push((await upload(url, { published: 'false' })).id);
       const params = { message: caption };
       ids.forEach((id, i) => { params[`attached_media[${i}]`] = JSON.stringify({ media_fbid: id }); });
       return { externalId: (await call(`${pageId}/feed`, params)).id };
