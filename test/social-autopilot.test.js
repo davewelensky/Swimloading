@@ -276,9 +276,29 @@ test('DRY RUN against a fake store writes nothing and uses no network', async ()
     assert.ok(r.plan.some((p) => p.action === 'schedule'));
   } finally { globalThis.fetch = realFetch; }
 });
-test('the autopilot cron is not registered in vercel.json (ships dormant) but has maxDuration set', () => {
+test('the autopilot function has a long maxDuration and bundles Chromium (cron registration is asserted below)', () => {
   const v = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
-  assert.ok(!v.crons.some((c) => /social-generate/.test(c.path)));
   assert.ok(v.functions['api/cron/social-generate.js'].maxDuration >= 120);
   assert.match(v.functions['api/cron/social-generate.js'].includeFiles, /chromium/);
+});
+
+test('vercel.json schedules the generator weekly (Monday 08:00 UTC = 10:00 SAST) with Chromium and fonts bundled', async () => {
+  const cfg = JSON.parse(readFileSync('vercel.json', 'utf8'));
+  const cron = cfg.crons.find((c) => c.path === '/api/cron/social-generate');
+  assert.ok(cron, 'social-generate must be in crons');
+  assert.equal(cron.schedule, '0 8 * * 1');
+  const fn = cfg.functions['api/cron/social-generate.js'];
+  assert.ok(fn.maxDuration >= 300 && fn.memory >= 1769);
+  assert.match(fn.includeFiles, /sparticuz\/chromium/); assert.match(fn.includeFiles, /social\/fonts/);
+});
+test('the generator cron refuses unauthenticated calls and is a dry run unless SOCIAL_AUTOPILOT_ENABLED=true', async () => {
+  const { default: handler } = await import('../api/cron/social-generate.js');
+  process.env.CRON_SECRET = 'cs';
+  const mk = () => ({ code: null, body: null, status(c) { this.code = c; return this; }, json(b) { this.body = b; return this; } });
+  const noAuth = mk(); await handler({ method: 'GET', headers: {}, query: {} }, noAuth);
+  assert.equal(noAuth.code, 401);
+  const keep = process.env.SUPABASE_SERVICE_KEY; delete process.env.SUPABASE_SERVICE_KEY;
+  const noKey = mk(); await handler({ method: 'GET', headers: { authorization: 'Bearer cs' }, query: {} }, noKey);
+  assert.equal(noKey.code, 503);
+  if (keep) process.env.SUPABASE_SERVICE_KEY = keep;
 });

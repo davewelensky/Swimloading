@@ -57,3 +57,8 @@ node scripts/social-autopilot.mjs --write              # renders locally, upload
 3. **CC BY-SA photos** still route to review (`media.acceptShareAlike = false`) until you decide the policy.
 4. **Clubs/platform** (10% of the mix) has no automatable source yet, so its share is redistributed. Candidates: club milestones from `club_*` tables, platform stats from `site-config.js`.
 5. `spots.area` holds raw codes for some rows (`SAN_DIEGO`); the series prettify them for display, the column itself is untouched.
+
+## Update 27 Oct 2026: weekly cron registered
+
+`/api/cron/social-generate` now runs **Mondays 08:00 UTC (10:00 SAST)** (`vercel.json`). It does nothing but report a plan until `SOCIAL_AUTOPILOT_ENABLED=true` is set on Vercel. A Monday run builds the next two weeks, and Tuesday's measured-conditions post (slot 24 h later, inside its 30 h window). Thursday and Saturday conditions posts would need a daily schedule (`0 8 * * *`); the handler is idempotent, so switching to daily is safe.
+First live run on Vercel is the first time this renderer runs outside macOS Chrome: check the function logs and your email on the day.
