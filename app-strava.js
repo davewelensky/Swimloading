@@ -403,6 +403,7 @@ function closeStravaLogModal() {
 function renderStravaLogForm(a) {
     const formEl = document.getElementById('stravaLogForm');
     if (!formEl) return;
+    _selectedGear = null;
 
     const date    = a.start_date_local ? new Date(a.start_date_local).toLocaleDateString('en-ZA', { weekday:'long', day:'numeric', month:'long' }) : '–';
     const distKm  = a.distance_m ? (a.distance_m / 1000).toFixed(1) : '';
@@ -464,6 +465,19 @@ function renderStravaLogForm(a) {
             </div>
         </div>
 
+        <!-- Wetsuit tag: open water only (hidden for pools); tap again to clear -->
+        <div class="form-group" id="stravaGearGroup">
+            <div class="form-label">What did you wear? <span style="color:var(--text-secondary);font-weight:400;">(optional)</span></div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;">
+                ${[['wetsuit', 'Wetsuit'], ['skins', 'No wetsuit']].map(([key, label]) => `
+                    <button type="button" onclick="stravaSelectGear(this, '${key}')"
+                        data-gear="${key}"
+                        style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:var(--text-secondary);border-radius:20px;padding:7px 14px;font-size:13px;cursor:pointer;">
+                        ${label}
+                    </button>`).join('')}
+            </div>
+        </div>
+
         <!-- Notes -->
         <div class="form-group">
             <div class="form-label">Notes <span style="color:var(--text-secondary);font-weight:400;">(optional)</span></div>
@@ -481,6 +495,7 @@ function renderStravaLogForm(a) {
 
 let _selectedCondition = null;
 const _selectedHazards = new Set();
+let _selectedGear = null;   // 'wetsuit' | 'skins' | null (not said)
 
 // Called by app.js's selectSpotFromPicker() when the shared spot-picker sheet
 // was opened from this form (openSpotPicker('strava')).
@@ -502,17 +517,36 @@ function stravaApplyPoolMode(spotId) {
     const condGroup  = document.getElementById('stravaConditionsGroup');
     const hazGroup   = document.getElementById('stravaHazardsGroup');
     const condInput  = document.getElementById('stravaConditions');
+    const gearGroup  = document.getElementById('stravaGearGroup');
     if (!condGroup) return;
     if (isPool) {
         condGroup.style.display = 'none';
         hazGroup && (hazGroup.style.display = 'none');
+        gearGroup && (gearGroup.style.display = 'none');
+        _selectedGear = null;
         // Auto-set Calm silently
         _selectedCondition = 'Calm';
         if (condInput) condInput.value = 'Calm';
     } else {
         condGroup.style.display = '';
         hazGroup && (hazGroup.style.display = '');
+        gearGroup && (gearGroup.style.display = '');
     }
+}
+
+// Single-select wetsuit tag; tapping the active one again clears it.
+function stravaSelectGear(btn, gear) {
+    const wasActive = _selectedGear === gear;
+    document.querySelectorAll('#stravaLogForm [data-gear]').forEach(b => {
+        b.style.background  = 'rgba(255,255,255,0.06)';
+        b.style.borderColor = 'rgba(255,255,255,0.12)';
+        b.style.color       = 'var(--text-secondary)';
+    });
+    if (wasActive) { _selectedGear = null; return; }
+    btn.style.background  = 'rgba(56,189,248,0.2)';
+    btn.style.borderColor = 'var(--ocean-light)';
+    btn.style.color       = 'var(--ocean-light)';
+    _selectedGear = gear;
 }
 
 function stravaToggleCondition(btn, condition) {
@@ -578,6 +612,8 @@ async function submitStravaLog() {
                 conditions,
                 hazards:            [..._selectedHazards],
                 notes,
+                // Optional wetsuit tag, open water only; undefined is dropped by JSON.stringify
+                wetsuit:            (!isPool && _selectedGear) ? (_selectedGear === 'wetsuit') : undefined,
                 activity_name:      activity.name,
                 start_date_local:   activity.start_date_local,
             }),

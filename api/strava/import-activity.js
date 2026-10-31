@@ -48,6 +48,7 @@ export default async function handler(req, res) {
         conditions,
         hazards,
         notes,
+        wetsuit,
         // activity metadata passed from frontend as fallback if strava_imports row missing
         activity_name,
         start_date_local,
@@ -108,6 +109,8 @@ export default async function handler(req, res) {
         location_source: 'manual',
         logged_at:       stravaImport.start_date_local || stravaImport.start_date,
     };
+    // Optional wetsuit tag: only a real boolean is stored; anything else means "not said"
+    if (typeof wetsuit === 'boolean') logData.wetsuit = wetsuit;
 
     const { ok, body: logRows } = await supabasePost('temp_logs', logData);
     if (!ok || !logRows || logRows.length === 0) {

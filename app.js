@@ -6427,6 +6427,9 @@
                 // Render Strava connection card
                 if (typeof initStravaSection === 'function') initStravaSection();
 
+                // Personal pace-by-temperature card (renders nothing without comparable Strava swims)
+                if (typeof SLPace !== 'undefined') SLPace.render('pacePanel');
+
                 // Render club membership card (if member of any club)
                 if (typeof loadClubMembership === 'function') loadClubMembership();
 
@@ -7692,6 +7695,17 @@
             initIcons();
         }
 
+        // Optional wetsuit tag on the log form: pick one, tap the active one again to clear.
+        // Stored as temp_logs.wetsuit (true = wetsuit, false = no wetsuit, absent = not said).
+        function toggleGear(btn) {
+            const wasActive = btn.classList.contains('active');
+            document.querySelectorAll('#gearToggleGroup .gear-btn').forEach(b => b.classList.remove('active'));
+            if (!wasActive) btn.classList.add('active');
+        }
+        function clearGear() {
+            document.querySelectorAll('#gearToggleGroup .gear-btn').forEach(b => b.classList.remove('active'));
+        }
+
         // Show/hide conditions & hazards based on whether the selected spot is a pool.
         // Pools are always calm — no choppy/rough/extreme, no ocean hazards.
         function applyPoolFormMode(spotId) {
@@ -7701,12 +7715,15 @@
             const conditionsGroup  = document.getElementById('conditionsFormGroup');
             const hazardsGroup     = document.getElementById('hazardsFormGroup');
             const poolNotice       = document.getElementById('poolModeNotice');
+            const gearGroup        = document.getElementById('gearFormGroup');
 
             if (isPool) {
-                // Hide conditions grid, show pool notice, hide hazards
+                // Hide conditions grid, show pool notice, hide hazards and the wetsuit tag
                 if (conditionsGroup) conditionsGroup.style.display = 'none';
                 if (poolNotice)      poolNotice.style.display = 'block';
                 if (hazardsGroup)    hazardsGroup.style.display = 'none';
+                if (gearGroup)       gearGroup.style.display = 'none';
+                clearGear();
                 // Ensure Calm is active so submitTempLog reads 'Calm'
                 document.querySelectorAll('#conditionsGrid .toggle-btn').forEach((btn, i) => {
                     btn.classList.toggle('active', i === 0);
@@ -7716,6 +7733,7 @@
                 if (conditionsGroup) conditionsGroup.style.display = 'block';
                 if (poolNotice)      poolNotice.style.display = 'none';
                 if (hazardsGroup)    hazardsGroup.style.display = 'block';
+                if (gearGroup)       gearGroup.style.display = 'block';
             }
         }
 
@@ -8342,7 +8360,7 @@
             if (!logId) return;
             const { data: log, error } = await supabaseClient
                 .from('temp_logs')
-                .select('id, temp_c, conditions, notes, created_at, logged_at, spot_id, user_id')
+                .select('id, temp_c, conditions, notes, created_at, logged_at, spot_id, user_id, wetsuit')
                 .eq('id', logId)
                 .eq('user_id', currentUser.id)
                 .maybeSingle();
@@ -8355,6 +8373,10 @@
             document.getElementById('myLogEditTemp').value = log.temp_c;
             document.getElementById('myLogEditCond').value = (log.conditions || 'calm').toLowerCase();
             document.getElementById('myLogEditNotes').value = log.notes || '';
+            // Wetsuit tag: hidden for pool spots, where it means nothing
+            const editSpotType = spot ? String(spot.water_type || '').toUpperCase() : '';
+            document.getElementById('myLogEditGearRow').style.display = editSpotType.includes('POOL') ? 'none' : 'flex';
+            document.getElementById('myLogEditGear').value = log.wetsuit === true ? 'wetsuit' : log.wetsuit === false ? 'skins' : '';
             const saveBtn = document.getElementById('myLogSaveBtn');
             const delBtn = document.getElementById('myLogDeleteBtn');
             saveBtn.disabled = false; saveBtn.textContent = 'Save changes';
@@ -8372,6 +8394,8 @@
             const temp = parseFloat(document.getElementById('myLogEditTemp').value);
             const conditions = document.getElementById('myLogEditCond').value;
             const notes = document.getElementById('myLogEditNotes').value.trim();
+            const gearVal = document.getElementById('myLogEditGear').value;   // '' | 'wetsuit' | 'skins'
+            const wetsuit = gearVal === 'wetsuit' ? true : gearVal === 'skins' ? false : null;
             if (isNaN(temp) || temp < 0 || temp > 40) {
                 showToast('Temperature must be between 0°C and 40°C', 'error');
                 return;
@@ -8380,7 +8404,7 @@
             btn.disabled = true; btn.textContent = 'Saving…';
             const { error } = await supabaseClient
                 .from('temp_logs')
-                .update({ temp_c: temp, conditions, notes: notes || null })
+                .update({ temp_c: temp, conditions, notes: notes || null, wetsuit })
                 .eq('id', _myLogSheetLog.id)
                 .eq('user_id', currentUser.id);
             if (error) {
@@ -8621,6 +8645,10 @@
                 logData.lng = currentGpsLocation.lng;
             }
 
+            // Optional wetsuit tag: only sent when the swimmer picked one (the group is hidden for pools)
+            const gearChoice = document.querySelector('#gearToggleGroup .gear-btn.active')?.dataset.gear;
+            if (gearChoice) logData.wetsuit = (gearChoice === 'wetsuit');
+
             const { data, error } = await supabaseClient
                 .from('temp_logs')
                 .insert(logData)
@@ -8632,6 +8660,7 @@
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Share Conditions';
             } else {
+                clearGear();
                 // True backdate = picker was used AND the chosen date is a past calendar day (UTC)
                 const todayUTC = new Date().toISOString().slice(0, 10);
                 const loggedAtIsToday = loggedAt && new Date(loggedAt).toISOString().slice(0, 10) === todayUTC;
