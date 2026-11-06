@@ -27,7 +27,12 @@ export function createStore({ key = process.env.SUPABASE_SERVICE_KEY, fetchImpl 
     /** Set the idempotency key only if unset (or already ours). False means another run owns this slot. */
     async claim(post, idemKey) {
       if (post.idempotency_key === idemKey) return true;
-      const rows = await rest(`social_posts?id=eq.${post.id}&idempotency_key=is.null`, { method: 'PATCH', body: JSON.stringify({ idempotency_key: idemKey }), headers: { Prefer: 'return=representation' } });
+      // A key from an EARLIER slot (the post failed, was reset and re-slotted) must not lock the post out forever: that silently
+      // skipped a scheduled post on 5 Nov 2026. If nothing was ever published, swap the old key for the new one, atomically
+      // (the PATCH only matches while the row still holds the old key, so two runs cannot both win).
+      if (post.idempotency_key && (post.fb_result?.externalId || post.ig_result?.externalId)) return false;   // already went out: never re-claim
+      const guard = post.idempotency_key ? `idempotency_key=eq.${encodeURIComponent(post.idempotency_key)}` : 'idempotency_key=is.null';
+      const rows = await rest(`social_posts?id=eq.${post.id}&${guard}`, { method: 'PATCH', body: JSON.stringify({ idempotency_key: idemKey }), headers: { Prefer: 'return=representation' } });
       return rows.length === 1;
     },
   };

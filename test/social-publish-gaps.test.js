@@ -133,3 +133,18 @@ test('the first ever attempt does not look for an existing post (no needless Gra
   await runPublisher({ store: mk([post()]), meta, now: NOW, publicUrl: URL_, platforms: ['fb'] });
   assert.equal(looked, 0);
 });
+
+test('CLAIM: a stale key from an earlier slot does not lock a failed, re-slotted post out; a published post is never re-claimed', async () => {
+  const calls = [];
+  const mk = (rows) => createStore({ key: 'k', fetchImpl: async (url, init) => { calls.push({ url, init }); return { ok: true, status: 200, text: async () => JSON.stringify(rows) }; } });
+  const stale = { id: 'p', idempotency_key: 'p:2026-10-24T08:00:00+00:00', fb_result: { error: 'x' } };
+  assert.equal(await mk([{ id: 'p' }]).claim(stale, 'p:2026-11-05T08:00:00+00:00'), true);
+  assert.match(calls.at(-1).url, /idempotency_key=eq\.p%3A2026-10-24/, 'compare-and-set on the OLD key, so two runs cannot both win');
+  assert.equal(await mk([]).claim(stale, 'p:2026-11-05T08:00:00+00:00'), false, 'someone else already swapped it');
+  const before = calls.length;
+  assert.equal(await mk([{ id: 'p' }]).claim({ ...stale, fb_result: { externalId: 'FB_1' } }, 'p:new'), false);
+  assert.equal(calls.length, before, 'no database call for an already-published post');
+  assert.equal(await mk([{ id: 'p' }]).claim({ id: 'p', idempotency_key: null }, 'p:k'), true);
+  assert.match(calls.at(-1).url, /idempotency_key=is\.null/);
+  assert.equal(await mk([]).claim({ id: 'p', idempotency_key: 'same' }, 'same'), true, 'the same key is still ours');
+});
