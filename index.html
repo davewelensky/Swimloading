@@ -61,12 +61,12 @@
     <!-- Lucide Icons -->
     <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
 
-    <script src="app.js?v=92"></script>
+    <script src="app.js?v=93"></script>
     <script src="app-june.js?v=27"></script>
     <script src="app-uk-challenge.js?v=3"></script>
     <script src="app-eo.js?v=4"></script>
 
-    <link rel="stylesheet" href="style.css?v=19">
+    <link rel="stylesheet" href="style.css?v=20">
     <link rel="stylesheet" href="v2.css?v=30">
 </head>
 
@@ -380,6 +380,8 @@
             <div id="stravaConnectionCard" style="margin-bottom:16px;">
                 <!-- Populated by initStravaSection() -->
             </div>
+            <!-- Personal pace-by-temperature card (app-pace.js). Stays empty unless the swimmer has comparable Strava swims. -->
+            <div id="pacePanel" style="margin-bottom:16px;"></div>
 
             <!-- Save Profile — at the bottom so it's clear what it covers -->
             <button class="btn btn-success" onclick="saveProfile()"
@@ -746,6 +748,14 @@
                     <option value="choppy">Choppy</option>
                     <option value="rough">Rough</option>
                     <option value="extreme">Extreme</option>
+                </select>
+            </div>
+            <div id="myLogEditGearRow" style="display:flex; gap:10px; align-items:center; margin-bottom:12px;">
+                <label style="font-size:13px; color:var(--text-secondary); width:80px; flex-shrink:0;">Wore</label>
+                <select id="myLogEditGear" style="flex:1; background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:10px; padding:12px; color:var(--text-primary); font-size:15px;">
+                    <option value="">Not said</option>
+                    <option value="wetsuit">Wetsuit</option>
+                    <option value="skins">No wetsuit</option>
                 </select>
             </div>
             <div style="margin-bottom:18px;">
@@ -1246,6 +1256,18 @@
                             <div class="toggle-btn" onclick="this.classList.toggle('active')"><i data-lucide="alert-triangle" style="width:16px;height:16px;vertical-align:middle;margin-right:3px;"></i> Shark</div>
                             <div class="toggle-btn" onclick="this.classList.toggle('active')"><i data-lucide="waves" style="width:16px;height:16px;vertical-align:middle;margin-right:3px;"></i> Strong Current</div>
                             <div class="toggle-btn" onclick="this.classList.toggle('active')"><i data-lucide="trash-2" style="width:16px;height:16px;vertical-align:middle;margin-right:3px;"></i> Sewage</div>
+                        </div>
+                    </div>
+
+                    <!-- Optional wetsuit tag. Open water only (hidden for pools by applyPoolFormMode).
+                         Feeds the personal "Pace by water temperature" card; tap again to clear. -->
+                    <div class="form-group" id="gearFormGroup">
+                        <div class="form-label"><i data-lucide="shirt"
+                                style="width: 14px; height: 14px; vertical-align: middle; margin-right: 4px;"></i>
+                            What did you wear? (Optional)</div>
+                        <div class="toggle-group" id="gearToggleGroup">
+                            <div class="toggle-btn gear-btn" data-gear="wetsuit" onclick="toggleGear(this)">Wetsuit</div>
+                            <div class="toggle-btn gear-btn" data-gear="skins" onclick="toggleGear(this)">No wetsuit</div>
                         </div>
                     </div>
 
@@ -2221,7 +2243,8 @@
 
     <!-- Service Worker Registration -->
     <script src="app-fuel.js?v=5"></script>
-    <script src="app-strava.js?v=25"></script>
+    <script src="app-strava.js?v=26"></script>
+    <script src="app-pace.js?v=1"></script>
     <script src="app-identity.js?v=8"></script>
     <script src="app-story.js?v=1"></script>
     <script src="app-story-timeline.js?v=5"></script>
