@@ -154,6 +154,7 @@ ul.bullets li strong{color:var(--text);font-weight:700;}
 .callout.warn{background:rgba(245,158,11,0.06);border-color:rgba(245,158,11,0.25);border-left-color:var(--warm);}
 .callout strong{display:block;font-size:10px;color:var(--ocean-light);letter-spacing:0.14em;text-transform:uppercase;margin-bottom:4px;font-weight:800;}
 .callout.warn strong{color:var(--warm);}
+.callout a{color:var(--ocean-light);text-decoration:none;}
 .swim-row{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--border);text-decoration:none;color:inherit;}
 .swim-row:last-child{border-bottom:none;}
 .swim-pos{font-size:14px;font-weight:800;width:24px;color:var(--text-sec);}
@@ -328,7 +329,7 @@ function renderRelated(currentSlug) {
   const meta = {
     'cost':              { title: 'How much does it cost?',          desc: 'Pilot fees, registration, training, total budget' },
     'training-plan':     { title: 'How to train for the Channel',    desc: '24-month plan, cold acclimatisation, taper' },
-    'qualifying-swim':   { title: 'The 6-hour qualifying swim',      desc: 'Rules, venues, observer, common reasons people fail' },
+    'qualifying-swim':   { title: 'The Channel qualifying swim',    desc: '8 hours for the CSA from 2027, 6 hours for the CS&PF: rules, venues, common reasons people fail' },
     'pilots':            { title: 'Pilot leaderboard',               desc: 'Live: most ratified crossings by pilot' },
     'records':           { title: 'Channel records: all-time',      desc: 'Fastest M/F, multi-way, by-decade' },
     'relay':             { title: 'Channel relay swims',             desc: 'Rules, teams, records, costs' },
@@ -436,7 +437,7 @@ const PAGES = {
       {
         h2: 'The qualifying swim cost',
         p: [
-          'Every Channel swimmer must complete a witnessed <strong>6-hour swim in cold water</strong>: ≤15.5°C within 12 months of the attempt (CSA), or ≤16°C within the previous 18 months (CS&PF).',
+          'Every solo Channel swimmer must complete a witnessed <strong>qualifying swim in cold water</strong>. For the CSA that is <strong>8 hours from 2027</strong> at 60°F (about 15.5°C) or less, within 12 months of the swim. For the CS&PF it is <strong>6 hours</strong> at 61°F/16°C or less, up to 18 months before your booked tide.',
           'For UK swimmers this is usually Dover Harbour on a summer weekend; cost is typically just travel + a small observer fee (£50–£100). International swimmers may need a flight to an organised qualifier at Lake Vyrnwy, Coniston, or similar.',
         ],
       },
@@ -515,7 +516,7 @@ const PAGES = {
       {
         h2: 'Cold-water acclimatisation: the make-or-break phase',
         p: [
-          'The qualifying swim requires <strong>6 hours in water ≤16°C</strong>. The actual Channel can be anywhere from 14°C to 18°C. The difference between finishers and DNFs is almost always cold tolerance, not pace.',
+          'The qualifying swim requires <strong>8 hours at 60°F (about 15.5°C) or less for the CSA from 2027, or 6 hours at 61°F/16°C or less for the CS&PF</strong>. The actual Channel can be anywhere from 14°C to 18°C. The difference between finishers and DNFs is almost always cold tolerance, not pace.',
           'Cold acclimatisation isn\'t about getting tough; it\'s a measurable physiological adaptation. Repeated exposure thickens insulating tissue and reduces the cold-shock response.',
         ],
         bullets: [
@@ -537,7 +538,7 @@ const PAGES = {
       },
       {
         h2: 'The qualifying swim: your last training milestone',
-        p: 'Your final formal training milestone is the qualifier: 6 continuous hours in ≤16°C water, witnessed by an approved observer. Plan it for May or June so you finish before your tide window. See the <a href="/english-channel/qualifying-swim">qualifying swim guide</a> for rules and venues.',
+        p: 'Your final formal training milestone is the qualifier: 8 continuous hours at 60°F (about 15.5°C) or less for the CSA from 2027, or 6 hours at 61°F/16°C or less for the CS&PF, with a witness. Plan it for May or June so you finish before your tide window. See the <a href="/english-channel/qualifying-swim">qualifying swim guide</a> for rules and venues.',
       },
       {
         h2: 'Tapering into your tide window',
@@ -562,31 +563,32 @@ const PAGES = {
   // ─── 3. QUALIFYING SWIM ──────────────────────────────────────────────────
   'qualifying-swim': {
     title: 'English Channel qualifying swim: rules and venues',
-    meta: '6 hours non-stop in cold water (≤15.5°C CSA, ≤16°C CS&PF), witnessed by an approved observer. Where to qualify (Dover Harbour, Lake Vyrnwy, Coniston), how to prepare, common reasons people fail.',
+    meta: 'CSA solos need 8 hours from 2027 at 60°F or less; CS&PF solos need 6 hours at 61°F/16°C or less. Where to qualify (Dover Harbour, Lake Vyrnwy, Coniston), how to prepare, common reasons people fail.',
     eyebrow: 'English Channel · Qualifier guide',
-    h1: 'The 6-hour qualifying swim',
-    lede: 'Before any Channel pilot will take you out, you must complete a <strong>6-hour non-stop swim in cold water</strong> (at or below 15.5°C for the CSA, 16°C for the CS&PF), witnessed by an approved observer, within 12 months (CSA) or the previous 18 months (CS&PF) of your attempt. No qualifier, no swim.',
+    h1: 'The Channel qualifying swim',
+    lede: 'Before any Channel pilot will take you out, you must complete a <strong>witnessed non-stop swim in cold water</strong>. For a CSA solo that is <strong>8 hours from 2027</strong> at 60°F (about 15.5°C) or less, within 12 months of your swim. For a CS&PF solo it is <strong>6 hours</strong> at 61°F/16°C or less, up to 18 months before your booked tide. No qualifier, no swim.',
 
     sections: [
       {
         h2: 'What the qualifying swim is, and why',
         p: [
           'The qualifier exists because pilots and observers need evidence that you can handle the cold and the duration before they commit a boat and crew to a 12+ hour effort. It\'s not a fitness test of speed; it\'s a proof of cold tolerance.',
-          'Both ratifying bodies (CSA and CS&PF) require it, with slightly different rules but the same core: 6 hours, cold water, witnessed. The CSA requires 15.5°C (60°F) or less within 12 months of your attempt; the CS&PF requires 16°C or less within the previous 18 months, swum in the same attire as your Channel swim.',
+          'Both ratifying bodies (CSA and CS&PF) require it, in cold water and witnessed, but they no longer ask for the same duration. The CSA requires 8 hours from 2027 at 60°F (about 15.5°C) or less, within 12 months of your swim. The CS&PF requires 6 hours at 61°F/16°C or less, up to 18 months before your booked tide, wearing no clothing or aids that add heat retention, buoyancy or speed.',
         ],
+        callout: { label: 'CSA rule change for 2027', warn: true, body: 'The CSA announced on 21 October 2026: "We have increased our qualifying swim for solo swimmers to 8 hours from 2027" (<a href="https://www.channelswimmingassociation.com/news/219/qualifying-swim-8-hours" target="_blank" rel="noopener">CSA notice</a>). The CS&PF confirmed on 9 October 2026 that its six-hour assessment swim remains in place (<a href="https://cspf.co.uk/article/246/6-hour-assessment-swim" target="_blank" rel="noopener">CS&PF notice</a>). Whether a 6-hour CSA qualifier swum before the change counts for a 2027 CSA swim is unconfirmed: the notice does not say, so ask the CSA before relying on one.' },
       },
       {
         h2: 'The rules in detail',
         bullets: [
-          '<strong>Duration:</strong> 6 hours continuous swimming. Touching the bank/wall counts; getting out does not.',
-          '<strong>Water temperature:</strong> 15.5°C (60°F) or colder for a CSA qualifier; 16°C (61°F) or colder for CS&PF. Temperature must be measured by the observer.',
+          '<strong>Duration:</strong> CSA: 8 hours of continuous swimming from 2027. CS&PF: 6 hours. Touching the bank/wall counts; getting out does not.',
+          '<strong>Water temperature:</strong> CSA: 60°F (about 15.5°C) or less. The CSA\'s step-by-step guide says "60°F or less" and its 2027 notice says "below 60°F", so aim to be clearly under. CS&PF: 61°F/16°C or less. Temperature must be measured by the observer.',
           '<strong>Equipment:</strong> Standard swimming costume (no neoprene), one cap, goggles, ear plugs. No wetsuit. No tow-floats unless approved.',
           '<strong>Witness:</strong> An approved observer must be present from start to finish. Some clubs and CSA/CS&PF officers do this for free; others charge.',
           '<strong>Feeds:</strong> Allowed every 30–45 minutes, taken from the side without supporting your weight on the boat or pontoon.',
-          '<strong>Timing:</strong> CSA: within 12 months of your attempt. CS&PF: within the previous 18 months, completed more than two weeks before your swim.',
+          '<strong>Timing:</strong> CSA: within 12 months of your swim, with some grace given. CS&PF: up to 18 months before the start of your booked tide; its 2026 form must be received at least 14 days before that tide and by 31 July, whichever is earlier.',
           '<strong>Medical certificate:</strong> Separate requirement: your GP must sign you off as fit for cold-water endurance swimming.',
         ],
-        callout: { label: 'Detail that catches people out', warn: true, body: 'If the water temperature rises above your body\'s required maximum during your swim, the clock stops. Some swimmers have to extend past 6h or come back another day. Confirm temperature monitoring with your observer before you start.' },
+        callout: { label: 'Detail that catches people out', warn: true, body: 'If the water temperature rises above your body\'s required maximum during your swim, the clock stops. Some swimmers have to extend their swim or come back another day. Confirm temperature monitoring with your observer before you start.' },
       },
       {
         h2: 'Where to do it',
@@ -607,7 +609,7 @@ const PAGES = {
         h2: 'Common reasons people fail the qualifier',
         bullets: [
           '<strong>Cold tolerance, not fitness.</strong> Swimmers who can do 6h in the pool can\'t always do 4h in 14°C water. Train cold for 6+ months first.',
-          '<strong>Skipping the feed plan.</strong> A 6-hour swim needs ~3–4 feeds. Practice with your actual race-day nutrition before the qualifier.',
+          '<strong>Skipping the feed plan.</strong> A swim this long needs a rehearsed feed plan. Practice with your actual race-day nutrition before the qualifier.',
           '<strong>Going too hard early.</strong> The qualifier is about completion, not pace. Settle into your Channel pace from minute one.',
           '<strong>Cold-shock from a bad entry.</strong> Acclimatise the entry first; never dive in cold.',
           '<strong>Mental wall around hour 4.</strong> Mental prep is half the work, so visualise the back end of the swim before you do it.',
@@ -622,12 +624,14 @@ const PAGES = {
     faqs: [
       { q: 'Does it have to be salt water?',
         a: 'No. Lake or reservoir qualifiers are valid. The temperature is the requirement, not the salinity.' },
-      { q: 'Can I do two 3-hour swims instead?',
+      { q: 'Can I split it into two shorter swims?',
         a: 'No. It must be continuous. Some bodies allow exit only briefly for the toilet, but planned multi-part swims don\'t count.' },
-      { q: 'What if I get out at 5h 45m?',
-        a: 'You haven\'t qualified. You\'ll need to redo the full 6 hours another day.' },
+      { q: 'What if I get out before the time is up?',
+        a: 'You haven\'t qualified. You\'ll need to redo the full swim another day: 8 hours for the CSA from 2027, 6 hours for the CS&PF.' },
       { q: 'I qualified last year. Does that still count?',
-        a: 'It depends on the dates. The CSA requires the qualifier within 12 months of your attempt; the CS&PF within the previous 18 months. Check your qualifier date against your tide window and confirm with your ratifying body.' },
+        a: 'It depends on the dates. The CSA requires the qualifier within 12 months of your swim, with some grace given; the CS&PF up to 18 months before your booked tide. Check your qualifier date against your tide window and confirm with your ratifying body.' },
+      { q: 'I already swam a 6-hour CSA qualifier. Does it count for a 2027 swim?',
+        a: 'Unconfirmed. The CSA\'s notice raises the solo qualifier to 8 hours from 2027 and does not say what happens to 6-hour qualifiers swum before the change. Ask the CSA before relying on one. The CS&PF\'s 6-hour assessment swim is unchanged.' },
       { q: 'How much does it cost?',
         a: '£0–£200 for the swim itself depending on venue. Add £50–£150 for the medical certificate (which is annual). See <a href="/english-channel/cost">cost guide</a>.' },
     ],
@@ -651,7 +655,7 @@ const PAGES = {
         h2: 'CSA vs CS&PF',
         p: [
           'The <strong>Channel Swimming Association (CSA)</strong> is the original governing body, founded 1927. The <strong>Channel Swimming & Piloting Federation (CS&PF)</strong> was formed in 1999 by pilots who wanted independent governance.',
-          'For the swimmer, the difference is mostly administrative. Both ratify swims, both publish records, both require qualifiers. Some pilots are registered with both. Pick the body your pilot prefers, or go with the body whose rules suit your situation.',
+          'For the swimmer, the biggest difference from 2027 is the solo qualifier: 8 hours for the CSA, 6 hours for the CS&PF. Otherwise it is mostly administrative. Both ratify swims, both publish records, both require qualifiers. Some pilots are registered with both. Pick the body your pilot prefers, or go with the body whose rules suit your situation.',
         ],
       },
       {
