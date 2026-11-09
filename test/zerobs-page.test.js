@@ -23,8 +23,13 @@ test('no logo file is invented: the wordmark is text until Zero BS supply one', 
   assert.doesNotMatch(page, /<img[^>]+zerobs/i);
 });
 
-test('does not mention things that are not agreed: athlete names, paid content, sample counts', () => {
+test('does not mention things that are not agreed: athlete names, paid content, the old 350 allocation', () => {
   assert.doesNotMatch(text, /carina|bruwer|stramrood|ryan|content fee|\b350\b/i);
+});
+
+test('Langebaan Express recap states the delivered count and carries no pack-back claims', () => {
+  assert.match(text, /\b360\b/);
+  assert.doesNotMatch(text, /dermatologist/i);
 });
 
 test('routed with no-cache, tracked under its own key, and counted in the stats dashboard', () => {
