@@ -1,8 +1,8 @@
 // Training guidance for a swimmer's injury or soreness note.
 //
-// Order matters: the fixed rules run first and a red flag never reaches the
-// model. Everything the model returns is filtered again before the swimmer
-// sees it. Swimmer notes are health data, so they are never logged.
+// Swimmers log an injury and the AI suggests how to reduce effort. Everything
+// the model returns is filtered before the swimmer sees it. Swimmer notes are
+// health data, so they are never logged.
 
 import Anthropic from '@anthropic-ai/sdk';
 import '../../../crossing-injury-rules.js';
@@ -11,7 +11,6 @@ const Rules = globalThis.CrossingInjuryRules;
 
 const SUPABASE_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
-const DAVE_ID = 'df137255-3add-4153-b368-32e06e2be188';
 
 const MODEL = 'claude-opus-5-5';
 const MAX_NOTE_CHARS = 2000;
@@ -27,7 +26,7 @@ const DAY_MS = 86400000;
 
 const SYSTEM_PROMPT = `You give training guidance inside SwimLoading's crossing preparation dashboard, to a swimmer preparing for a long open-water crossing who has described something that hurts or feels wrong.
 
-Fixed rules have already screened for red-flag symptoms. A swimmer who reaches you ticked none of them. If their words still suggest something a professional should see, set see_physio to true and say why in plain words.
+Your job is to help them reduce effort sensibly. SwimLoading does not assess injuries, and the swimmer knows to see a physio or doctor themselves. If what they describe is something a professional should see, set see_physio to true and say why in plain words, and still suggest how to ease off.
 
 Limits that always apply:
 - This is training guidance only. Never name a condition, suggest what is wrong, say what caused it, or use words such as "probably", "likely" or "consistent with" about the body. Describe what the swimmer reported and what the training data shows, side by side, and let the two sit next to each other without drawing a causal line.
@@ -35,7 +34,9 @@ Limits that always apply:
 - Do not say that asymmetry or paddles cause injury, and do not present technique cues as prevention.
 - Do not give medication, dosing, strapping or treatment advice.
 - Use only numbers that appear in the data you are given. Do not state km thresholds, load-increase limits or an acute:chronic ratio: none is validated for swimmers.
-- If hold_training is true, leave training_adjustments empty, set see_physio to true, and do not suggest how to keep training.
+- Only ever suggest reducing or holding effort, including resting. Never suggest adding volume or intensity.
+- If severity is significant, set see_physio to true.
+- If symptom_mentioned is set, set see_physio to true.
 
 What the evidence supports, so you can label it honestly:
 - Reducing distance and frequency, varying strokes, removing paddles and kickboards, and keeping time out of the water short are published expert opinion for sore swimmers (basis "research", and say it is expert opinion). No trial compares continuing to swim with stopping.
@@ -128,10 +129,10 @@ export function buildLoadSummary(imports, onsetDate, now = Date.now()) {
 }
 
 // The model is told not to name conditions. This is the check that does not rely on that.
-export function sanitiseGuidance(raw, { holdTraining }) {
+export function sanitiseGuidance(raw, { promptPhysio }) {
     const safe = s => (typeof s === 'string' && !Rules.containsConditionName(s) ? s : null);
     const list = a => (Array.isArray(a) ? a.map(safe).filter(Boolean) : []);
-    const adjustments = holdTraining ? [] : (raw.training_adjustments || [])
+    const adjustments = (raw.training_adjustments || [])
         .filter(a => safe(a.change) && safe(a.why))
         .map(a => ({ change: a.change, why: a.why, basis: a.basis === 'research' ? 'research' : 'judgment_call' }));
     const reason = safe(raw.see_physio_reason);
@@ -140,8 +141,8 @@ export function sanitiseGuidance(raw, { holdTraining }) {
         follow_up_questions: list(raw.follow_up_questions).slice(0, 2),
         load_observations: list(raw.load_observations),
         training_adjustments: adjustments,
-        see_physio: holdTraining || raw.see_physio === true,
-        see_physio_reason: reason || (holdTraining ? 'What you have described is enough to have it looked at before you carry on building your training.' : ''),
+        see_physio: promptPhysio || raw.see_physio === true,
+        see_physio_reason: reason || (promptPhysio ? 'What you have described is worth having looked at.' : ''),
     };
 }
 
@@ -149,19 +150,16 @@ function parseBody(body) {
     const notes = typeof body?.notes === 'string' ? body.notes.trim() : '';
     if (!notes || notes.length > MAX_NOTE_CHARS) return { error: 'notes_invalid' };
     if (body.consent !== true) return { error: 'consent_required' };
-    const known = new Set(Rules.RED_FLAGS.map(f => f.id));
-    const ids = v => (Array.isArray(v) ? v.filter(x => known.has(x)) : []);
     const onset = /^\d{4}-\d{2}-\d{2}$/.test(body.onset_date || '') ? body.onset_date : null;
     return {
         notes,
-        flags: ids(body.flags),
-        confirmedAbsent: ids(body.confirmed_absent),
         type: TYPES.includes(body.type) ? body.type : null,
         severity: SEVERITIES.includes(body.severity) ? body.severity : null,
         side: SIDES.includes(body.side) ? body.side : null,
         bodyPart: typeof body.body_part === 'string' ? body.body_part.slice(0, 40) : null,
         soreness: Rules.SORENESS.some(b => b.id === body.soreness) ? body.soreness : null,
         onset,
+        ticked: (Array.isArray(body.ticked) ? body.ticked : []).filter(id => Rules.TICK_LIST.some(t => t.id === id)),
         followUps: (Array.isArray(body.follow_ups) ? body.follow_ups : []).slice(0, 4)
             .filter(f => typeof f?.question === 'string' && typeof f?.answer === 'string')
             .map(f => ({ question: f.question.slice(0, 300), answer: f.answer.slice(0, MAX_ANSWER_CHARS) })),
@@ -197,16 +195,12 @@ export function createGuidanceHandler(deps = {}) {
         const user = await asUser('/auth/v1/user', token);
         if (!user?.id) return res.status(401).json({ error: 'sign_in_required' });
 
-        if (!Rules.CLINICAL_REVIEW.complete && user.id !== DAVE_ID) {
+        if (!Rules.OPEN_TO.includes(user.id)) {
             return res.status(403).json({ error: 'not_open_yet' });
         }
 
         const input = parseBody(req.body);
         if (input.error) return res.status(400).json({ error: input.error });
-
-        const check = Rules.assess({ flags: input.flags, text: input.notes, confirmedAbsent: input.confirmedAbsent });
-        if (check.tier) return res.status(200).json({ status: 'refer', tier: check.tier, flags: check.flags });
-        if (check.needsConfirm.length) return res.status(200).json({ status: 'confirm', flags: check.needsConfirm });
 
         if (overLimit(user.id, Date.now())) return res.status(429).json({ error: 'too_many_requests' });
 
@@ -218,12 +212,13 @@ export function createGuidanceHandler(deps = {}) {
             asUser(`/rest/v1/swimmer_health_events?select=type,body_part,side,severity,event_date&user_id=eq.${uid}&resolved_at=is.null&order=event_date.desc&limit=10`, token),
         ]);
 
-        const holdTraining = input.severity === 'significant' || input.soreness === 'refer';
+        const notice = Rules.noticeFor(input.notes, input.ticked);
+        const promptPhysio = input.severity === 'significant' || input.soreness === 'refer' || Boolean(notice);
         const load = buildLoadSummary(imports || [], input.onset);
         const attempt = attempts?.[0];
         const facts = {
-            hold_training: holdTraining,
-            reported: { type: input.type, body_part: input.bodyPart, side: input.side, severity: input.severity, onset_date: input.onset },
+            symptom_mentioned: notice ? notice.label : null,
+            reported: { type: input.type, body_part: input.bodyPart, side: input.side, severity: input.severity, onset_date: input.onset, symptoms_ticked: Rules.TICK_LIST.filter(t => input.ticked.includes(t.id)).map(t => t.label) },
             soreness_band: input.soreness ? Rules.SORENESS.find(b => b.id === input.soreness) : null,
             crossing: attempt ? { name: attempt.crossings?.name || null, target_date: attempt.target_date } : null,
             other_open_entries: open || [],
@@ -253,8 +248,8 @@ export function createGuidanceHandler(deps = {}) {
                 return res.status(200).json({ status: 'unavailable' });
             }
             const text = response.content.find(b => b.type === 'text')?.text;
-            const guidance = sanitiseGuidance(JSON.parse(text), { holdTraining });
-            return res.status(200).json({ status: 'guidance', guidance, load });
+            const guidance = sanitiseGuidance(JSON.parse(text), { promptPhysio });
+            return res.status(200).json({ status: 'guidance', guidance, notice, load });
         } catch (err) {
             console.error('crossing-injury: guidance failed', err?.status || err?.name);
             return res.status(200).json({ status: 'unavailable' });
