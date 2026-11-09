@@ -97,6 +97,11 @@ test('crossings: qualifying (legacy key), season and route from DB columns; the 
   assert.match(posts[1].facts.find((f) => f.key === 'season').text, /June to September/);
   for (const p of posts) { const c = buildCaptions(p); assert.ok(!EMOJI.test(c.facebook) && !/\u2014/.test(c.facebook)); assert.deepEqual(ungroundedNumbers(c.facebook.replace(/https?:\/\/\S+/g, ''), p.facts, []), []); }
 });
+test('crossings: per-body qualifier rules suppress the single-duration qualifying post', () => {
+  const rules = [{ body: 'CSA', duration_minutes: 480 }, { body: 'CS&PF', duration_minutes: 360 }];
+  assert.ok(!crossingAngles({ ...EC, qualifying_rules: rules }).some((p) => p.angle === 'qualifying-swim'));
+  assert.ok(crossingAngles({ ...EC, qualifying_rules: null }).some((p) => p.angle === 'qualifying-swim'));
+});
 test('crossings: only populated rows produce posts; thin or empty rows produce nothing', () => {
   assert.deepEqual(crossingAngles({ id: 'x', slug: 'custom-marathon-swim', name: 'Custom', is_active: true }), []);
   const onlySeason = crossingAngles({ id: 'm', slug: 'manhattan', name: 'Manhattan', is_active: true, distance_km: 48, season_start_month: 6, season_end_month: 9, governing_body: 'MIMS' });

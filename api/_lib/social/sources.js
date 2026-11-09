@@ -71,6 +71,7 @@ export async function crossingFromDb(slug) {
   const rows = await dbGet(`crossings?select=*&slug=eq.${slug}&is_active=eq.true`);
   const c = rows?.[0];
   if (!c) return { gap: `Crossing "${slug}" not found.` };
+  if (c.qualifying_rules?.length) return { gap: `Crossing "${slug}" has per-body qualifier rules; a single-duration post would be wrong.` };
   const s = (col) => ({ table: 'crossings', row: c.id, column: col });
   const facts = [
     fact('name', c.name, s('name')),

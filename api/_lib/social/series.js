@@ -187,7 +187,8 @@ export function crossingAngles(c) {
   const geo = [c.start_lat, c.start_lng, c.end_lat, c.end_lng].every((v) => v != null)
     ? { route: true, points: [{ lat: +c.start_lat, lng: +c.start_lng, label: c.start_location.split(',')[0] }, { lat: +c.end_lat, lng: +c.end_lng, label: c.end_location.split(',')[0] }] } : null;
   const out = [];
-  if (c.distance_km != null && c.qualifying_duration_minutes) {
+  // qualifying_rules means the governing bodies differ, so one duration would be wrong for some swimmers: no post.
+  if (c.distance_km != null && c.qualifying_duration_minutes && !c.qualifying_rules?.length) {
     const facts = [...base, ...(route ? [route] : []),
       fact('qualifying', `A ${hoursText(c.qualifying_duration_minutes)} hour qualifying swim is listed`, s('qualifying_duration_minutes'), { value: c.qualifying_duration_minutes }),
       ...(c.requires_observer ? [fact('observer', 'An observer is required', s('requires_observer'))] : [])];

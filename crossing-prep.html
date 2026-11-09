@@ -890,6 +890,23 @@ function daysUntil(dateStr) {
     return Math.max(0, Math.floor((d - now) / 86400000));
 }
 
+// Where governing bodies set different qualifiers for one crossing (English Channel: CSA 8 hours from 2027,
+// CS&PF 6 hours), crossings.qualifying_rules holds one entry per body. NULL means the single-rule columns apply.
+function qualifierRules(c) {
+    return Array.isArray(c?.qualifying_rules) && c.qualifying_rules.length ? c.qualifying_rules : null;
+}
+
+function qualifierText(c) {
+    const rules = qualifierRules(c);
+    if (!rules) return `${Math.round(c.qualifying_duration_minutes / 60)} hours in ≤${c.qualifying_temp_limit_c}°C`;
+    return rules.map(r => `${r.body} ${Math.round(r.duration_minutes / 60)} hours${r.applies_from_year ? ` from ${r.applies_from_year}` : ''} in ≤${r.temp_limit_f}°F (about ${r.temp_limit_c}°C)`).join(', or ');
+}
+
+function qualifierSwimPhrase(c) {
+    if (qualifierRules(c)) return `qualifying swim (${qualifierText(c)})`;
+    return `${Math.round(c.qualifying_duration_minutes / 60)}-hour qualifying swim in ≤${c.qualifying_temp_limit_c}°C`;
+}
+
 function formatDate(isoStr) {
     return new Date(isoStr).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
 }
@@ -1278,7 +1295,7 @@ function calculateCrossingGapAnalysis(capability, prepResult, crossing, evidence
     // Qualifier evidence
     if (needsQualifier) {
         const qualDone = evidence.some(e => e.evidence_type === 'qualifying_swim' && e.evidence_status === 'complete');
-        if (!qualDone) evidenceMissing.push(`${Math.round(crossing.qualifying_duration_minutes/60)}-hour qualifying swim in ≤${crossing.qualifying_temp_limit_c}°C with approved observer`);
+        if (!qualDone) evidenceMissing.push(`${qualifierSwimPhrase(crossing)} with approved observer`);
         else strengths.push('Qualifying swim completed and recorded');
     }
 
@@ -1427,7 +1444,7 @@ function renderDemand(logs, crossing, result) {
         const qualDone = _evidence.some(e => e.evidence_type === 'qualifying_swim' && e.evidence_status === 'complete');
         rows.push({
             label: 'Qualifying swim',
-            crossing: `${Math.round(crossing.qualifying_duration_minutes / 60)} hours in ≤${crossing.qualifying_temp_limit_c}°C`,
+            crossing: qualifierText(crossing),
             yours: qualDone ? 'Qualifying swim recorded' : 'Not yet recorded',
             gap: qualDone ? 'Complete' : 'Required: not yet logged',
             warn: !qualDone
@@ -1543,7 +1560,7 @@ function renderEvidenceTracker(evidence, crossing) {
     const cards = [
         { type: 'long_swim', label: 'Long swim', action: `Target: ≥ ${Math.round(crossing?.benchmark_long_swim_km || 15)} km continuous` },
         ...(isCold ? [{ type: 'cold_acclimation', label: 'Cold acclimation', action: `Exposure in ≤${crossing?.typical_temp_max_c}°C water` }] : []),
-        ...(needsQualifier ? [{ type: 'qualifying_swim', label: 'Qualifying swim', action: `${Math.round(crossing.qualifying_duration_minutes/60)} hrs in ≤${crossing.qualifying_temp_limit_c}°C` }] : []),
+        ...(needsQualifier ? [{ type: 'qualifying_swim', label: 'Qualifying swim', action: qualifierRules(crossing) ? qualifierText(crossing) : `${Math.round(crossing.qualifying_duration_minutes/60)} hrs in ≤${crossing.qualifying_temp_limit_c}°C` }] : []),
         { type: 'feed_practice', label: 'Feed practice', action: 'Feeding in the water: logistics and tolerance' },
         { type: 'open_water', label: 'Open water consistency', action: 'Regular ocean/open water sessions' },
         ...(isCold ? [{ type: 'rough_water', label: 'Rough water', action: 'Chop, swell, or wind-driven conditions' }] : []),
@@ -1607,7 +1624,7 @@ function renderFocus(logs, crossing, result, evidence) {
         if (needsQualifier) {
             const qualDone = evidence.some(e => e.evidence_type === 'qualifying_swim' && e.evidence_status === 'complete');
             if (!qualDone) {
-                priorities.push({ priority: 'high', title: 'Book qualifying swim observer', why: `This crossing requires a ${Math.round(crossing.qualifying_duration_minutes/60)}-hour qualifying swim in ≤${crossing.qualifying_temp_limit_c}°C, witnessed by an approved observer. Observer slots fill fast.`, current: 'Not yet booked', action: null });
+                priorities.push({ priority: 'high', title: 'Book qualifying swim observer', why: `This crossing requires a ${qualifierSwimPhrase(crossing)}, witnessed by an approved observer. Observer slots fill fast.`, current: 'Not yet booked', action: null });
             }
         }
         const feedDone = evidence.some(e => e.evidence_type === 'feed_practice' && e.evidence_status === 'complete');
@@ -1780,7 +1797,8 @@ function renderQualifier(logs, crossing, evidence) {
     }
     document.getElementById('qualifierSection').style.display = 'block';
 
-    const tempLimit = crossing.qualifying_temp_limit_c || 16;
+    // With per-body rules, count against the stricter limit so nobody is told they met a limit only one body accepts.
+    const tempLimit = qualifierRules(crossing) ? Math.min(...qualifierRules(crossing).map(r => r.temp_limit_c)) : (crossing.qualifying_temp_limit_c || 16);
     const durationHrs = Math.round(crossing.qualifying_duration_minutes / 60);
     const withTemp = logs.filter(l => l.temp_c !== null);
     const coldest = withTemp.length ? Math.min(...withTemp.map(l => l.temp_c)) : 99;
@@ -1833,7 +1851,7 @@ function renderQualifier(logs, crossing, evidence) {
         </div>`).join('');
 
     document.getElementById('qualifierFootnote').textContent =
-        `Qualifier requirement: ${durationHrs} continuous hours in ≤${tempLimit}°C water, witnessed by an approved observer. Contact the relevant governing body to confirm the approved venues and observer process for your crossing.`;
+        `Qualifier requirement: ${qualifierRules(crossing) ? qualifierText(crossing) : `${durationHrs} continuous hours in ≤${tempLimit}°C water`}, witnessed by an approved observer. Contact the relevant governing body to confirm the approved venues and observer process for your crossing.`;
 }
 
 // ─── RENDER: SESSIONS ─────────────────────────────────────────────────────────
@@ -2660,10 +2678,11 @@ function renderIntelTab() {
       <div class="section-title">Qualifying Swim Requirements</div>
       <div style="background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.2);border-radius:14px;padding:18px;">
         <p style="font-size:13px;color:var(--text);line-height:1.6;">
-          You must complete a qualifying swim of <strong>${Math.round(c.qualifying_duration_minutes/60)} hours</strong>
-          ${c.qualifying_temp_limit_c ? ` in water at or below <strong>${c.qualifying_temp_limit_c}°C</strong>` : ''}
+          ${qualifierRules(c) ? `You must complete a qualifying swim: <strong>${qualifierText(c)}</strong>` : `You must complete a qualifying swim of <strong>${Math.round(c.qualifying_duration_minutes/60)} hours</strong>
+          ${c.qualifying_temp_limit_c ? ` in water at or below <strong>${c.qualifying_temp_limit_c}°C</strong>` : ''}`}
           ${c.requires_observer ? ` with an <strong>approved observer</strong> present` : ''}.
           This must be submitted to your governing body for official recognition.
+          ${(qualifierRules(c) || []).filter(r => r.note).map(r => ` ${r.note}`).join('')}
         </p>
       </div>
     </div>` : ''}
