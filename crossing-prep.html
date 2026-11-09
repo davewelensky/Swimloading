@@ -326,6 +326,7 @@
     <button class="tab-btn active" onclick="switchTab('dashboard')" id="tabDashboard">Dashboard</button>
     <button class="tab-btn" onclick="switchTab('log')" id="tabLog">Training Log</button>
     <button class="tab-btn" onclick="switchTab('intel')" id="tabIntel">Intelligence</button>
+    <button class="tab-btn" onclick="switchTab('injury')" id="tabInjury" style="display:none;">Injuries</button>
   </div>
 </div>
 
@@ -509,6 +510,9 @@
 
 <!-- INTELLIGENCE TAB -->
 <div id="tabContentIntel" style="display:none; padding:20px 0;"></div>
+
+<!-- INJURIES TAB -->
+<div id="tabContentInjury" style="display:none; padding:20px 0;"></div>
 
 </div><!-- end #dashboard -->
 
@@ -747,6 +751,7 @@
   </div>
 </div>
 
+<script src="/crossing-injury-rules.js?v=2"></script>
 <script>
 document.addEventListener('mousemove', e => {
     document.body.style.setProperty('--mouse-x', e.clientX + 'px');
@@ -2322,8 +2327,10 @@ function switchTab(tab) {
   document.getElementById('tabContentDashboard').style.display = tab === 'dashboard' ? '' : 'none';
   document.getElementById('tabContentLog').style.display = tab === 'log' ? '' : 'none';
   document.getElementById('tabContentIntel').style.display = tab === 'intel' ? '' : 'none';
+  document.getElementById('tabContentInjury').style.display = tab === 'injury' ? '' : 'none';
   if (tab === 'log') renderLogTab();
   if (tab === 'intel') renderIntelTab();
+  if (tab === 'injury') renderInjuryTab();
 }
 
 // ─── TRAINING LOG TAB ─────────────────────────────────────────────────────────
@@ -2673,6 +2680,256 @@ function renderIntelTab() {
   `;
 }
 
+// ─── INJURIES TAB ─────────────────────────────────────────────────────────────
+// Red-flag rules live in crossing-injury-rules.js, shared with the API. They run
+// before anything else here, and nothing in this tab names a condition.
+
+const _injury = { ticked: new Set(), noneApply: false, confirmedAbsent: new Set(), followUps: [], asked: [], pending: null };
+
+function _esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function showInjuryTabIfOpen(params) {
+  const rules = window.CrossingInjuryRules;
+  if (rules && (rules.CLINICAL_REVIEW.complete || params.get('injury') === 'preview')) {
+    document.getElementById('tabInjury').style.display = '';
+  }
+}
+
+async function renderInjuryTab() {
+  const el = document.getElementById('tabContentInjury');
+  if (_isAdminView) {
+    el.innerHTML = '<p style="text-align:center;color:var(--text-sec);padding:40px 16px;">Injury notes are private to the swimmer.</p>';
+    return;
+  }
+  const R = window.CrossingInjuryRules;
+  Object.assign(_injury, { ticked: new Set(), noneApply: false, confirmedAbsent: new Set(), followUps: [], asked: [], pending: null });
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Johannesburg' });
+  const select = (id, options) => `<select class="form-input" id="${id}"><option value="">Select</option>${options.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select>`;
+
+  el.innerHTML = `
+    ${R.CLINICAL_REVIEW.complete ? '' : `<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:12px;padding:12px 14px;font-size:12px;color:var(--amber);margin-bottom:16px;">Preview only. The safety list has not had clinical review, so this section is closed to swimmers.</div>`}
+    <div class="section-title">Open entries</div>
+    <div id="injuryOpenList" style="margin-bottom:22px;"></div>
+
+    <div class="section-title">Record something</div>
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:18px;">
+      <div class="form-field">
+        <label class="form-label">What is going on?</label>
+        <textarea class="form-input" id="injuryNotes" rows="3" maxlength="2000" style="resize:vertical;" placeholder="e.g. right shoulder sore after about 3 hours, worse on the catch"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-field"><label class="form-label">Type</label>${select('injuryType', [['soreness', 'Soreness'], ['injury', 'Injury'], ['illness', 'Illness'], ['other', 'Other']])}</div>
+        <div class="form-field"><label class="form-label">Started</label><input type="date" class="form-input" id="injuryOnset" value="${today}" max="${today}"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-field"><label class="form-label">Body part</label>${select('injuryBody', ['shoulder', 'neck', 'back', 'elbow', 'wrist', 'hip', 'knee', 'ankle', 'general'].map(p => [p, p[0].toUpperCase() + p.slice(1)]))}</div>
+        <div class="form-field"><label class="form-label">Side</label>${select('injurySide', [['left', 'Left'], ['right', 'Right'], ['both', 'Both']])}</div>
+      </div>
+      <div class="form-field"><label class="form-label">How bad?</label>${select('injurySeverity', [['mild', 'Mild'], ['moderate', 'Moderate'], ['significant', 'Significant']])}</div>
+      <div class="form-field"><label class="form-label">Which is closest?</label>${select('injurySoreness', R.SORENESS.map(b => [b.id, _esc(b.label)]))}</div>
+
+      <div class="form-field">
+        <label class="form-label">Do any of these apply?</label>
+        <div id="injuryFlags" style="display:flex;flex-direction:column;gap:6px;">
+          ${R.RED_FLAGS.map(f => `<div class="ev-check" data-flag="${f.id}" onclick="injuryToggleFlag(this)" style="border-radius:10px;">${_esc(f.label)}</div>`).join('')}
+          <div class="ev-check" id="injuryNone" onclick="injuryToggleNone(this)" style="border-radius:10px;font-weight:700;">None of these apply</div>
+        </div>
+      </div>
+      <p style="font-size:11px;color:var(--text-sec);line-height:1.6;margin-bottom:14px;">${_esc(R.IN_WATER_NOTE)}</p>
+
+      <div id="injuryError" style="display:none;font-size:12px;color:var(--danger);margin-bottom:10px;"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn-primary" id="injuryGuidanceBtn" style="padding:10px 20px;font-size:13px;" onclick="injuryRun('guidance')">Get training guidance</button>
+        <button class="btn-cancel" id="injurySaveBtn" onclick="injuryRun('save')">Save to my log</button>
+      </div>
+      <p style="font-size:11px;color:var(--text-sec);line-height:1.6;margin-top:12px;">Get training guidance sends your notes and recent Strava volume to Anthropic, our AI provider, to work out what to change in training. It never diagnoses. Saved entries are visible to you and to the admins of any club you belong to.</p>
+    </div>
+    <div id="injuryResult" style="margin-top:16px;"></div>
+  `;
+  await loadInjuryOpenList();
+}
+
+async function loadInjuryOpenList() {
+  const box = document.getElementById('injuryOpenList');
+  if (!box) return;
+  const { data, error } = await sb.from('swimmer_health_events').select('*').eq('user_id', _viewingId).is('resolved_at', null).order('event_date', { ascending: false });
+  if (error) { box.innerHTML = '<p style="font-size:12px;color:var(--danger);">Could not load your entries.</p>'; return; }
+  if (!data || !data.length) { box.innerHTML = '<p style="font-size:13px;color:var(--text-sec);">Nothing open.</p>'; return; }
+  box.innerHTML = data.map(e => `
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+      <div>
+        <div style="font-size:13px;font-weight:600;text-transform:capitalize;">${_esc([e.side, e.body_part || e.type].filter(Boolean).join(' '))} · ${_esc(e.severity)}</div>
+        <div style="font-size:11px;color:var(--text-sec);margin-top:3px;">Since ${_esc(e.event_date)}${e.notes ? ' · ' + _esc(e.notes) : ''}</div>
+      </div>
+      <button class="btn-cancel" style="padding:6px 12px;font-size:11px;white-space:nowrap;" onclick="injuryResolve('${e.id}')">Resolved</button>
+    </div>`).join('');
+}
+
+function injuryToggleFlag(el) {
+  el.classList.toggle('checked');
+  const id = el.dataset.flag;
+  if (el.classList.contains('checked')) _injury.ticked.add(id); else _injury.ticked.delete(id);
+  _injury.noneApply = false;
+  document.getElementById('injuryNone').classList.remove('checked');
+}
+
+function injuryToggleNone(el) {
+  _injury.noneApply = !_injury.noneApply;
+  el.classList.toggle('checked', _injury.noneApply);
+  if (_injury.noneApply) {
+    _injury.ticked.clear();
+    document.querySelectorAll('#injuryFlags [data-flag]').forEach(f => f.classList.remove('checked'));
+  }
+}
+
+function injuryFields() {
+  const v = id => document.getElementById(id).value;
+  return { notes: v('injuryNotes').trim(), type: v('injuryType'), onset_date: v('injuryOnset'), body_part: v('injuryBody'), side: v('injurySide'), severity: v('injurySeverity'), soreness: v('injurySoreness') };
+}
+
+function injuryFail(msg) {
+  const e = document.getElementById('injuryError');
+  e.textContent = msg;
+  e.style.display = msg ? 'block' : 'none';
+}
+
+function injuryRun(action) {
+  const f = injuryFields();
+  injuryFail('');
+  if (!f.notes) return injuryFail('Please describe what is going on.');
+  if (!f.type) return injuryFail('Please choose a type.');
+  if (!f.severity) return injuryFail('Please say how bad it is.');
+  if (!_injury.noneApply && !_injury.ticked.size) return injuryFail('Please go through the list above, or choose None of these apply.');
+
+  _injury.pending = action;
+  const check = CrossingInjuryRules.assess({ flags: [..._injury.ticked], text: f.notes, confirmedAbsent: [..._injury.confirmedAbsent] });
+  if (check.needsConfirm.length) return injuryShowConfirm(check.needsConfirm);
+  if (check.tier) {
+    injuryShowReferral(check.tier);
+    if (action === 'save') injurySave(f);
+    return;
+  }
+  if (action === 'save') injurySave(f); else injuryGetGuidance(f);
+}
+
+function injuryShowConfirm(ids) {
+  const R = CrossingInjuryRules;
+  const flag = R.RED_FLAGS.find(x => x.id === ids[0]);
+  document.getElementById('injuryResult').innerHTML = `
+    <div style="background:var(--bg-card);border:1px solid rgba(245,158,11,0.3);border-radius:14px;padding:16px;">
+      <div style="font-size:13px;font-weight:700;margin-bottom:6px;">Before we go further, does this apply to you?</div>
+      <p style="font-size:13px;color:var(--text-sec);margin-bottom:12px;">${_esc(flag.label)}</p>
+      <div style="display:flex;gap:10px;">
+        <button class="btn-primary" style="padding:8px 18px;font-size:12px;" onclick="injuryAnswerConfirm('${flag.id}',true)">Yes</button>
+        <button class="btn-cancel" onclick="injuryAnswerConfirm('${flag.id}',false)">No</button>
+      </div>
+    </div>`;
+}
+
+function injuryAnswerConfirm(id, applies) {
+  if (applies) {
+    _injury.ticked.add(id);
+    _injury.noneApply = false;
+    document.getElementById('injuryNone').classList.remove('checked');
+    document.querySelector(`#injuryFlags [data-flag="${id}"]`).classList.add('checked');
+  } else {
+    _injury.confirmedAbsent.add(id);
+  }
+  injuryRun(_injury.pending);
+}
+
+function injuryShowReferral(tierId) {
+  const t = CrossingInjuryRules.TIERS[tierId];
+  document.getElementById('injuryResult').innerHTML = `
+    <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.35);border-radius:14px;padding:18px;">
+      <div style="font-size:15px;font-weight:700;color:var(--danger);margin-bottom:6px;">${_esc(t.title)}</div>
+      <p style="font-size:13px;line-height:1.6;">${_esc(t.action)}</p>
+      <p style="font-size:11px;color:var(--text-sec);line-height:1.6;margin-top:10px;">We have not given training guidance because of what you ticked. This is not a diagnosis.</p>
+    </div>`;
+}
+
+async function injurySave(f) {
+  const btn = document.getElementById('injurySaveBtn');
+  btn.disabled = true;
+  const { error } = await sb.from('swimmer_health_events').insert({
+    user_id: _viewingId, type: f.type, body_part: f.body_part || null, side: f.side || null,
+    severity: f.severity, notes: f.notes, event_date: f.onset_date,
+  });
+  btn.disabled = false;
+  if (error) return injuryFail('Could not save: ' + error.message);
+  btn.textContent = 'Saved';
+  setTimeout(() => { btn.textContent = 'Save to my log'; }, 2000);
+  await loadInjuryOpenList();
+}
+
+async function injuryResolve(id) {
+  const resolved = new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Johannesburg' });
+  const { error } = await sb.from('swimmer_health_events').update({ resolved_at: resolved }).eq('id', id);
+  if (error) return injuryFail('Could not update: ' + error.message);
+  await loadInjuryOpenList();
+}
+
+async function injuryGetGuidance(f) {
+  const box = document.getElementById('injuryResult');
+  const btn = document.getElementById('injuryGuidanceBtn');
+  btn.disabled = true;
+  box.innerHTML = '<p style="font-size:13px;color:var(--text-sec);padding:8px 0;">Reading your notes and recent training...</p>';
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const r = await fetch('/api/crossing-injury-guidance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (session?.access_token || '') },
+      body: JSON.stringify({ ...f, consent: true, flags: [..._injury.ticked], confirmed_absent: [..._injury.confirmedAbsent], follow_ups: _injury.followUps }),
+    });
+    const out = await r.json().catch(() => ({}));
+    if (r.status === 429) box.innerHTML = '<p style="font-size:13px;color:var(--amber);">You have asked several times this hour. Please try again a little later.</p>';
+    else if (r.status === 403) box.innerHTML = '<p style="font-size:13px;color:var(--amber);">Training guidance is not open yet.</p>';
+    else if (out.status === 'refer') injuryShowReferral(out.tier);
+    else if (out.status === 'confirm') injuryShowConfirm(out.flags);
+    else if (out.status === 'guidance') injuryShowGuidance(out.guidance, f);
+    else box.innerHTML = '<p style="font-size:13px;color:var(--amber);">Guidance is unavailable right now. Your notes have not been lost, and you can still save them to your log.</p>';
+  } catch {
+    box.innerHTML = '<p style="font-size:13px;color:var(--amber);">Could not reach the guidance service. Please try again.</p>';
+  }
+  btn.disabled = false;
+}
+
+function injuryShowGuidance(g, f) {
+  const R = CrossingInjuryRules;
+  const band = R.SORENESS.find(b => b.id === f.soreness);
+  const basisChip = b => b === 'research'
+    ? '<span style="font-size:10px;color:var(--cyan);border:1px solid rgba(56,189,248,0.3);border-radius:6px;padding:2px 7px;white-space:nowrap;">Published expert opinion</span>'
+    : '<span style="font-size:10px;color:var(--amber);border:1px solid rgba(245,158,11,0.3);border-radius:6px;padding:2px 7px;white-space:nowrap;">Judgment call</span>';
+  _injury.asked = g.follow_up_questions;
+
+  document.getElementById('injuryResult').innerHTML = `
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:18px;">
+      <p style="font-size:14px;line-height:1.6;margin-bottom:14px;">${_esc(g.summary)}</p>
+      ${g.see_physio ? `<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:10px;padding:12px;font-size:13px;line-height:1.55;margin-bottom:14px;"><strong style="color:var(--amber);">See a physiotherapist or doctor.</strong> ${_esc(g.see_physio_reason)}</div>` : ''}
+      ${band ? `<div class="section-title">Soreness band</div><p style="font-size:13px;line-height:1.55;margin-bottom:4px;">${_esc(band.response)}</p><p style="font-size:11px;color:var(--text-sec);margin-bottom:14px;">${_esc(R.SORENESS_NOTE)}</p>` : ''}
+      ${g.training_adjustments.length ? `<div class="section-title">What to change this week</div>${g.training_adjustments.map(a => `
+        <div style="padding:10px 0;border-bottom:1px solid var(--border);">
+          <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div style="font-size:13px;font-weight:600;">${_esc(a.change)}</div>${basisChip(a.basis)}</div>
+          <div style="font-size:12px;color:var(--text-sec);margin-top:3px;">${_esc(a.why)}</div>
+        </div>`).join('')}` : ''}
+      ${g.load_observations.length ? `<div class="section-title" style="margin-top:16px;">Your recent training</div>${g.load_observations.map(o => `<p style="font-size:12px;color:var(--text-sec);line-height:1.55;margin-bottom:5px;">${_esc(o)}</p>`).join('')}` : ''}
+      ${g.follow_up_questions.length ? `<div class="section-title" style="margin-top:16px;">To sharpen this</div>
+        ${g.follow_up_questions.map((q, i) => `<div class="form-field"><label class="form-label">${_esc(q)}</label><input class="form-input" id="injuryFollow${i}" maxlength="500"></div>`).join('')}
+        <button class="btn-primary" style="padding:8px 18px;font-size:12px;" onclick="injurySendFollowUps()">Update guidance</button>` : ''}
+      <p style="font-size:11px;color:var(--text-sec);line-height:1.6;margin-top:16px;">Training guidance only, not a diagnosis or medical advice. If anything changes or gets worse, see a physiotherapist or doctor.</p>
+    </div>`;
+}
+
+function injurySendFollowUps() {
+  _injury.asked.forEach((question, i) => {
+    const answer = document.getElementById('injuryFollow' + i)?.value.trim();
+    if (answer) _injury.followUps.push({ question, answer });
+  });
+  injuryRun('guidance');
+}
+
 // ─── BOOT ─────────────────────────────────────────────────────────────────────
 
 async function init() {
@@ -2692,6 +2949,7 @@ async function init() {
     const uidOverride = (session.user.id === DAVE_ID && params.get('uid')) ? params.get('uid') : null;
     _viewingId = uidOverride || session.user.id;
     _isAdminView = !!uidOverride;
+    showInjuryTabIfOpen(params);
 
     if (_isAdminView) {
         const { data: directory } = await sb.rpc('get_admin_user_directory');
