@@ -774,6 +774,90 @@ let _evidence = [];
 let _selectedCrossingSlug = null;
 let _capabilityProfile = null;
 
+// ─── SESSIONS: temp_logs + Strava ────────────────────────────────────────────
+// temp_logs never carries distance for Strava swims, and most Strava swims are
+// never imported into temp_logs at all. The dashboard reads both and merges them.
+// Read-only: nothing here writes to temp_logs, so community temp counts and
+// points are untouched.
+
+const LOG_SELECT = 'id, temp_c, conditions, notes, created_at, distance_km, duration_minutes, location_type, spots!temp_logs_spot_id_fkey(name, domain)';
+const STRAVA_SELECT = 'strava_activity_id, start_date, distance_m, moving_time_seconds, start_latlng, imported_to_log_id, spots!strava_imports_matched_spot_id_fkey(name, domain)';
+
+function sastDate(isoStr) {
+    return new Date(isoStr).toLocaleDateString('en-CA', { timeZone: 'Africa/Johannesburg' });
+}
+
+// A swim the athlete typed in by hand that is also on Strava must count once.
+function isSameSwim(log, km, mins) {
+    if (log.distance_km > 0 && km / log.distance_km >= 0.6 && km / log.distance_km <= 1.67) return true;
+    return log.duration_minutes > 0 && mins > 0 && Math.abs(log.duration_minutes - mins) / mins <= 0.25;
+}
+
+function mergeStravaSessions(logs, imports) {
+    const merged = logs.map(l => ({ ...l }));
+    const byId = new Map(merged.map(l => [l.id, l]));
+    const claimed = new Set();
+    const unlinked = [];
+
+    const fill = (log, s) => {
+        if (!(log.distance_km > 0)) log.distance_km = s.km;
+        if (!log.duration_minutes) log.duration_minutes = s.mins;
+        if (!log.location_type) log.location_type = s.hasGps ? 'open_water' : 'pool';
+        log._hasStrava = true;
+        claimed.add(log.id);
+    };
+
+    for (const row of imports) {
+        const km = Math.round((row.distance_m || 0) / 10) / 100;
+        if (!(km > 0) || !row.start_date) continue;
+        const s = {
+            row, km,
+            mins: Math.round((row.moving_time_seconds || 0) / 60) || null,
+            hasGps: Array.isArray(row.start_latlng) && row.start_latlng.length > 0,
+            date: sastDate(row.start_date),
+        };
+        const linked = row.imported_to_log_id && byId.get(row.imported_to_log_id);
+        if (linked) fill(linked, s);
+        else unlinked.push(s);
+    }
+
+    for (const s of unlinked) {
+        const sameDay = merged.filter(l => !claimed.has(l.id) && !l._stravaOnly && sastDate(l.created_at) === s.date);
+        const typedIn = sameDay.find(l => isSameSwim(l, s.km, s.mins));
+        if (typedIn) { claimed.add(typedIn.id); continue; }
+
+        // A temperature-only log the same day is that swim's reading, but only if
+        // both are the same kind of water. A pool swim must not inherit a beach
+        // temperature, or it would count as cold hours.
+        const tempOnly = sameDay.find(l => !(l.distance_km > 0) && !l.duration_minutes && isOpenWater(l) === s.hasGps);
+        if (tempOnly) { fill(tempOnly, s); continue; }
+
+        merged.push({
+            id: 'strava-' + s.row.strava_activity_id,
+            temp_c: null,
+            conditions: null,
+            notes: null,
+            created_at: s.row.start_date,
+            distance_km: s.km,
+            duration_minutes: s.mins,
+            location_type: s.hasGps ? 'open_water' : 'pool',
+            spots: s.row.spots || null,
+            _stravaOnly: true,
+        });
+    }
+
+    return merged.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+}
+
+async function fetchSessions() {
+    const [logsRes, stravaRes] = await Promise.all([
+        sb.from('temp_logs').select(LOG_SELECT).eq('user_id', _viewingId).order('created_at', { ascending: false }).limit(200),
+        sb.from('strava_imports').select(STRAVA_SELECT).eq('user_id', _viewingId).order('start_date', { ascending: false }).limit(300)
+    ]);
+    if (stravaRes.error) console.warn('strava_imports read failed:', stravaRes.error.message);
+    return mergeStravaSessions(logsRes.data || [], stravaRes.data || []);
+}
+
 // ─── UTILITIES ────────────────────────────────────────────────────────────────
 
 function daysSince(isoStr) {
@@ -2151,8 +2235,8 @@ async function saveSession() {
         errEl.style.display = 'block';
         return;
     }
-    if (!tempVal && !distVal) {
-        errEl.textContent = 'Add at least a water temperature or a distance.';
+    if (!tempVal) {
+        errEl.textContent = 'Please add the water temperature.';
         errEl.style.display = 'block';
         return;
     }
@@ -2207,17 +2291,13 @@ async function saveSession() {
     }
 
     // Reload logs and evidence, re-render
-    const [logsRes, evRes] = await Promise.all([
-        sb.from('temp_logs')
-            .select('id, temp_c, conditions, notes, created_at, distance_km, duration_minutes, location_type, spots!temp_logs_spot_id_fkey(name, domain)')
-            .eq('user_id', _viewingId)
-            .order('created_at', { ascending: false })
-            .limit(200),
+    const [sessions, evRes] = await Promise.all([
+        fetchSessions(),
         _activeAttempt
             ? sb.from('crossing_evidence').select('*').eq('crossing_attempt_id', _activeAttempt.id)
             : Promise.resolve({ data: [] })
     ]);
-    _logs = logsRes.data || [];
+    _logs = sessions;
     _evidence = evRes.data || [];
 
     closeLogModal();
@@ -2264,16 +2344,18 @@ function renderLogTab() {
       ${sorted.map(l => {
         const d = new Date(l.created_at);
         const dateStr = d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
-        const loc = l.spots ? l.spots.name : (l.notes ? l.notes.split('\n')[0] : '–');
+        const loc = l.spots ? l.spots.name : (l.notes ? l.notes.split('\n')[0] : (l._stravaOnly ? 'Strava swim' : '–'));
         const locType = l.location_type || 'open_water';
         const locIcon = locType === 'pool' ? '&#9632;' : locType === 'lido' ? '&#9671;' : '&#9670;';
-        return `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px;cursor:pointer;" onclick="openEditModal('${l.id}')">
+        return `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px;${l._stravaOnly ? '' : `cursor:pointer;" onclick="openEditModal('${l.id}')`}">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
             <div>
               <div style="font-size:13px;font-weight:600;margin-bottom:4px;">${dateStr}</div>
               <div style="font-size:11px;color:var(--text-sec);">${locIcon} ${loc}${l.temp_c != null ? ' · ' + l.temp_c + '°C' : ''}${l.distance_km > 0 ? ' · ' + l.distance_km + 'km' : ''}${l.duration_minutes ? ' · ' + l.duration_minutes + 'min' : ''}</div>
             </div>
-            <span style="font-size:10px;color:var(--cyan);border:1px solid rgba(56,189,248,0.3);border-radius:6px;padding:3px 8px;white-space:nowrap;">Edit</span>
+            ${l._stravaOnly
+              ? `<span style="font-size:10px;color:var(--text-sec);border:1px solid var(--border);border-radius:6px;padding:3px 8px;white-space:nowrap;">From Strava</span>`
+              : `<span style="font-size:10px;color:var(--cyan);border:1px solid rgba(56,189,248,0.3);border-radius:6px;padding:3px 8px;white-space:nowrap;">Edit</span>`}
           </div>
         </div>`;
       }).join('')}
@@ -2323,11 +2405,7 @@ async function saveEdit() {
   if (error) { alert('Error: ' + error.message); return; }
 
   closeEditModal();
-  const { data } = await sb.from('temp_logs')
-    .select('id, temp_c, conditions, notes, created_at, distance_km, duration_minutes, location_type, spots!temp_logs_spot_id_fkey(name, domain)')
-    .eq('user_id', _viewingId)
-    .order('created_at', { ascending: false });
-  _logs = data || [];
+  _logs = await fetchSessions();
   await renderDashboard();
   renderLogTab();
 }
@@ -2629,15 +2707,15 @@ async function init() {
     }
 
     // Load crossings, attempts, logs in parallel
-    const [crossingsRes, attemptsRes, logsRes] = await Promise.all([
+    const [crossingsRes, attemptsRes, sessions] = await Promise.all([
         sb.from('crossings').select('*').eq('is_active', true).order('name'),
         sb.from('crossing_attempts').select('*, crossings(*)').eq('user_id', _viewingId).in('status', ['active','qualifying','taper','planning','completed']).order('created_at', { ascending: false }),
-        sb.from('temp_logs').select('id, temp_c, conditions, notes, created_at, distance_km, duration_minutes, location_type, spots!temp_logs_spot_id_fkey(name, domain)').eq('user_id', _viewingId).order('created_at', { ascending: false }).limit(200)
+        fetchSessions()
     ]);
 
     _crossings = crossingsRes.data || [];
     _attempts = attemptsRes.data || [];
-    _logs = logsRes.data || [];
+    _logs = sessions;
 
     // Determine active attempt
     if (_attempts.length > 0) {
