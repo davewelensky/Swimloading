@@ -830,6 +830,7 @@ function mergeStravaSessions(logs, imports) {
         if (!log.duration_minutes) log.duration_minutes = s.mins;
         if (!log.location_type) log.location_type = s.hasGps ? 'open_water' : 'pool';
         log._hasStrava = true;
+        log._stravaId = String(s.row.strava_activity_id);
         claimed.add(log.id);
     };
 
@@ -869,6 +870,7 @@ function mergeStravaSessions(logs, imports) {
             location_type: s.hasGps ? 'open_water' : 'pool',
             spots: s.row.spots || null,
             _stravaOnly: true,
+            _stravaId: String(s.row.strava_activity_id),
         });
     }
 
@@ -1037,10 +1039,23 @@ function renderProHeader(name, crossing, attempt, daysToTarget) {
 
 // ─── READINESS ENGINE ─────────────────────────────────────────────────────────
 
+// The crossing's weekly benchmark is a peak-phase figure (set when the crossings
+// were seeded, no source recorded). Comparing someone 39 weeks out against it
+// every week is wrong, so when the swimmer has a programme, use this week's plan.
+function weeklyVolumeTarget(crossing) {
+    const plan = typeof _programme !== 'undefined' && _programme?.plan;
+    if (plan) {
+        const phase = programmePhaseFor(plan, sastDate(new Date().toISOString()));
+        if (phase && phase.km_min != null) return { km: phase.km_min, label: `this week's plan of ${phase.km_min} to ${phase.km_max} km` };
+    }
+    const km = crossing?.benchmark_weekly_km || (crossing?.distance_km ? crossing.distance_km * 1.2 : 40);
+    return { km, label: `the ${km} km/week peak-phase benchmark` };
+}
+
 function calculateCrossingReadiness({ swims, crossing, attempt, evidence }) {
     if (!crossing) return null;
 
-    const benchWeeklyKm = crossing.benchmark_weekly_km || (crossing.distance_km ? crossing.distance_km * 1.2 : 40);
+    const benchWeeklyKm = weeklyVolumeTarget(crossing).km;
     const benchLongSwimKm = crossing.benchmark_long_swim_km || (crossing.distance_km ? crossing.distance_km * 0.6 : 15);
     const benchColdHours = crossing.benchmark_cold_hours || 0;
     const benchOWPct = crossing.benchmark_open_water_percent || 50;
@@ -1066,23 +1081,32 @@ function calculateCrossingReadiness({ swims, crossing, attempt, evidence }) {
     const longSwimScore = Math.min(20, benchLongSwimKm > 0 ? (longestSwimKm / benchLongSwimKm) * 20 : 0);
 
     // 3. Temperature specificity (20 pts)
-    const swimsWithTemp = last56.filter(s => s.temp_c !== null && s.temp_c !== undefined);
+    // Cold adaptation lasts months (habituation is still measurable at 7 months),
+    // so count cold water over the last 12 months, not 8 weeks. Recorded evidence
+    // swims (such as an observed qualifier) count unless a cold session is
+    // already logged that day.
+    const lastYear = swims.filter(s => daysSince(s.created_at) <= 365);
+    const swimsWithTemp = lastYear.filter(s => s.temp_c !== null && s.temp_c !== undefined);
     let tempScore = 0;
     let coldestLogged = swimsWithTemp.length ? Math.min(...swimsWithTemp.map(s => s.temp_c)) : null;
     let coldSessionCount = 0;
     let coldHoursLogged = 0;
-    if (swimsWithTemp.length > 0) {
-        if (isColdCrossing && benchColdHours > 0) {
-            // Count sessions at or below typical_temp_max_c
-            const coldSwims = swimsWithTemp.filter(s => s.temp_c <= targetTemp);
-            coldSessionCount = coldSwims.length;
-            coldHoursLogged = coldSwims.reduce((sum, s) => sum + (s.duration_minutes || 60) / 60, 0);
-            tempScore = Math.min(20, benchColdHours > 0 ? (coldHoursLogged / benchColdHours) * 20 : 0);
-        } else {
-            // Warm/non-cold crossing: reward open water exposure consistency
-            const recentTempSwims = last28.filter(s => s.temp_c !== null);
-            tempScore = Math.min(20, (recentTempSwims.length / 8) * 20);
-        }
+    if (isColdCrossing && benchColdHours > 0) {
+        const coldSwims = swimsWithTemp.filter(s => s.temp_c <= targetTemp);
+        const coldDates = new Set(coldSwims.map(s => sastDate(s.created_at)));
+        const coldEvidence = (evidence || []).filter(e => e.evidence_status === 'complete' && e.water_temperature_c != null
+            && e.water_temperature_c <= targetTemp && e.duration_minutes > 0 && e.evidence_date
+            && daysSince(e.evidence_date) <= 365 && !coldDates.has(e.evidence_date));
+        coldSessionCount = coldSwims.length + coldEvidence.length;
+        coldHoursLogged = coldSwims.reduce((sum, s) => sum + (s.duration_minutes || 60) / 60, 0)
+            + coldEvidence.reduce((sum, e) => sum + e.duration_minutes / 60, 0);
+        const evTemps = coldEvidence.map(e => Number(e.water_temperature_c));
+        if (evTemps.length) coldestLogged = Math.min(coldestLogged ?? 99, ...evTemps);
+        tempScore = Math.min(20, (coldHoursLogged / benchColdHours) * 20);
+    } else if (swimsWithTemp.length > 0) {
+        // Warm/non-cold crossing: reward open water exposure consistency
+        const recentTempSwims = last28.filter(s => s.temp_c !== null);
+        tempScore = Math.min(20, (recentTempSwims.length / 8) * 20);
     }
 
     // 4. Open water (15 pts)
@@ -1268,7 +1292,7 @@ function calculateCrossingGapAnalysis(capability, prepResult, crossing, evidence
 
     const km = prepResult?.keyMetrics;
     const capScore = capability?.score;
-    const benchWeekly = crossing.benchmark_weekly_km || 40;
+    const benchWeekly = weeklyVolumeTarget(crossing).km;
     const benchLong = crossing.benchmark_long_swim_km || 15;
     const benchCold = crossing.benchmark_cold_hours || 0;
     const benchOW = crossing.benchmark_open_water_percent || 60;
@@ -1278,9 +1302,9 @@ function calculateCrossingGapAnalysis(capability, prepResult, crossing, evidence
     // Volume gap
     if (km) {
         const volRatio = benchWeekly > 0 ? km.avgWeeklyKm / benchWeekly : 0;
-        if (volRatio < 0.5) gaps.push({ severity: 'high', area: 'Volume', text: `Current weekly volume (${km.avgWeeklyKm} km) is well below the ${benchWeekly} km/week benchmark for this crossing.` });
-        else if (volRatio < 0.8) gaps.push({ severity: 'medium', area: 'Volume', text: `Weekly volume is building but ${(benchWeekly - km.avgWeeklyKm).toFixed(1)} km/week short of benchmark.` });
-        else strengths.push('Weekly training volume meets crossing benchmark');
+        if (volRatio < 0.5) gaps.push({ severity: 'high', area: 'Volume', text: `Current weekly volume (${km.avgWeeklyKm} km) is well below ${weeklyVolumeTarget(crossing).label}.` });
+        else if (volRatio < 0.8) gaps.push({ severity: 'medium', area: 'Volume', text: `Weekly volume is building but ${(benchWeekly - km.avgWeeklyKm).toFixed(1)} km/week short of ${weeklyVolumeTarget(crossing).label}.` });
+        else strengths.push('Weekly volume meets the current target');
 
         // Long swim gap
         const longRatio = benchLong > 0 ? km.longestSwimKm / benchLong : 0;
@@ -1290,7 +1314,7 @@ function calculateCrossingGapAnalysis(capability, prepResult, crossing, evidence
 
         // Cold gap
         if (isCold && benchCold > 0) {
-            if (km.coldHoursLogged < benchCold * 0.3) gaps.push({ severity: 'high', area: 'Cold acclimation', text: `Only ${km.coldHoursLogged} hours of cold exposure logged against a ${benchCold}-hour target. This crossing requires sustained cold water preparation.` });
+            if (km.coldHoursLogged < benchCold * 0.3) gaps.push({ severity: 'high', area: 'Cold acclimation', text: `Only ${km.coldHoursLogged} hours of cold water logged in the last 12 months, against a ${benchCold}-hour target. This crossing requires sustained cold water preparation.` });
             else if (km.coldHoursLogged < benchCold * 0.7) gaps.push({ severity: 'medium', area: 'Cold acclimation', text: `${km.coldHoursLogged} of ${benchCold} target hours in crossing-temperature water.` });
             else strengths.push('Cold water exposure within benchmark range');
         }
@@ -1438,12 +1462,13 @@ function renderDemand(logs, crossing, result) {
 
     if (crossing.benchmark_weekly_km) {
         const avgKm = km?.avgWeeklyKm || 0;
-        const gap = crossing.benchmark_weekly_km - avgKm;
+        const target = weeklyVolumeTarget(crossing);
+        const gap = target.km - avgKm;
         rows.push({
             label: 'Weekly volume',
-            crossing: `${crossing.benchmark_weekly_km} km/week benchmark`,
+            crossing: target.label[0].toUpperCase() + target.label.slice(1),
             yours: avgKm > 0 ? `Current avg: ${avgKm} km/week` : 'No distance logged',
-            gap: avgKm > 0 ? (gap > 0 ? `${gap.toFixed(1)} km/week below benchmark` : 'At or above benchmark') : 'Log distance to compare',
+            gap: avgKm > 0 ? (gap > 0 ? `${gap.toFixed(1)} km/week below target` : 'At or above target') : 'Log distance to compare',
             warn: gap > 10
         });
     }
@@ -1604,7 +1629,7 @@ function renderFocus(logs, crossing, result, evidence) {
     const priorities = [];
     if (!result) return;
     const km = result.keyMetrics;
-    const benchWeekly = crossing?.benchmark_weekly_km || 40;
+    const benchWeekly = weeklyVolumeTarget(crossing).km;
     const benchLong = crossing?.benchmark_long_swim_km || 15;
     const benchCold = crossing?.benchmark_cold_hours || 0;
     const benchOW = crossing?.benchmark_open_water_percent || 50;
@@ -1617,7 +1642,7 @@ function renderFocus(logs, crossing, result, evidence) {
             priorities.push({ priority: 'high', title: `${lastSession} days since last session`, why: 'Temperature adaptation and open water feel fade faster than fitness. Even a short session resets the consistency clock.', current: `Last session: ${formatDate(logs[0].created_at)}`, action: { label: 'Log a session', href: '/app' } });
         }
         if (km.avgWeeklyKm < benchWeekly * 0.6 && km.avgWeeklyKm >= 0) {
-            priorities.push({ priority: km.avgWeeklyKm < benchWeekly * 0.3 ? 'high' : 'medium', title: 'Build weekly volume', why: `Current evidence suggests ${km.avgWeeklyKm} km/week. Crossing benchmark is ${benchWeekly} km/week. Sustainable volume is the foundation.`, current: `${km.avgWeeklyKm} km/week average, ${benchWeekly - km.avgWeeklyKm} km/week below benchmark`, action: null });
+            priorities.push({ priority: km.avgWeeklyKm < benchWeekly * 0.3 ? 'high' : 'medium', title: 'Build weekly volume', why: `Current evidence suggests ${km.avgWeeklyKm} km/week. The target is ${weeklyVolumeTarget(crossing).label}. Sustainable volume is the foundation.`, current: `${km.avgWeeklyKm} km/week average, ${benchWeekly - km.avgWeeklyKm} km/week below benchmark`, action: null });
         }
         if (km.longestSwimKm < benchLong * 0.6) {
             priorities.push({ priority: 'medium', title: 'Long swim progression', why: `Your longest recent swim (${km.longestSwimKm} km) is significantly below the ${benchLong} km benchmark. Extend by 1–2 km per week.`, current: `Longest in 56 days: ${km.longestSwimKm || 0} km`, action: null });
@@ -1717,7 +1742,7 @@ function renderWeeklyReview(logs, result) {
         risks.push('No temperature-specific session this week');
     }
 
-    const bench = _crossing?.benchmark_weekly_km || 40;
+    const bench = weeklyVolumeTarget(_crossing).km;
     const focus = [];
     if (km.avgWeeklyKm < bench * 0.7) focus.push(`Add one more session to close the volume gap (target ${bench} km/week)`);
     if (km.longestSwimKm < (_crossing?.benchmark_long_swim_km || 15) * 0.6) focus.push('Schedule a long swim this week. Extend by 1–2 km from your recent longest');
@@ -2407,10 +2432,87 @@ function renderLogTab() {
               ? `<span style="font-size:10px;color:var(--text-sec);border:1px solid var(--border);border-radius:6px;padding:3px 8px;white-space:nowrap;">From Strava</span>`
               : `<span style="font-size:10px;color:var(--cyan);border:1px solid rgba(56,189,248,0.3);border-radius:6px;padding:3px 8px;white-space:nowrap;">Edit</span>`}
           </div>
+          ${canAnalyse(l) ? `<button class="btn-cancel" data-analyse="${l._stravaId}" style="margin-top:10px;padding:6px 14px;font-size:11px;" onclick="toggleSwimAnalysis('${l._stravaId}', this, event)">Analyse this swim</button>
+          <div id="swimAnalysis-${l._stravaId}" style="display:none;margin-top:10px;cursor:default;" onclick="event.stopPropagation()"></div>` : ''}
         </div>`;
       }).join('')}
     </div>
   `;
+  loadSwimAnalyses();
+}
+
+// ─── LONG-SWIM ANALYSIS (Strava per-second data) ─────────────────────────────
+// Only the swimmer sees this: Strava's terms allow a user's data to be shown to
+// that user alone, and the stored summary is readable by its owner only.
+
+const _swimAnalyses = new Map();
+
+function canAnalyse(l) {
+  return !_isAdminView && l._stravaId && (l.duration_minutes || 0) >= 120;
+}
+
+async function loadSwimAnalyses() {
+  if (_isAdminView) return;
+  const { data } = await sb.from('strava_swim_analyses').select('strava_activity_id, summary').eq('user_id', _viewingId);
+  (data || []).forEach(r => _swimAnalyses.set(String(r.strava_activity_id), r.summary));
+  document.querySelectorAll('[data-analyse]').forEach(b => {
+    if (_swimAnalyses.has(b.dataset.analyse)) b.textContent = 'Show swim analysis';
+  });
+}
+
+function fmtPace(sec) {
+  if (!sec) return '–';
+  return `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, '0')}`;
+}
+
+function swimAnalysisHtml(s) {
+  const f = s.fade;
+  const signed = (v, unit) => (v == null ? null : `${v > 0 ? '+' : ''}${v}${unit}`);
+  const fadeBits = f ? [
+    f.pace_change_pct != null ? `pace ${signed(f.pace_change_pct, '%')} (a plus means slower)` : null,
+    f.heart_rate_change_bpm != null ? `heart rate ${signed(f.heart_rate_change_bpm, ' bpm')}` : null,
+    f.stroke_rate_change_pct != null ? `stroke rate ${signed(f.stroke_rate_change_pct, '%')}` : null,
+  ].filter(Boolean) : [];
+  const th = 'style="text-align:right;padding:4px 6px;font-weight:600;color:var(--text-sec);"';
+  const td = 'style="text-align:right;padding:4px 6px;"';
+  return `
+    <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:11px;">
+      <tr><th ${th}>Hour</th><th ${th}>km</th><th ${th}>Pace /100 m</th><th ${th}>Heart rate</th><th ${th}>Stroke rate</th><th ${th}>Stopped</th><th ${th}>Watch °C</th></tr>
+      ${s.hours.map(h => `<tr style="border-top:1px solid var(--border);"><td ${td}>${h.hour}${h.minutes_covered < 50 ? '*' : ''}</td><td ${td}>${h.km ?? '–'}</td><td ${td}>${fmtPace(h.pace_per_100m_s)}</td><td ${td}>${h.heart_rate ?? '–'}</td><td ${td}>${h.stroke_rate ?? '–'}</td><td ${td}>${h.stopped_min ?? '–'} min</td><td ${td}>${h.watch_temp_c ?? '–'}</td></tr>`).join('')}
+    </table></div>
+    ${fadeBits.length ? `<p style="font-size:12px;margin-top:8px;">From ${_esc(f.compared)}: ${_esc(fadeBits.join(', '))}.</p>` : ''}
+    <p style="font-size:12px;margin-top:4px;">Stops: ${s.stops.count}, totalling ${s.stops.total_min} min${s.stops.median_seconds ? `, typically ${Math.round(s.stops.median_seconds)} s` : ''}${(s.stops.at_minutes || []).length && s.stops.at_minutes.length <= 24 ? `, at ${s.stops.at_minutes.join(', ')} min` : ''}. Most stops on a long swim are feeds.</p>
+    <p style="font-size:11px;color:var(--text-sec);line-height:1.55;margin-top:8px;">From your watch, so read it with care: pace is speed over the ground, so tide and current are in it. Wrist heart rate is less reliable in water. Watch temperature includes body heat and is not the water temperature. ${s.hours.some(h => h.minutes_covered < 50) ? '* Part hour.' : ''}</p>`;
+}
+
+async function toggleSwimAnalysis(stravaId, btn, ev) {
+  ev?.stopPropagation();
+  const box = document.getElementById('swimAnalysis-' + stravaId);
+  if (box.style.display === 'block') { box.style.display = 'none'; return; }
+  box.style.display = 'block';
+  if (_swimAnalyses.has(stravaId)) { box.innerHTML = swimAnalysisHtml(_swimAnalyses.get(stravaId)); return; }
+  box.innerHTML = '<p style="font-size:12px;color:var(--text-sec);">Fetching the swim from Strava...</p>';
+  btn.disabled = true;
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const r = await fetch('/api/strava/streams', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (session?.access_token || '') },
+      body: JSON.stringify({ strava_activity_id: stravaId }),
+    });
+    const out = await r.json().catch(() => ({}));
+    if (out.status === 'ok') {
+      _swimAnalyses.set(stravaId, out.summary);
+      box.innerHTML = swimAnalysisHtml(out.summary);
+      btn.textContent = 'Show swim analysis';
+    } else {
+      const msg = { strava_busy: 'Strava is busy right now. Try again in 15 minutes.', strava_not_connected: 'Strava needs reconnecting from the main app.', no_streams: 'Strava has no detailed data for this swim.' }[out.error];
+      box.innerHTML = `<p style="font-size:12px;color:var(--amber);">${msg || 'Could not analyse this swim.'}</p>`;
+    }
+  } catch {
+    box.innerHTML = '<p style="font-size:12px;color:var(--amber);">Could not reach the analysis service.</p>';
+  }
+  btn.disabled = false;
 }
 
 // ─── EDIT SESSION MODAL ───────────────────────────────────────────────────────
@@ -2670,7 +2772,7 @@ function renderIntelTab() {
 
     ${c.benchmark_weekly_km ? `
     <div class="section-gap">
-      <div class="section-title">Training Benchmarks (Build Phase Target)</div>
+      <div class="section-title">Peak-phase benchmarks (coach practice, not a target for every week)</div>
       <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
         <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;text-align:center;">
           <div style="font-size:22px;font-weight:800;color:var(--cyan);">${c.benchmark_weekly_km}km</div>
@@ -3224,7 +3326,7 @@ async function init() {
     _viewingId = uidOverride || session.user.id;
     _isAdminView = !!uidOverride;
     showInjuryTabIfOpen();
-    loadProgramme();
+    await loadProgramme();
     showFeedingTabIfOpen();
 
     if (_isAdminView) {
