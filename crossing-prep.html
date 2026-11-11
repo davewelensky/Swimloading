@@ -325,6 +325,7 @@
   <div style="max-width:720px; margin:0 auto; display:flex; gap:0; padding:0 16px;">
     <button class="tab-btn active" onclick="switchTab('dashboard')" id="tabDashboard">Dashboard</button>
     <button class="tab-btn" onclick="switchTab('programme')" id="tabProgramme" style="display:none;">Programme</button>
+    <button class="tab-btn" onclick="switchTab('feeding')" id="tabFeeding" style="display:none;">Feeding</button>
     <button class="tab-btn" onclick="switchTab('log')" id="tabLog">Training Log</button>
     <button class="tab-btn" onclick="switchTab('intel')" id="tabIntel">Intelligence</button>
     <button class="tab-btn" onclick="switchTab('injury')" id="tabInjury" style="display:none;">Injuries</button>
@@ -517,6 +518,9 @@
 
 <!-- PROGRAMME TAB -->
 <div id="tabContentProgramme" style="display:none; padding:20px 0;"></div>
+
+<!-- FEEDING TAB -->
+<div id="tabContentFeeding" style="display:none; padding:20px 0;"></div>
 
 </div><!-- end #dashboard -->
 
@@ -2364,10 +2368,12 @@ function switchTab(tab) {
   document.getElementById('tabContentIntel').style.display = tab === 'intel' ? '' : 'none';
   document.getElementById('tabContentInjury').style.display = tab === 'injury' ? '' : 'none';
   document.getElementById('tabContentProgramme').style.display = tab === 'programme' ? '' : 'none';
+  document.getElementById('tabContentFeeding').style.display = tab === 'feeding' ? '' : 'none';
   if (tab === 'log') renderLogTab();
   if (tab === 'intel') renderIntelTab();
   if (tab === 'injury') renderInjuryTab();
   if (tab === 'programme') renderProgrammeTab();
+  if (tab === 'feeding') renderFeedingTab();
 }
 
 // ─── TRAINING LOG TAB ─────────────────────────────────────────────────────────
@@ -2858,6 +2864,153 @@ function renderProgrammeTab() {
     </div>`;
 }
 
+// ─── FEEDING TAB ──────────────────────────────────────────────────────────────
+// Feed tests on long swims (crossing_feed_tests) plus optional sweat checks
+// (sweat_tests, shared with the PH test page). Invite only via OPEN_TO.
+
+const FEED_PRODUCTS = ['Cadence', 'Maurten', 'Amacx', 'Real food only', 'Other'];
+
+function showFeedingTabIfOpen() {
+  if (window.CrossingInjuryRules?.OPEN_TO.includes(_session.user.id)) {
+    document.getElementById('tabFeeding').style.display = '';
+  }
+}
+
+async function renderFeedingTab() {
+  const el = document.getElementById('tabContentFeeding');
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Johannesburg' });
+  const num = (id, label, ph, step = '1') => `<div class="form-field"><label class="form-label">${label}</label><input type="number" class="form-input" id="${id}" placeholder="${ph}" min="0" step="${step}"></div>`;
+  const scale = (id, label) => `<div class="form-field"><label class="form-label">${label}</label><select class="form-input" id="${id}"><option value="">Select</option>${[1, 2, 3, 4, 5].map(n => `<option value="${n}">${n}${n === 1 ? ' (bad)' : n === 5 ? ' (great)' : ''}</option>`).join('')}</select></div>`;
+  const chip = (id, label) => `<div class="ev-check" id="${id}" onclick="this.classList.toggle('checked')">${label}</div>`;
+
+  el.innerHTML = `
+    <div class="section-title">What is working</div>
+    <div id="feedCompare" style="margin-bottom:20px;"></div>
+    ${_isAdminView ? '' : `
+    <div class="section-title">Log a feed test</div>
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:18px;">
+      <div class="form-row">
+        <div class="form-field"><label class="form-label">Date</label><input type="date" class="form-input" id="feedDate" value="${today}" max="${today}"></div>
+        ${num('feedDuration', 'Swim length (minutes)', 'e.g. 240')}
+      </div>
+      <div class="form-row">${num('feedDistance', 'Distance (km)', 'e.g. 12', '0.1')}${num('feedTemp', 'Water temp (°C)', 'e.g. 15', '0.5')}</div>
+      <div class="form-row">
+        <div class="form-field"><label class="form-label">Product</label><select class="form-input" id="feedProduct"><option value="">Select</option>${FEED_PRODUCTS.map(p => `<option>${p}</option>`).join('')}</select></div>
+        <div class="form-field"><label class="form-label">Mix</label><input class="form-input" id="feedMix" maxlength="120" placeholder="e.g. 1 scoop in 500 ml warm water"></div>
+      </div>
+      <div class="form-row">${num('feedCarbs', 'Carbs per feed (g)', 'e.g. 20')}${num('feedVolume', 'Drink per feed (ml)', 'e.g. 200')}</div>
+      <div class="form-row">${num('feedInterval', 'Feed every (minutes)', 'e.g. 30')}${num('feedFirst', 'First feed after (minutes)', 'e.g. 60')}</div>
+      <div class="form-field"><label class="form-label">Solid food <span>(optional)</span></label><input class="form-input" id="feedSolids" maxlength="200" placeholder="e.g. half banana every hour, grapes"></div>
+      <div class="form-row">${scale('feedStomach', 'Stomach comfort')}${scale('feedEnergy', 'Energy steadiness')}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">${chip('feedWarm', 'Warm feeds')}${chip('feedNausea', 'Felt sick')}${chip('feedVomit', 'Vomited')}${chip('feedFaded', 'Faded at the end')}</div>
+      <div class="form-field"><label class="form-label">Notes <span>(optional)</span></label><textarea class="form-input" id="feedNotes" rows="2" maxlength="1000" style="resize:vertical;" placeholder="What changed from last time, salt mouth, cold, anything else"></textarea></div>
+
+      <div class="form-label" style="margin-top:6px;">Sweat check <span>(optional: weigh yourself before and after, in the same clothes)</span></div>
+      <div class="form-row">${num('feedWeightBefore', 'Weight before (kg)', 'e.g. 82.4', '0.1')}${num('feedWeightAfter', 'Weight after (kg)', 'e.g. 81.6', '0.1')}</div>
+      ${num('feedDrank', 'Total drunk during the swim (ml)', 'e.g. 1600')}
+      <p id="feedSweatPreview" style="font-size:12px;color:var(--text-sec);margin:-4px 0 12px;"></p>
+
+      <div id="feedError" style="display:none;font-size:12px;color:var(--danger);margin-bottom:10px;"></div>
+      <button class="btn-primary" id="feedSaveBtn" style="padding:10px 20px;font-size:13px;" onclick="saveFeedTest()">Save feed test</button>
+      <p style="font-size:11px;color:var(--text-sec);line-height:1.6;margin-top:12px;">Change one thing at a time between tests so you can tell what made the difference. Research suggests a working range of 30 to 60 g of carbohydrate an hour, drawn from land sports, not swimming.</p>
+    </div>`}
+    <div class="section-title" style="margin-top:20px;">Recent tests</div>
+    <div id="feedList"></div>
+    <div id="sweatList"></div>`;
+
+  if (!_isAdminView) {
+    ['feedWeightBefore', 'feedWeightAfter', 'feedDrank', 'feedDuration'].forEach(id => document.getElementById(id).addEventListener('input', updateSweatPreview));
+  }
+  await loadFeedTests();
+}
+
+function sweatRate(beforeKg, afterKg, drankMl, minutes) {
+  if (!(beforeKg > 0) || !(afterKg > 0) || !(minutes > 0)) return null;
+  const sweatMl = Math.round((beforeKg - afterKg) * 1000 + (drankMl || 0));
+  return { sweatMl, perHour: Math.round(sweatMl / minutes * 60) };
+}
+
+function updateSweatPreview() {
+  const v = id => parseFloat(document.getElementById(id).value);
+  const r = sweatRate(v('feedWeightBefore'), v('feedWeightAfter'), v('feedDrank'), v('feedDuration'));
+  document.getElementById('feedSweatPreview').textContent = r ? `About ${r.sweatMl} ml lost, roughly ${r.perHour} ml an hour.` : '';
+}
+
+async function saveFeedTest() {
+  const v = id => document.getElementById(id).value.trim();
+  const n = id => (v(id) === '' ? null : Number(v(id)));
+  const on = id => document.getElementById(id).classList.contains('checked');
+  const err = msg => { const e = document.getElementById('feedError'); e.textContent = msg; e.style.display = msg ? 'block' : 'none'; };
+  err('');
+  if (!v('feedDate') || !v('feedProduct')) return err('Please add the date and product.');
+  if (!n('feedDuration')) return err('Please add how long the swim was.');
+
+  const btn = document.getElementById('feedSaveBtn');
+  btn.disabled = true;
+  const row = {
+    user_id: _viewingId, swim_date: v('feedDate'), duration_minutes: n('feedDuration'), distance_km: n('feedDistance'),
+    water_temp_c: n('feedTemp'), product: v('feedProduct'), mix_note: v('feedMix') || null, carbs_per_feed_g: n('feedCarbs'),
+    feed_volume_ml: n('feedVolume'), feed_interval_min: n('feedInterval'), first_feed_min: n('feedFirst'), warm_feeds: on('feedWarm'),
+    solids: v('feedSolids') || null, stomach_comfort: n('feedStomach'), energy_steady: n('feedEnergy'), nausea: on('feedNausea'),
+    vomited: on('feedVomit'), faded_end: on('feedFaded'), notes: v('feedNotes') || null,
+  };
+  const { error } = await sb.from('crossing_feed_tests').insert(row);
+  if (error) { btn.disabled = false; return err('Could not save: ' + error.message); }
+
+  if (n('feedWeightBefore') && n('feedWeightAfter')) {
+    const { error: sweatErr } = await sb.from('sweat_tests').insert({
+      user_id: _viewingId, test_date: row.swim_date, session_type: 'open_water', duration_mins: row.duration_minutes,
+      water_temp_c: row.water_temp_c, weight_before_kg: n('feedWeightBefore'), weight_after_kg: n('feedWeightAfter'),
+      drink_ml: n('feedDrank') || 0, drink_notes: [row.product, row.mix_note].filter(Boolean).join(', '), notes: 'From the crossing-prep feed test',
+    });
+    if (sweatErr) err('Feed test saved, but the sweat check could not be saved: ' + sweatErr.message);
+  }
+  btn.disabled = false;
+  await renderFeedingTab();
+}
+
+function compareFeedTests(tests) {
+  const groups = new Map();
+  for (const t of tests) {
+    const key = t.product + (t.mix_note ? ` · ${t.mix_note}` : '');
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(t);
+  }
+  const avg = (rows, f) => { const v = rows.map(f).filter(x => x != null); return v.length ? Math.round(v.reduce((a, b) => a + Number(b), 0) / v.length * 10) / 10 : null; };
+  return [...groups.entries()].map(([label, rows]) => ({
+    label, swims: rows.length,
+    stomach: avg(rows, r => r.stomach_comfort), energy: avg(rows, r => r.energy_steady), carbsPerHour: avg(rows, r => r.carbs_per_hour_g),
+    sick: rows.filter(r => r.nausea || r.vomited).length, vomited: rows.filter(r => r.vomited).length, faded: rows.filter(r => r.faded_end).length,
+  })).sort((a, b) => (b.stomach ?? 0) - (a.stomach ?? 0));
+}
+
+async function loadFeedTests() {
+  const [feedRes, sweatRes] = await Promise.all([
+    sb.from('crossing_feed_tests').select('*').eq('user_id', _viewingId).order('swim_date', { ascending: false }).limit(60),
+    sb.from('sweat_tests').select('*').eq('user_id', _viewingId).order('test_date', { ascending: false }).limit(10),
+  ]);
+  const tests = feedRes.data || [];
+  const cmp = compareFeedTests(tests);
+  document.getElementById('feedCompare').innerHTML = cmp.length ? cmp.map(c => `
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;gap:10px;"><div style="font-size:13px;font-weight:700;">${_esc(c.label)}</div><div style="font-size:11px;color:var(--text-sec);white-space:nowrap;">${c.swims} swim${c.swims === 1 ? '' : 's'}</div></div>
+      <div style="font-size:12px;color:var(--text-sec);margin-top:4px;">Stomach ${c.stomach ?? '–'}/5 · energy ${c.energy ?? '–'}/5${c.carbsPerHour != null ? ` · ${c.carbsPerHour} g carbs an hour` : ''}</div>
+      <div style="font-size:12px;margin-top:4px;color:${c.sick ? 'var(--amber)' : 'var(--green)'};">${c.sick ? `Felt sick on ${c.sick} of ${c.swims}${c.vomited ? `, vomited on ${c.vomited}` : ''}` : 'No sickness logged'}${c.faded ? ` · faded on ${c.faded}` : ''}</div>
+    </div>`).join('') + '<p style="font-size:11px;color:var(--text-sec);">Small numbers: two or three swims per product is a hint, not a result.</p>'
+    : '<p style="font-size:13px;color:var(--text-sec);">No feed tests yet. Log your next long swim to start the comparison.</p>';
+
+  document.getElementById('feedList').innerHTML = tests.slice(0, 15).map(t => `
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px;">
+      <div style="font-size:13px;font-weight:600;">${_esc(t.swim_date)} · ${_esc(t.product)}${t.mix_note ? ' · ' + _esc(t.mix_note) : ''}</div>
+      <div style="font-size:11px;color:var(--text-sec);margin-top:3px;">${t.duration_minutes ? Math.round(t.duration_minutes / 6) / 10 + ' h' : ''}${t.water_temp_c != null ? ' · ' + t.water_temp_c + '°C' : ''}${t.feed_interval_min ? ' · every ' + t.feed_interval_min + ' min' : ''}${t.carbs_per_hour_g != null ? ' · ' + t.carbs_per_hour_g + ' g/h' : ''}${t.warm_feeds ? ' · warm' : ''} · stomach ${t.stomach_comfort ?? '–'}/5${t.vomited ? ' · vomited' : t.nausea ? ' · felt sick' : ''}${t.faded_end ? ' · faded' : ''}</div>
+      ${t.notes ? `<div style="font-size:11px;color:var(--text-sec);margin-top:3px;">${_esc(t.notes)}</div>` : ''}
+    </div>`).join('') || '';
+
+  const sweats = (sweatRes.data || []).filter(s => s.duration_mins > 0 && s.total_sweat_ml != null);
+  document.getElementById('sweatList').innerHTML = sweats.length ? `<div class="section-title" style="margin-top:16px;">Sweat checks</div>` + sweats.map(s => `
+    <p style="font-size:12px;color:var(--text-sec);padding:6px 0;border-bottom:1px solid var(--border);">${_esc(s.test_date)} · ${s.duration_mins} min${s.water_temp_c != null ? ' at ' + s.water_temp_c + '°C' : ''} · ${s.total_sweat_ml} ml, about ${Math.round(s.total_sweat_ml / s.duration_mins * 60)} ml an hour</p>`).join('') : '';
+}
+
 // ─── INJURIES TAB ─────────────────────────────────────────────────────────────
 // Swimmers log an injury and the AI suggests how to reduce effort. Invite only:
 // see OPEN_TO in crossing-injury-rules.js, which the API also enforces.
@@ -3072,6 +3225,7 @@ async function init() {
     _isAdminView = !!uidOverride;
     showInjuryTabIfOpen();
     loadProgramme();
+    showFeedingTabIfOpen();
 
     if (_isAdminView) {
         const { data: directory } = await sb.rpc('get_admin_user_directory');
