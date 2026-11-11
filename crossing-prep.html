@@ -2411,6 +2411,8 @@ function renderLogTab() {
   }
   const sorted = [..._logs].sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
   el.innerHTML = `
+    ${renderTrainingOverview()}
+    <div class="section-title" style="margin-top:18px;">Sessions</div>
     <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
       <p style="font-size:13px;color:var(--text-sec);">${sorted.length} session${sorted.length!==1?'s':''} total</p>
       <button class="btn-primary" style="padding:9px 18px;font-size:12px;" onclick="openLogModal()">+ Log a session</button>
@@ -2426,7 +2428,7 @@ function renderLogTab() {
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
             <div>
               <div style="font-size:13px;font-weight:600;margin-bottom:4px;">${dateStr}</div>
-              <div style="font-size:11px;color:var(--text-sec);">${locIcon} ${loc}${isRaceSession(l) ? ' · Race' : ''}${l.temp_c != null ? ' · ' + l.temp_c + '°C' : ''}${l.distance_km > 0 ? ' · ' + l.distance_km + 'km' : ''}${l.duration_minutes ? ' · ' + l.duration_minutes + 'min' : ''}</div>
+              <div style="font-size:11px;color:var(--text-sec);">${locIcon} ${loc}${isRaceSession(l) ? ' · Race' : ''}${l.temp_c != null ? ' · ' + l.temp_c + '°C' : ''}${l.distance_km > 0 ? ' · ' + fmtNum(l.distance_km) + ' km' : ''}${l.duration_minutes ? ' · ' + l.duration_minutes + 'min' : ''}</div>
             </div>
             ${l._stravaOnly
               ? `<span style="font-size:10px;color:var(--text-sec);border:1px solid var(--border);border-radius:6px;padding:3px 8px;white-space:nowrap;">From Strava</span>`
@@ -2438,7 +2440,239 @@ function renderLogTab() {
       }).join('')}
     </div>
   `;
+  wireTrainingOverview();
   loadSwimAnalyses();
+}
+
+// ─── THIS WEEK'S SESSIONS (AI) ────────────────────────────────────────────────
+// Plans the rest of the week from the programme, recent swims, injury entries
+// and feed tests. Only the swimmer can plan or see their own week.
+
+const SESSION_ICON = { pool: '&#9632;', open_water: '&#9670;', rest: '&#9675;', dryland: '&#9651;' };
+
+function weekSessionsHtml(p, createdAt) {
+  const total = p.week_total_km != null ? `${fmtNum(p.week_total_km)} km for the week` : '';
+  const range = p.phase?.km_min != null ? ` · plan ${p.phase.km_min} to ${p.phase.km_max} km` : '';
+  return `
+    <p style="font-size:13px;line-height:1.6;margin-bottom:10px;">${_esc(p.summary)}</p>
+    <div style="font-size:11px;color:var(--text-sec);margin-bottom:8px;">${fmtNum(p.already_km)} km done so far + ${fmtNum(p.planned_km)} km planned = ${total}${range}</div>
+    ${p.sessions.map(s => `
+      <div style="border-top:1px solid var(--border);padding:10px 0;">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
+          <div style="font-size:13px;font-weight:700;"><span style="color:var(--text-sec);font-weight:600;display:inline-block;width:34px;">${_esc(s.day)}</span>${SESSION_ICON[s.type] || ''} ${_esc(s.title)}</div>
+          ${basisChip(s.basis)}
+        </div>
+        <div style="font-size:11px;color:var(--text-sec);margin:3px 0 0 34px;">${[s.distance_km != null ? fmtNum(s.distance_km) + ' km' : null, s.duration_min ? s.duration_min + ' min' : null, s.type.replace('_', ' ')].filter(Boolean).join(' · ')}</div>
+        ${s.main_set ? `<div style="font-size:12px;margin:5px 0 0 34px;line-height:1.5;">${_esc(s.main_set)}</div>` : ''}
+        <div style="font-size:11px;color:var(--text-sec);margin:4px 0 0 34px;line-height:1.5;">Why: ${_esc(s.purpose)}</div>
+      </div>`).join('')}
+    ${(p.watch_outs || []).length ? `<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:10px;padding:10px 12px;margin-top:8px;">${p.watch_outs.map(w => `<p style="font-size:12px;line-height:1.5;margin:2px 0;">${_esc(w)}</p>`).join('')}</div>` : ''}
+    <p style="font-size:10px;color:var(--text-sec);margin-top:8px;">Planned by AI from your programme, recent swims, injury log and feed tests${createdAt ? ' on ' + _esc(new Date(createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })) : ''}. Training guidance only. Adjust it to how you feel.</p>`;
+}
+
+async function renderWeekSessions(refresh = false) {
+  const box = document.getElementById('weekSessions');
+  if (!box) return;
+  if (_isAdminView) { box.innerHTML = ''; return; }
+  const card = inner => `<div style="background:var(--bg-card);border:1px solid rgba(56,189,248,0.25);border-radius:14px;padding:16px;margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;"><div style="font-size:14px;font-weight:700;">This week's sessions</div><button class="btn-cancel" id="weekPlanBtn" style="padding:6px 14px;font-size:11px;" onclick="renderWeekSessions(true)">${refresh ? 'Planning...' : 'Re-plan'}</button></div>${inner}</div>`;
+  const monday = sastMonday(sastDate(new Date().toISOString()));
+  if (!refresh) {
+    const { data } = await sb.from('crossing_week_plans').select('plan, created_at').eq('user_id', _viewingId).eq('week_start', monday).limit(1);
+    if (data && data.length) { box.innerHTML = card(weekSessionsHtml(data[0].plan, data[0].created_at)); return; }
+    box.innerHTML = `<div style="background:var(--bg-card);border:1px solid rgba(56,189,248,0.25);border-radius:14px;padding:16px;margin-bottom:12px;">
+      <div style="font-size:14px;font-weight:700;margin-bottom:6px;">This week's sessions</div>
+      <p style="font-size:12px;color:var(--text-sec);line-height:1.6;margin-bottom:10px;">Get the rest of this week planned session by session, from your programme phase, what you have actually swum, your injury log and your feed tests. This sends that information to Anthropic, our AI provider.</p>
+      <button class="btn-primary" style="padding:9px 18px;font-size:12px;" onclick="renderWeekSessions(true)">Plan my week</button></div>`;
+    return;
+  }
+  box.innerHTML = card('<p style="font-size:12px;color:var(--text-sec);">Working out your week. This can take up to a minute...</p>');
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const r = await fetch('/api/crossing-week-plan', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (session?.access_token || '') }, body: JSON.stringify({ refresh: true }) });
+    const out = await r.json().catch(() => ({}));
+    if (out.status === 'ok') box.innerHTML = card(weekSessionsHtml(out.plan, out.created_at || new Date().toISOString()));
+    else if (r.status === 429) box.innerHTML = card('<p style="font-size:12px;color:var(--amber);">You have re-planned several times this hour. Try again a little later.</p>');
+    else box.innerHTML = card('<p style="font-size:12px;color:var(--amber);">Planning is unavailable right now. Please try again later.</p>');
+  } catch {
+    box.innerHTML = card('<p style="font-size:12px;color:var(--amber);">Could not reach the planner.</p>');
+  }
+  const btn = document.getElementById('weekPlanBtn'); if (btn) btn.textContent = 'Re-plan';
+}
+
+// ─── TRAINING CHARTS ──────────────────────────────────────────────────────────
+// Plain SVG, no chart library. Colours are the validated reference pair for this
+// dark surface: blue = open water, orange = pool. Every chart has hover detail
+// and a table view, and every number shown is rounded.
+
+const VIZ = { ow: '#3987e5', pool: '#d95926', grid: 'rgba(255,255,255,0.07)', band: 'rgba(255,255,255,0.07)', ink: '#94a3b8', surface: '#0d1728' };
+
+function weekBuckets(fromMonday, count) {
+  const weeks = [];
+  for (let i = 0; i < count; i++) weeks.push({ start: addDaysYmd(fromMonday, i * 7), ow: 0, pool: 0, longestH: 0, longestKm: 0 });
+  const byStart = new Map(weeks.map(w => [w.start, w]));
+  for (const l of (_logs || [])) {
+    const w = byStart.get(sastMonday(sastDate(l.created_at)));
+    if (!w) continue;
+    const km = Number(l.distance_km) || 0;
+    if (isOpenWater(l)) w.ow += km; else w.pool += km;
+    const h = (Number(l.duration_minutes) || 0) / 60;
+    if (h > w.longestH) { w.longestH = h; w.longestKm = km; }
+  }
+  return weeks;
+}
+
+function niceMax(v) {
+  if (v <= 10) return 10;
+  const step = v <= 30 ? 10 : v <= 60 ? 10 : 20;
+  return Math.ceil(v / step) * step;
+}
+
+function chartFrame(id, title, sub, legend, svg, tableHtml) {
+  return `
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:16px 16px 12px;margin-bottom:12px;">
+      <div style="font-size:14px;font-weight:700;">${title}</div>
+      <div style="font-size:11px;color:var(--text-sec);margin:2px 0 8px;">${sub}</div>
+      ${legend ? `<div style="display:flex;flex-wrap:wrap;gap:12px;font-size:11px;color:var(--text-sec);margin-bottom:6px;">${legend}</div>` : ''}
+      <div class="viz-wrap" id="${id}" style="position:relative;">${svg}<div class="viz-tip" style="display:none;position:absolute;pointer-events:none;background:#0b1322;border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:6px 9px;font-size:11px;line-height:1.5;color:var(--text);white-space:nowrap;z-index:5;"></div></div>
+      <details style="margin-top:6px;"><summary style="font-size:11px;color:var(--text-sec);cursor:pointer;">Show as table</summary>${tableHtml}</details>
+    </div>`;
+}
+
+const swatch = (color, label, shape = 'square') => `<span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:${shape === 'dot' ? '50%' : '2px'};background:${color};display:inline-block;"></span>${label}</span>`;
+
+function wireTooltips(id) {
+  const wrap = document.getElementById(id);
+  if (!wrap) return;
+  const tip = wrap.querySelector('.viz-tip');
+  wrap.querySelectorAll('[data-tip]').forEach(t => {
+    t.addEventListener('mouseenter', () => { tip.innerHTML = t.dataset.tip; tip.style.display = 'block'; });
+    t.addEventListener('mousemove', e => {
+      const r = wrap.getBoundingClientRect();
+      const x = Math.min(e.clientX - r.left + 12, r.width - tip.offsetWidth - 4);
+      tip.style.left = Math.max(0, x) + 'px';
+      tip.style.top = Math.max(0, e.clientY - r.top - tip.offsetHeight - 10) + 'px';
+    });
+    t.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+  });
+}
+
+function svgAxis(W, H, pad, yMax, ticks, unit) {
+  return ticks.map(v => {
+    const y = H - pad.b - (v / yMax) * (H - pad.t - pad.b);
+    return `<line x1="${pad.l}" x2="${W - pad.r}" y1="${y}" y2="${y}" stroke="${VIZ.grid}" stroke-width="1"/><text x="${pad.l - 6}" y="${y + 3}" text-anchor="end" font-size="10" fill="${VIZ.ink}">${v}${unit}</text>`;
+  }).join('');
+}
+
+// Weekly volume: stacked open water + pool, with the programme's target band.
+function weeklyVolumeChart(id, fromMonday, count, { showPlan = true } = {}) {
+  const weeks = weekBuckets(fromMonday, count);
+  const plan = _programme?.plan;
+  const thisMonday = sastMonday(sastDate(new Date().toISOString()));
+  weeks.forEach(w => {
+    const ph = plan ? programmePhaseFor(plan, w.start) : null;
+    w.target = showPlan && ph && !ph.upcoming && ph.km_min != null ? [ph.km_min, ph.km_max] : null;
+    w.future = w.start > thisMonday;
+  });
+  const W = 640, H = 220, pad = { l: 34, r: 8, t: 10, b: 24 };
+  const yMax = niceMax(Math.max(10, ...weeks.map(w => w.ow + w.pool), ...weeks.map(w => (w.target ? w.target[1] : 0))) * 1.08);
+  const ticks = [0, yMax / 2, yMax].map(v => Math.round(v));
+  const slot = (W - pad.l - pad.r) / count, bw = Math.min(24, Math.max(3, slot - 2));
+  const y = v => H - pad.b - (v / yMax) * (H - pad.t - pad.b);
+  const bars = weeks.map((w, i) => {
+    const x = pad.l + i * slot + (slot - bw) / 2;
+    const band = w.target ? `<rect x="${pad.l + i * slot}" y="${y(w.target[1])}" width="${slot}" height="${y(w.target[0]) - y(w.target[1])}" fill="${VIZ.band}"/>` : '';
+    const total = w.ow + w.pool;
+    let segs = '';
+    if (w.ow > 0) {
+      const top = w.pool > 0 ? 0 : 4;
+      segs += `<path d="${roundedTop(x, y(w.ow), bw, y(0) - y(w.ow), top)}" fill="${VIZ.ow}"/>`;
+    }
+    if (w.pool > 0) {
+      const base = y(w.ow) - (w.ow > 0 ? 2 : 0);
+      segs += `<path d="${roundedTop(x, y(w.ow + w.pool), bw, Math.max(1, base - y(w.ow + w.pool)), 4)}" fill="${VIZ.pool}"/>`;
+    }
+    const isNow = w.start === thisMonday;
+    const tip = `<strong>Week of ${shortDate(w.start)}</strong><br>${total ? `${fmtNum(total)} km · open water ${fmtNum(w.ow)} · pool ${fmtNum(w.pool)}` : (w.future ? 'Ahead' : 'Nothing logged')}${w.target ? `<br>Plan ${w.target[0]} to ${w.target[1]} km` : ''}`;
+    return `${band}${segs}${isNow ? `<line x1="${x + bw / 2}" x2="${x + bw / 2}" y1="${pad.t}" y2="${H - pad.b}" stroke="rgba(56,189,248,0.5)" stroke-width="1"/><text x="${x + bw / 2 - 4}" y="${pad.t + 9}" text-anchor="end" font-size="10" fill="${VIZ.ink}">now</text>` : ''}<rect data-tip="${tip.replace(/"/g, '&quot;')}" x="${pad.l + i * slot}" y="${pad.t}" width="${slot}" height="${H - pad.t - pad.b}" fill="transparent"/>`;
+  }).join('');
+  const firstLabel = `<text x="${pad.l}" y="${H - 6}" font-size="10" fill="${VIZ.ink}">${shortDate(weeks[0].start)}</text><text x="${W - pad.r}" y="${H - 6}" text-anchor="end" font-size="10" fill="${VIZ.ink}">${shortDate(weeks[weeks.length - 1].start)}</text>`;
+  const svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Weekly kilometres, open water and pool, against the plan">${svgAxis(W, H, pad, yMax, ticks, '')}${bars}${firstLabel}</svg>`;
+  const table = `<table style="width:100%;font-size:11px;margin-top:6px;border-collapse:collapse;"><tr style="color:var(--text-sec);"><td>Week of</td><td style="text-align:right">Open water</td><td style="text-align:right">Pool</td><td style="text-align:right">Total</td><td style="text-align:right">Plan</td></tr>${weeks.filter(w => !w.future).map(w => `<tr><td>${shortDate(w.start)}</td><td style="text-align:right">${fmtNum(w.ow)}</td><td style="text-align:right">${fmtNum(w.pool)}</td><td style="text-align:right">${fmtNum(w.ow + w.pool)}</td><td style="text-align:right">${w.target ? w.target.join(' to ') : '–'}</td></tr>`).join('')}</table>`;
+  const legend = swatch(VIZ.ow, 'Open water') + swatch(VIZ.pool, 'Pool') + (plan && showPlan ? swatch('rgba(255,255,255,0.25)', 'Plan range') : '');
+  return { svg, table, legend };
+}
+
+function roundedTop(x, yTop, w, h, r) {
+  r = Math.min(r, w / 2, h);
+  return `M${x},${yTop + h} L${x},${yTop + r} Q${x},${yTop} ${x + r},${yTop} L${x + w - r},${yTop} Q${x + w},${yTop} ${x + w},${yTop + r} L${x + w},${yTop + h} Z`;
+}
+
+// Longest swim per week, in hours.
+function longSwimChart(id, fromMonday, count) {
+  const weeks = weekBuckets(fromMonday, count);
+  const W = 640, H = 180, pad = { l: 34, r: 8, t: 10, b: 22 };
+  const yMax = Math.max(4, Math.ceil(Math.max(...weeks.map(w => w.longestH)) + 1));
+  const ticks = [0, Math.round(yMax / 2), yMax];
+  const slot = (W - pad.l - pad.r) / count;
+  const pts = weeks.map((w, i) => ({ w, x: pad.l + i * slot + slot / 2, y: H - pad.b - (w.longestH / yMax) * (H - pad.t - pad.b) })).filter(p => p.w.longestH > 0);
+  const line = pts.length > 1 ? `<polyline points="${pts.map(p => `${p.x},${p.y}`).join(' ')}" fill="none" stroke="${VIZ.ow}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>` : '';
+  const best = pts.reduce((a, p) => (!a || p.w.longestH > a.w.longestH ? p : a), null);
+  const dots = pts.map(p => `<circle cx="${p.x}" cy="${p.y}" r="4" fill="${VIZ.ow}" stroke="${VIZ.surface}" stroke-width="2"/><circle data-tip="<strong>Week of ${shortDate(p.w.start)}</strong><br>Longest swim ${fmtNum(p.w.longestH)} h${p.w.longestKm ? ' · ' + fmtNum(p.w.longestKm) + ' km' : ''}" cx="${p.x}" cy="${p.y}" r="12" fill="transparent"/>`).join('');
+  const label = best ? `<text x="${best.x}" y="${best.y - 9}" text-anchor="middle" font-size="10" fill="var(--text)">${fmtNum(best.w.longestH)} h</text>` : '';
+  const svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Longest swim each week in hours">${svgAxis(W, H, pad, yMax, ticks, ' h')}${line}${dots}${label}<text x="${pad.l}" y="${H - 5}" font-size="10" fill="${VIZ.ink}">${shortDate(weeks[0].start)}</text><text x="${W - pad.r}" y="${H - 5}" text-anchor="end" font-size="10" fill="${VIZ.ink}">${shortDate(weeks[weeks.length - 1].start)}</text></svg>`;
+  const table = `<table style="width:100%;font-size:11px;margin-top:6px;">${pts.map(p => `<tr><td>${shortDate(p.w.start)}</td><td style="text-align:right">${fmtNum(p.w.longestH)} h</td><td style="text-align:right">${fmtNum(p.w.longestKm)} km</td></tr>`).join('')}</table>`;
+  return { svg, table };
+}
+
+// Open-water temperatures over 12 months, against the Channel range and CSA limit.
+function waterTempChart(id) {
+  const from = addDaysYmd(sastDate(new Date().toISOString()), -365);
+  const swims = (_logs || []).filter(l => l.temp_c != null && isOpenWater(l) && sastDate(l.created_at) >= from)
+    .map(l => ({ d: sastDate(l.created_at), t: Number(l.temp_c), where: l.spots?.name || sessionNoteLines(l)[0] || '' }));
+  const W = 640, H = 180, pad = { l: 34, r: 8, t: 10, b: 22 };
+  const tMin = Math.min(10, ...swims.map(s => s.t)), tMax = Math.max(22, ...swims.map(s => s.t));
+  const yv = v => H - pad.b - ((v - tMin) / (tMax - tMin)) * (H - pad.t - pad.b);
+  const t0 = new Date(from + 'T12:00:00Z').getTime(), span = 365 * 86400000;
+  const xv = d => pad.l + ((new Date(d + 'T12:00:00Z').getTime() - t0) / span) * (W - pad.l - pad.r);
+  const grid = [tMin, 15, tMax].map(v => `<line x1="${pad.l}" x2="${W - pad.r}" y1="${yv(v)}" y2="${yv(v)}" stroke="${VIZ.grid}"/><text x="${pad.l - 6}" y="${yv(v) + 3}" text-anchor="end" font-size="10" fill="${VIZ.ink}">${v}°</text>`).join('');
+  const band = `<rect x="${pad.l}" y="${yv(18)}" width="${W - pad.l - pad.r}" height="${yv(14) - yv(18)}" fill="${VIZ.band}"/><text x="${W - pad.r - 4}" y="${yv(18) + 11}" text-anchor="end" font-size="10" fill="${VIZ.ink}">Channel 14 to 18°C</text>`;
+  const csa = `<line x1="${pad.l}" x2="${W - pad.r}" y1="${yv(15.6)}" y2="${yv(15.6)}" stroke="rgba(255,255,255,0.35)" stroke-width="1"/><text x="${pad.l + 4}" y="${yv(15.6) - 4}" font-size="10" fill="${VIZ.ink}">CSA qualifier limit 15.6°C</text>`;
+  const dots = swims.map(s => `<circle cx="${xv(s.d)}" cy="${yv(s.t)}" r="4" fill="${VIZ.ow}" stroke="${VIZ.surface}" stroke-width="2"/><circle data-tip="<strong>${shortDate(s.d)}</strong> · ${fmtNum(s.t)}°C${s.where ? '<br>' + _esc(s.where) : ''}" cx="${xv(s.d)}" cy="${yv(s.t)}" r="10" fill="transparent"/>`).join('');
+  const svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Open-water temperatures over 12 months">${grid}${band}${csa}${dots}<text x="${pad.l}" y="${H - 5}" font-size="10" fill="${VIZ.ink}">${shortDate(from)}</text><text x="${W - pad.r}" y="${H - 5}" text-anchor="end" font-size="10" fill="${VIZ.ink}">today</text></svg>`;
+  const table = `<table style="width:100%;font-size:11px;margin-top:6px;">${swims.map(s => `<tr><td>${s.d}</td><td style="text-align:right">${fmtNum(s.t)}°C</td><td>${_esc(s.where)}</td></tr>`).join('')}</table>`;
+  return { svg, table, count: swims.length, colder: swims.filter(s => s.t <= 15.6).length };
+}
+
+function statTile(value, label, note) {
+  return `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;"><div style="font-family:'Bebas Neue',sans-serif;font-size:30px;line-height:1;color:var(--text);">${value}</div><div style="font-size:11px;color:var(--text-sec);margin-top:4px;">${label}</div>${note ? `<div style="font-size:10px;color:var(--text-sec);margin-top:2px;">${note}</div>` : ''}</div>`;
+}
+
+function renderTrainingOverview() {
+  const today = sastDate(new Date().toISOString());
+  const monday = sastMonday(today);
+  const from = addDaysYmd(monday, -15 * 7);
+  const thisWeek = programmeWeekActual(monday);
+  const phase = _programme?.plan ? programmePhaseFor(_programme.plan, today) : null;
+  const prep = calculateCrossingReadiness({ swims: _logs || [], crossing: _crossing || {}, attempt: _activeAttempt || {}, evidence: _evidence || [] });
+  const vol = weeklyVolumeChart('vizVolume', from, 16);
+  const longs = longSwimChart('vizLong', addDaysYmd(monday, -25 * 7), 26);
+  const temps = waterTempChart('vizTemp');
+  return `
+    <div class="section-title">Your training at a glance</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:12px;">
+      ${statTile(fmtNum(thisWeek.km) + ' km', 'This week so far', phase && phase.km_min != null ? `plan ${phase.km_min} to ${phase.km_max} km` : '')}
+      ${statTile(prep ? fmtNum(prep.keyMetrics.coldHoursLogged, 0) + ' h' : '–', 'Cold water, 12 months', `at or below ${_crossing?.typical_temp_max_c ?? 18}°C`)}
+      ${statTile(prep ? fmtNum(prep.keyMetrics.longestSwimKm) + ' km' : '–', 'Longest swim, 8 weeks', '')}
+      ${statTile(String(temps.colder), 'Swims at 15.6°C or colder', 'last 12 months')}
+    </div>
+    ${chartFrame('vizVolume', 'Weekly kilometres', 'Last 16 weeks. Bars are what you swam; the grey band is your plan for that week.', vol.legend, vol.svg, vol.table)}
+    ${chartFrame('vizLong', 'Longest swim each week', 'Last 26 weeks, in hours. Your long swims are the backbone of Channel prep.', '', longs.svg, longs.table)}
+    ${chartFrame('vizTemp', 'Open-water temperatures', 'Last 12 months. The band is typical Channel water; the line is the CSA qualifier limit.', '', temps.svg, temps.table)}`;
+}
+
+function wireTrainingOverview() {
+  ['vizVolume', 'vizLong', 'vizTemp', 'vizPlanVolume'].forEach(wireTooltips);
 }
 
 // ─── LONG-SWIM ANALYSIS (Strava per-second data) ─────────────────────────────
@@ -2460,6 +2694,11 @@ async function loadSwimAnalyses() {
   });
 }
 
+function fmtNum(v, d = 1) {
+  if (v == null || v === '' || Number.isNaN(Number(v))) return '–';
+  return Number(v).toFixed(d);
+}
+
 function fmtPace(sec) {
   if (!sec) return '–';
   return `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, '0')}`;
@@ -2469,19 +2708,19 @@ function swimAnalysisHtml(s) {
   const f = s.fade;
   const signed = (v, unit) => (v == null ? null : `${v > 0 ? '+' : ''}${v}${unit}`);
   const fadeBits = f ? [
-    f.pace_change_pct != null ? `pace ${signed(f.pace_change_pct, '%')} (a plus means slower)` : null,
+    f.pace_change_pct != null ? `pace ${signed(Number(f.pace_change_pct).toFixed(1), '%')} (a plus means slower)` : null,
     f.heart_rate_change_bpm != null ? `heart rate ${signed(f.heart_rate_change_bpm, ' bpm')}` : null,
-    f.stroke_rate_change_pct != null ? `stroke rate ${signed(f.stroke_rate_change_pct, '%')}` : null,
+    f.stroke_rate_change_pct != null ? `stroke rate ${signed(Number(f.stroke_rate_change_pct).toFixed(1), '%')}` : null,
   ].filter(Boolean) : [];
   const th = 'style="text-align:right;padding:4px 6px;font-weight:600;color:var(--text-sec);"';
   const td = 'style="text-align:right;padding:4px 6px;"';
   return `
     <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:11px;">
       <tr><th ${th}>Hour</th><th ${th}>km</th><th ${th}>Pace /100 m</th><th ${th}>Heart rate</th><th ${th}>Stroke rate</th><th ${th}>Stopped</th><th ${th}>Watch °C</th></tr>
-      ${s.hours.map(h => `<tr style="border-top:1px solid var(--border);"><td ${td}>${h.hour}${h.minutes_covered < 50 ? '*' : ''}</td><td ${td}>${h.km ?? '–'}</td><td ${td}>${fmtPace(h.pace_per_100m_s)}</td><td ${td}>${h.heart_rate ?? '–'}</td><td ${td}>${h.stroke_rate ?? '–'}</td><td ${td}>${h.stopped_min ?? '–'} min</td><td ${td}>${h.watch_temp_c ?? '–'}</td></tr>`).join('')}
+      ${s.hours.map(h => `<tr style="border-top:1px solid var(--border);"><td ${td}>${h.hour}${h.minutes_covered < 50 ? '*' : ''}</td><td ${td}>${fmtNum(h.km)}</td><td ${td}>${fmtPace(h.pace_per_100m_s)}</td><td ${td}>${fmtNum(h.heart_rate, 0)}</td><td ${td}>${fmtNum(h.stroke_rate)}</td><td ${td}>${fmtNum(h.stopped_min)} min</td><td ${td}>${fmtNum(h.watch_temp_c)}</td></tr>`).join('')}
     </table></div>
     ${fadeBits.length ? `<p style="font-size:12px;margin-top:8px;">From ${_esc(f.compared)}: ${_esc(fadeBits.join(', '))}.</p>` : ''}
-    <p style="font-size:12px;margin-top:4px;">Stops: ${s.stops.count}, totalling ${s.stops.total_min} min${s.stops.median_seconds ? `, typically ${Math.round(s.stops.median_seconds)} s` : ''}${(s.stops.at_minutes || []).length && s.stops.at_minutes.length <= 24 ? `, at ${s.stops.at_minutes.join(', ')} min` : ''}. Most stops on a long swim are feeds.</p>
+    <p style="font-size:12px;margin-top:4px;">Stops: ${s.stops.count}, totalling ${fmtNum(s.stops.total_min)} min${s.stops.median_seconds ? `, typically ${Math.round(s.stops.median_seconds)} s` : ''}${(s.stops.at_minutes || []).length && s.stops.at_minutes.length <= 24 ? `, at ${s.stops.at_minutes.join(', ')} min` : ''}. Most stops on a long swim are feeds.</p>
     <p style="font-size:11px;color:var(--text-sec);line-height:1.55;margin-top:8px;">From your watch, so read it with care: pace is speed over the ground, so tide and current are in it. Wrist heart rate is less reliable in water. Watch temperature includes body heat and is not the water temperature. ${s.hours.some(h => h.minutes_covered < 50) ? '* Part hour.' : ''}</p>`;
 }
 
@@ -2887,6 +3126,28 @@ async function publishProgramme() {
   renderProgrammeTab();
 }
 
+function phaseTimelineHtml(plan, today) {
+  const phases = plan.phases || [];
+  if (!phases.length) return '';
+  const t = d => new Date(d + 'T12:00:00Z').getTime();
+  const start = t(phases[0].start), end = t(phases[phases.length - 1].end), span = end - start;
+  const nowPct = Math.min(100, Math.max(0, (t(today) - start) / span * 100));
+  const segs = phases.map(p => {
+    const w = (t(p.end) - t(p.start) + 86400000) / (span + 86400000) * 100;
+    const current = p.start <= today && today <= p.end;
+    return `<div title="${_esc(p.name)}: ${_esc(shortDate(p.start))} to ${_esc(shortDate(p.end))}" style="width:${w}%;height:28px;background:${current ? 'rgba(56,189,248,0.35)' : 'rgba(255,255,255,0.07)'};border-right:2px solid var(--bg-card);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--text-sec);overflow:hidden;white-space:nowrap;">${_esc(p.name.split('.')[0])}</div>`;
+  }).join('');
+  return `
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px;">
+      <div style="font-size:14px;font-weight:700;margin-bottom:10px;">Where you are</div>
+      <div style="position:relative;">
+        <div style="display:flex;border-radius:8px;overflow:hidden;">${segs}</div>
+        ${today >= phases[0].start ? `<div style="position:absolute;top:-4px;bottom:-4px;left:${nowPct}%;width:2px;background:var(--cyan);"></div>` : ''}
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-sec);margin-top:6px;"><span>${_esc(shortDate(phases[0].start))}</span><span>Phases 0 to 5</span><span>Swim week ${_esc(shortDate(plan.swim?.week_of || phases[phases.length - 1].end))}</span></div>
+    </div>`;
+}
+
 function renderProgrammeTab() {
   const el = document.getElementById('tabContentProgramme');
   if (!_programme) { el.innerHTML = '<p style="text-align:center;color:var(--text-sec);padding:40px 16px;">No programme yet.</p>'; return; }
@@ -2929,6 +3190,11 @@ function renderProgrammeTab() {
       <p style="font-size:11px;color:var(--text-sec);margin-top:8px;">Counts Strava swims and sessions you log. Pool swims without your watch need logging by hand.</p>
     </div>
 
+    ${phaseTimelineHtml(plan, today)}
+    ${(() => { const from = addDaysYmd(monday, -8 * 7); const to = swim.week_of || addDaysYmd(monday, 26 * 7); const count = Math.max(10, Math.round((new Date(to) - new Date(from)) / (7 * 86400000)) + 1); const v = weeklyVolumeChart('vizPlanVolume', from, count); return chartFrame('vizPlanVolume', 'Your volume against the plan', 'From 8 weeks ago to swim week. The grey band is each week\'s planned range; bars fill in as you swim.', v.legend, v.svg, v.table); })()}
+
+    <div id="weekSessions"></div>
+
     <div class="section-title" style="margin-top:18px;">What matters most</div>
     ${(plan.priorities || []).map(p => `
       <div style="${card}">
@@ -2964,6 +3230,8 @@ function renderProgrammeTab() {
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">${Object.keys(BASIS_LABELS).map(basisChip).join('')}</div>
       <p style="font-size:11px;color:var(--text-sec);line-height:1.6;">${_esc(plan.disclaimer || '')}</p>
     </div>`;
+  wireTooltips('vizPlanVolume');
+  renderWeekSessions();
 }
 
 // ─── FEEDING TAB ──────────────────────────────────────────────────────────────
