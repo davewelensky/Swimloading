@@ -324,6 +324,7 @@
 <div id="tabBar" style="display:none; position:sticky; top:57px; z-index:90; background:rgba(8,15,26,0.97); backdrop-filter:blur(12px); border-bottom:1px solid rgba(255,255,255,0.06);">
   <div style="max-width:720px; margin:0 auto; display:flex; gap:0; padding:0 16px;">
     <button class="tab-btn active" onclick="switchTab('dashboard')" id="tabDashboard">Dashboard</button>
+    <button class="tab-btn" onclick="switchTab('programme')" id="tabProgramme" style="display:none;">Programme</button>
     <button class="tab-btn" onclick="switchTab('log')" id="tabLog">Training Log</button>
     <button class="tab-btn" onclick="switchTab('intel')" id="tabIntel">Intelligence</button>
     <button class="tab-btn" onclick="switchTab('injury')" id="tabInjury" style="display:none;">Injuries</button>
@@ -513,6 +514,9 @@
 
 <!-- INJURIES TAB -->
 <div id="tabContentInjury" style="display:none; padding:20px 0;"></div>
+
+<!-- PROGRAMME TAB -->
+<div id="tabContentProgramme" style="display:none; padding:20px 0;"></div>
 
 </div><!-- end #dashboard -->
 
@@ -2359,9 +2363,11 @@ function switchTab(tab) {
   document.getElementById('tabContentLog').style.display = tab === 'log' ? '' : 'none';
   document.getElementById('tabContentIntel').style.display = tab === 'intel' ? '' : 'none';
   document.getElementById('tabContentInjury').style.display = tab === 'injury' ? '' : 'none';
+  document.getElementById('tabContentProgramme').style.display = tab === 'programme' ? '' : 'none';
   if (tab === 'log') renderLogTab();
   if (tab === 'intel') renderIntelTab();
   if (tab === 'injury') renderInjuryTab();
+  if (tab === 'programme') renderProgrammeTab();
 }
 
 // ─── TRAINING LOG TAB ─────────────────────────────────────────────────────────
@@ -2712,6 +2718,146 @@ function renderIntelTab() {
   `;
 }
 
+// ─── PROGRAMME TAB ────────────────────────────────────────────────────────────
+// A swimmer's personal plan lives in the crossing_programmes table. The swimmer
+// reads it once it is published; Dave can preview and publish. Plans must never
+// go into this file: the repository is public and plans hold health details.
+
+let _programme = null;
+
+const BASIS_LABELS = {
+  rule: ['CSA rule', 'var(--green)'],
+  evidence: ['Research', 'var(--cyan)'],
+  data: ['Our data', 'var(--blue)'],
+  opinion: ['Coach practice', 'var(--purple)'],
+  judgment: ['Judgment call', 'var(--amber)'],
+};
+
+function basisChip(basis) {
+  const [label, color] = BASIS_LABELS[basis] || BASIS_LABELS.judgment;
+  return `<span style="font-size:10px;color:${color};border:1px solid ${color};border-radius:6px;padding:2px 7px;white-space:nowrap;">${label}</span>`;
+}
+
+function addDaysYmd(ymd, n) {
+  const d = new Date(ymd + 'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+function sastMonday(ymd) {
+  const dow = (new Date(ymd + 'T12:00:00Z').getUTCDay() + 6) % 7;
+  return addDaysYmd(ymd, -dow);
+}
+
+function shortDate(ymd) {
+  return new Date(ymd + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+}
+
+function programmePhaseFor(plan, ymd) {
+  const phases = plan.phases || [];
+  return phases.find(p => p.start <= ymd && ymd <= p.end)
+    || (phases.length && ymd < phases[0].start ? { ...phases[0], upcoming: true } : null);
+}
+
+function programmeWeekActual(monday) {
+  const sunday = addDaysYmd(monday, 6);
+  const week = (_logs || []).filter(l => { const d = sastDate(l.created_at); return d >= monday && d <= sunday; });
+  return { km: Math.round(week.reduce((s, l) => s + (l.distance_km || 0), 0) * 10) / 10, sessions: week.length };
+}
+
+async function loadProgramme() {
+  const { data, error } = await sb.from('crossing_programmes').select('*').eq('user_id', _viewingId).order('created_at', { ascending: false }).limit(1);
+  _programme = !error && data && data.length ? data[0] : null;
+  document.getElementById('tabProgramme').style.display = _programme ? '' : 'none';
+}
+
+async function publishProgramme() {
+  if (!_programme || !confirm('Publish this programme so the swimmer can see it?')) return;
+  const { error } = await sb.from('crossing_programmes').update({ published_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', _programme.id);
+  if (error) { alert('Could not publish: ' + error.message); return; }
+  await loadProgramme();
+  renderProgrammeTab();
+}
+
+function renderProgrammeTab() {
+  const el = document.getElementById('tabContentProgramme');
+  if (!_programme) { el.innerHTML = '<p style="text-align:center;color:var(--text-sec);padding:40px 16px;">No programme yet.</p>'; return; }
+  const plan = _programme.plan || {};
+  const swim = plan.swim || {};
+  const today = sastDate(new Date().toISOString());
+  const monday = sastMonday(today);
+  const phase = programmePhaseFor(plan, today);
+  const actual = programmeWeekActual(monday);
+  const weeksToGo = swim.week_of ? Math.max(0, Math.round((new Date(swim.week_of) - new Date(monday)) / (7 * 86400000))) : null;
+  const card = 'background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:12px;';
+  const item = (x) => `<div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--border);"><div style="font-size:13px;line-height:1.55;">${_esc(x.text)}</div>${basisChip(x.basis)}</div>`;
+
+  let target = '';
+  if (phase && phase.km_min != null) {
+    const pct = Math.min(100, Math.round(actual.km / phase.km_max * 100));
+    const col = actual.km > phase.km_max ? 'var(--amber)' : actual.km >= phase.km_min ? 'var(--green)' : 'var(--cyan)';
+    target = `
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin:10px 0 6px;">
+        <div style="font-size:26px;font-weight:800;color:${col};">${actual.km} km</div>
+        <div style="font-size:12px;color:var(--text-sec);">target ${phase.km_min} to ${phase.km_max} km · ${actual.sessions} session${actual.sessions === 1 ? '' : 's'}</div>
+      </div>
+      <div style="height:6px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${col};"></div></div>
+      ${actual.km > phase.km_max ? '<p style="font-size:12px;color:var(--amber);margin-top:8px;">Above this phase\'s range. Hold here rather than adding more.</p>' : ''}`;
+  } else if (phase) {
+    target = `<p style="font-size:13px;margin-top:10px;">${_esc(phase.volume_note || '')} · this week so far ${actual.km} km</p>`;
+  }
+
+  el.innerHTML = `
+    ${_programme.published_at ? '' : `<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:12px;padding:12px 14px;font-size:12px;color:var(--amber);margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;"><span>Draft: the swimmer cannot see this yet.</span>${_session?.user?.id === DAVE_ID ? '<button class="btn-primary" style="padding:7px 16px;font-size:12px;" onclick="publishProgramme()">Publish to swimmer</button>' : ''}</div>`}
+    <div style="${card}">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:.04em;">${_esc(swim.label || _programme.title)}</div>
+      <div style="font-size:12px;color:var(--text-sec);margin-top:2px;">Week of ${swim.week_of ? _esc(shortDate(swim.week_of)) + ' ' + _esc(swim.week_of.slice(0, 4)) : 'TBC'} · ${_esc(swim.body || '')}${swim.pilot ? ' · ' + _esc(swim.pilot) : ''}${weeksToGo != null ? ` · <strong style="color:var(--cyan);">${weeksToGo} weeks to go</strong>` : ''}</div>
+      <p style="font-size:12px;color:var(--text-sec);line-height:1.6;margin-top:10px;">${_esc(plan.intro || '')}</p>
+    </div>
+
+    <div style="${card}">
+      <div class="section-title">This week · ${_esc(shortDate(monday))} to ${_esc(shortDate(addDaysYmd(monday, 6)))}</div>
+      ${phase ? `<div style="font-size:15px;font-weight:700;">${_esc(phase.name)}${phase.upcoming ? ` <span style="font-size:11px;color:var(--text-sec);font-weight:400;">starts ${_esc(shortDate(phase.start))}</span>` : ''}</div>${target}<p style="font-size:12px;color:var(--text-sec);margin-top:8px;">Long swim: ${_esc(phase.long_swim || '')}</p>` : '<p style="font-size:13px;color:var(--text-sec);">Outside the programme dates.</p>'}
+      <p style="font-size:11px;color:var(--text-sec);margin-top:8px;">Counts Strava swims and sessions you log. Pool swims without your watch need logging by hand.</p>
+    </div>
+
+    <div class="section-title" style="margin-top:18px;">What matters most</div>
+    ${(plan.priorities || []).map(p => `
+      <div style="${card}">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:6px;"><div style="font-size:14px;font-weight:700;">${_esc(p.title)}</div>${basisChip(p.basis)}</div>
+        <p style="font-size:13px;line-height:1.6;">${_esc(p.text)}</p>
+        ${p.note ? `<p style="font-size:11px;color:var(--text-sec);margin-top:6px;">${_esc(p.note)}</p>` : ''}
+      </div>`).join('')}
+
+    <div class="section-title" style="margin-top:18px;">Phases</div>
+    ${(plan.phases || []).map(p => {
+      const current = phase && !phase.upcoming && p.key === phase.key;
+      return `
+      <div style="${card}${current ? 'border-color:rgba(56,189,248,0.45);' : ''}">
+        <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+          <div style="font-size:14px;font-weight:700;">${_esc(p.name)}${current ? ' <span style="font-size:10px;color:var(--cyan);border:1px solid rgba(56,189,248,0.4);border-radius:6px;padding:2px 7px;margin-left:4px;">Now</span>' : ''}</div>
+          <div style="font-size:12px;color:var(--text-sec);">${_esc(shortDate(p.start))} to ${_esc(shortDate(p.end))}</div>
+        </div>
+        <div style="font-size:12px;color:var(--text-sec);margin:4px 0 6px;">${p.km_min != null ? `${p.km_min} to ${p.km_max} km a week` : _esc(p.volume_note || '')} · long swim ${_esc(p.long_swim || '')}</div>
+        ${(p.focus || []).map(item).join('')}
+      </div>`;
+    }).join('')}
+
+    <div class="section-title" style="margin-top:18px;">A normal week</div>
+    <div style="${card}">${(plan.weekly_shape || []).map(item).join('')}</div>
+
+    <div class="section-title" style="margin-top:18px;">Feeding tests</div>
+    <div style="${card}">${(plan.feeding || []).map(item).join('')}</div>
+
+    ${(plan.open_questions || []).length ? `<div class="section-title" style="margin-top:18px;">Still to confirm</div>
+    <div style="${card}">${plan.open_questions.map(q => `<p style="font-size:13px;line-height:1.55;padding:5px 0;border-bottom:1px solid var(--border);">${_esc(q)}</p>`).join('')}</div>` : ''}
+
+    <div style="${card}">
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">${Object.keys(BASIS_LABELS).map(basisChip).join('')}</div>
+      <p style="font-size:11px;color:var(--text-sec);line-height:1.6;">${_esc(plan.disclaimer || '')}</p>
+    </div>`;
+}
+
 // ─── INJURIES TAB ─────────────────────────────────────────────────────────────
 // Swimmers log an injury and the AI suggests how to reduce effort. Invite only:
 // see OPEN_TO in crossing-injury-rules.js, which the API also enforces.
@@ -2925,6 +3071,7 @@ async function init() {
     _viewingId = uidOverride || session.user.id;
     _isAdminView = !!uidOverride;
     showInjuryTabIfOpen();
+    loadProgramme();
 
     if (_isAdminView) {
         const { data: directory } = await sb.rpc('get_admin_user_directory');
