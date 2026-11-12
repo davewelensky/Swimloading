@@ -1,4 +1,4 @@
-const CACHE_NAME = 'swimloading-v13';
+const CACHE_NAME = 'swimloading-v14';
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',
@@ -46,6 +46,8 @@ self.addEventListener('fetch', (event) => {
 
     // Never cache internal API calls — they must always be fresh from the server.
     if (url.pathname.startsWith('/api/')) return;
+    // Supabase proxy used when a network blocks supabase.co (see sb-fallback.js) — never cache.
+    if (url.pathname.startsWith('/sb/')) return;
 
     // Skip non-GET requests
     if (event.request.method !== 'GET') return;

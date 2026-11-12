@@ -39,7 +39,7 @@
 
         // Initialize after library loads
         if (window.supabase) {
-            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { global: { fetch: window.slSupabaseFetch } });
         }
 
         // Analytics — fire-and-forget event tracking to Supabase
