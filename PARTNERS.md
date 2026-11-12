@@ -360,7 +360,7 @@ Dave
 | Field | Value |
 |-------|-------|
 | **Status** | Real, active relationship since Jul 2026 (in-person meeting between Dave, Carina and JAKED), not just a cold partnership — hero page live in coming-soon state. Carina's sponsorship kit shipped, due to arrive Sept 2026. |
-| **Hero page** | `/partners/jaked` (live in coming-soon state) |
+| **Hero page** | `/partners/jaked` (live in coming-soon state). Two photos of Carina in her JAKED wetsuit added 12 Nov 2026 (`partners/jaked-carina-wetsuit-1.jpg`, `-2.jpg`, supplied by Dave; the first is also the link preview image). Wetsuit model, location and photographer are not confirmed, so none is named on the page. Four studio photos of Carina in JAKED costumes added the same day (`partners/jaked-carina-costume-1..4.jpg`, costume names not stated), plus a "Want a JAKED wetsuit or costume?" interest block: a WhatsApp button to Dave's number (Dave asked for it 12 Nov after real buyer interest), tracked as `partner_jaked_interest_click`. It says ordering through SwimLoading isn't set up yet and promises no price, delivery or discount. |
 | **Welcome card** | Yes (coming soon badge) |
 | **Geography** | `[UNCONFIRMED]` for a general SwimLoading commercial arrangement. Carina's own kit ships direct from Italy to her in SA under her existing customs registration (see Notes). |
 | **Contact** | **Edoardo "Eddie" Galbiati**, egalbiati@miriadespa.it, Miriade SpA (Italy) — JAKED's distributor/team. Also cc's Lilia Vassilieva (lvassilieva@miriadespa.it). Confirmed via email thread, 2026-09-23. |
