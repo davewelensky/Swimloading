@@ -50,7 +50,7 @@ async function api(action, payload, retried) {
   if (!r.ok) {
     // One retry with a forced refresh before telling the coach their sign-in has lapsed.
     if (!retried && !DEV && (r.status === 401 || j.error === 'session_expired')) return api(action, payload, true);
-    const e = new Error(j.detail || j.error || 'HTTP ' + r.status); e.code = j.error; e.status = r.status; e.body = j; throw e;
+    const e = new Error(r.status === 413 ? 'These files are too big to send together (the limit is about 4 MB once encoded). Try the report and the data export again; if it keeps happening, tell Dave.' : j.detail || j.error || 'HTTP ' + r.status); e.code = j.error; e.status = r.status; e.body = j; throw e;
   }
   return j;
 }
@@ -116,6 +116,17 @@ function uploadView(err) {
 }
 
 /* ---------------------------------------------------------------- parse */
+// Vercel rejects request bodies over 4.5 MB (HTTP 413) and base64 adds a third. The parser never reads the EO export's
+// FPvsTime workbook (100 Hz force series, ~2 MB), so a large export is re-zipped without it before upload.
+function u8ToBase64(u8) { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); }
+async function exportToBase64(file) {
+  const raw = await toBase64(file);
+  if (raw.length < 2400000 || !window.fflate) return raw;
+  try {
+    const kept = window.fflate.unzipSync(new Uint8Array(await file.arrayBuffer()), { filter: (f) => !/_FPvsTime\.xlsx$/i.test(f.name) });
+    return u8ToBase64(window.fflate.zipSync(kept, { level: 0 }));
+  } catch (e) { console.warn('Could not slim the EO export, sending it as is', e); return raw; }
+}
 function toBase64(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(file); }); }
 /** Bounding boxes (canvas px) of the images drawn on a page, from pdf.js's operator list (tracks the current transform matrix). */
 async function imageBoxes(page, vp) {
@@ -161,7 +172,7 @@ async function runParse() {
     S.filename = (picked || pickedExport).name; S.id = null; S.published = null; S.fileB64 = null; S.exportB64 = null; S.prevList = null; S.prevCands = null; S.matchFor = null; S.exportInfo = null;
     const payload = { filename: picked ? picked.name : undefined, export_filename: pickedExport ? pickedExport.name : undefined, swimmer_name: form.name || undefined };
     if (picked) { S.fileB64 = await toBase64(picked); payload.file_base64 = S.fileB64; }
-    if (pickedExport) { S.exportB64 = await toBase64(pickedExport); payload.export_base64 = S.exportB64; }
+    if (pickedExport) { S.exportB64 = await exportToBase64(pickedExport); payload.export_base64 = S.exportB64; }
     mark(1);
     // the PDF's pictures are only read by the model when there is no data export (the export already holds the exact numbers)
     if (picked && !pickedExport && /\.pdf$/i.test(picked.name)) payload.page_images = await Promise.race([renderPdfPages(picked), new Promise((res) => setTimeout(() => res([]), 40000))]);
