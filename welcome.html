@@ -1141,6 +1141,10 @@
         /* ── Partners ── */
         .partner-card { border-radius: 18px; padding: 24px; border-color: var(--line); }
         .partner-chip { font-family: var(--mono); font-weight: 500; }
+        /* Card with a photo strip (JAKED). Full strength even while the chip says "soon", so the photos are not dimmed. */
+        .partner-photos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; width: 100%; }
+        .partner-photos img { display: block; width: 100%; height: auto; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); background: #0d1728; }
+        a.partner-card.has-photos.coming-soon { opacity: 1; }
 
         /* ── Closing CTA over the underwater photo (loaded when the section nears the viewport) ── */
         .cta-section { padding: 128px 24px 120px; overflow: hidden; isolation: isolate; }
@@ -2213,7 +2217,12 @@
                     <span class="partner-link">Preview FORM <i data-lucide="arrow-right" style="width:13px;height:13px;"></i></span>
                 </a>
                 <!-- JAKED — coming soon, Italian swimwear brand sponsoring Carina Bruwer, her kit arrived Sept 2026. Copy states the month, not a relative 'this month' that goes stale. -->
-                <a href="/partners/jaked" class="partner-card coming-soon">
+                <a href="/partners/jaked" class="partner-card coming-soon has-photos">
+                    <div class="partner-photos">
+                        <img src="/partners/jaked-card-1.jpg" width="300" height="400" loading="lazy" alt="Carina Bruwer in a black and gold JAKED costume at sunset">
+                        <img src="/partners/jaked-card-2.jpg" width="300" height="400" loading="lazy" alt="Carina Bruwer in a multicoloured JAKED costume">
+                        <img src="/partners/jaked-card-3.jpg" width="300" height="400" loading="lazy" alt="Carina Bruwer in a blue JAKED costume">
+                    </div>
                     <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
                         <div class="partner-logo-wrap">
                             <img src="/icons/jaked-logo.png" alt="JAKED">
@@ -2271,14 +2280,24 @@
         function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]; }); }
         function safeStyle(t) { return String(t || '').replace(/[^a-zA-Z0-9:;.%\s(),#\-]/g, ''); }
         var LIVE_IDS = { '/partners/trihard': ['trihardPartnerCard', 'trihardPartnerChip'], '/partners/eolab': ['eoPartnerCard', 'eoPartnerChip'] };
+        // Partners whose card carries a photo strip (alt text for each photo). Add a page here to give its card photos.
+        var PARTNER_PHOTOS = {
+            '/partners/jaked': [
+                ['/partners/jaked-card-1.jpg', 'Carina Bruwer in a black and gold JAKED costume at sunset'],
+                ['/partners/jaked-card-2.jpg', 'Carina Bruwer in a multicoloured JAKED costume'],
+                ['/partners/jaked-card-3.jpg', 'Carina Bruwer in a blue JAKED costume']
+            ]
+        };
         function partnerCardHtml(r) {
             var ids = LIVE_IDS[r.hero_page] || [];
-            var cls = 'partner-card' + (r.chip_state === 'soon' ? ' coming-soon' : '');
+            var photos = PARTNER_PHOTOS[r.hero_page];
+            var cls = 'partner-card' + (r.chip_state === 'soon' ? ' coming-soon' : '') + (photos ? ' has-photos' : '');
+            var photoHtml = photos ? '<div class="partner-photos">' + photos.map(function (p) { return '<img src="' + esc(p[0]) + '" width="300" height="400" loading="lazy" alt="' + esc(p[1]) + '">'; }).join('') + '</div>' : '';
             var logo = r.logo_url
                 ? '<img src="' + esc(r.logo_url) + '" alt="' + esc(r.logo_alt || r.name) + '"' + (r.logo_style ? ' style="' + esc(safeStyle(r.logo_style)) + '"' : '') + '>'
                 : '<span class="partner-name-text">' + esc(r.logo_text || r.name) + '</span>';
             var chip = r.chip_label ? '<span class="partner-chip ' + esc(r.chip_state || 'soon') + '"' + (ids[1] ? ' id="' + ids[1] + '"' : '') + '>' + esc(r.chip_label) + '</span>' : '';
-            var inner = '<div style="display:flex;align-items:center;justify-content:space-between;width:100%;"><div class="partner-logo-wrap">' + logo + '</div>' + chip + '</div>' +
+            var inner = photoHtml + '<div style="display:flex;align-items:center;justify-content:space-between;width:100%;"><div class="partner-logo-wrap">' + logo + '</div>' + chip + '</div>' +
                 '<p class="partner-desc">' + esc(r.blurb || '') + '</p>' +
                 (r.hero_page && r.cta_label ? '<span class="partner-link">' + esc(r.cta_label) + ' <i data-lucide="arrow-right" style="width:13px;height:13px;"></i></span>' : '');
             return r.hero_page
