@@ -87,7 +87,7 @@ Rule changes: rule 6 now reads "EO diagnoses and clinical advice are coach-only 
 EO's ranges are EO's printed values, not invented thresholds.
 
 **Not done:** per-week plan wording is auto-built from drills (Britt cannot yet edit individual weeks); the Sophia-style coach-written EO layout (stroke path, video snapshots, breaststroke) is not recognised by the parser (fails closed); per-lap watts need a builder input; republishing
-the existing sample (token `nBU8...`) from the builder is needed before it shows any of this; drill library and the new drills are DRAFT.
+the old sample report (token `nBU8...`) no longer exists: it was a test row, deleted 13 Nov 2026 along with the other test reports (only real swimmers remain); drill library and the new drills are DRAFT.
 
 ## 13 Nov 2026: "About this swimmer" (what the coach knows beyond the numbers)
 
