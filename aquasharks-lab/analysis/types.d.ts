@@ -306,7 +306,19 @@ export interface SwimAnalysis {
     eoClaims?: Record<string, { status: 'APPROVED' | 'EDITED' | 'HIDDEN'; editedText?: string }>;
     /** A short personal note from the coach, shown near the top of the swimmer report. */
     coachNote?: string;
-    /** Weeks until the suggested retest (4, 6 or 8). Defaults to 6. */
+    /**
+     * What the coach knows beyond the numbers. Coach-only except `swimmerText`, which is the wording the coach wrote or approved
+     * for the swimmer's report (empty = nothing shown). Injury fields only flag findings for the coach; they are never shown or
+     * turned into a medical statement.
+     */
+    background?: {
+      recentSwims?: string; lastSwim?: string; goal?: string; injuryNote?: string; swimmerText?: string;
+      /** Coming back after a break or injury: the plan eases in and the retest defaults to 8 weeks. */
+      returning?: boolean;
+      injuryStatus?: '' | 'SORE' | 'RECOVERING' | 'CLEARED' | 'PAST';
+      injurySides?: ('LEFT' | 'RIGHT')[];
+    };
+    /** Weeks until the suggested retest (4, 6 or 8). Defaults to 6 (8 when the swimmer is coming back). */
     retestWeeks?: number;
     /** The coach's next distance-per-stroke goal in metres. EO prints no target for it, so it is the coach's decision. */
     dpsGoalM?: number;
@@ -405,7 +417,7 @@ export interface ProfileConfig {
 }
 
 export interface ReportSection {
-  id: 'HERO' | 'NOTE' | 'STRENGTHS' | 'PROGRESS' | 'PLAN' | 'POWER' | 'HANDS' | 'HANDPATH' | 'COMPARISON' | 'ARMS' | 'FOCUS' | 'NEXT' | 'EVIDENCE' | 'DATA_QUALITY' | 'SOURCE';
+  id: 'HERO' | 'NOTE' | 'BACKGROUND' | 'STRENGTHS' | 'PROGRESS' | 'PLAN' | 'POWER' | 'HANDS' | 'HANDPATH' | 'COMPARISON' | 'ARMS' | 'FOCUS' | 'NEXT' | 'EVIDENCE' | 'DATA_QUALITY' | 'SOURCE';
   status: DataStatus;
   data: unknown;
 }

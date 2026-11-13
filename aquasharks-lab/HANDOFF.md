@@ -89,6 +89,16 @@ EO's ranges are EO's printed values, not invented thresholds.
 **Not done:** per-week plan wording is auto-built from drills (Britt cannot yet edit individual weeks); the Sophia-style coach-written EO layout (stroke path, video snapshots, breaststroke) is not recognised by the parser (fails closed); per-lap watts need a builder input; republishing
 the existing sample (token `nBU8...`) from the builder is needed before it shows any of this; drill library and the new drills are DRAFT.
 
+## 13 Nov 2026: "About this swimmer" (what the coach knows beyond the numbers)
+
+Dave's point (a swimmer back from the English Channel with a sore right then left shoulder): the builder asked only for name and age, so it could not read a left/right
+difference fairly. The review screen now has an **About this swimmer** panel: recent swims, time since the last swim, "coming back after a break or injury", injury status and side,
+injury notes, goal, and **What the swimmer sees**. Stored in `coachReview.background` (bounded by `cleanBackground` in `api/_lib/lab-report/workflow.js`; no migration, it is in the analysis JSON).
+- **Private by default.** Only `swimmerText` (wording Britt writes or accepts via "Suggest wording") reaches the report, as a "Where you're starting from" section. Injury fields never surface and are never a diagnosis.
+- **Flags, not verdicts.** An active injury (sore/recovering, or a side ticked) puts a coach-only warning on the findings that read one side against the other (`SIDE_RULES` in `app.js`); returning adds one on the lap comparison. Publishing warns until each is approved, reworded or suppressed.
+- **Returning swimmers** get an "Ease back in" plan step (two weeks, one if short, none if it would starve a focus) and the retest defaults to 8 weeks (`isReturning`, `buildPlan(..., { returning })`). Britt's own choice of weeks always wins; an unset value now stays unset in storage.
+- Tests: `test/lab-background.test.js`. Not built: using age to change wording, or per-side watts from injury data.
+
 ## Incidents fixed (6 Oct 2026)
 
 **1. "This account is not an Aquasharks club admin" for a real admin.** Cause: `report-builder/app.js` read the Supabase access token once at page load

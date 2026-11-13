@@ -11,7 +11,7 @@ import { emptyComparison, overlay, num, rng, lapRef, missing, X } from '../analy
 import { printedValues } from '../analysis/calc.js';
 import { fmtDate } from '../analysis/language.js';
 import { baselineFrom, comparability, progressRows, rankPrevious, sessionKey } from '../analysis/progress.js';
-import { retestWeeks, retestDate, RETEST_WEEKS } from '../analysis/plan.js';
+import { retestWeeks, retestDate, RETEST_WEEKS, isReturning } from '../analysis/plan.js';
 import { setHandPathField } from '../analysis/hand-path.js';
 
 const SUPABASE_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
@@ -247,7 +247,7 @@ function evidenceCol() {
 
 function findingsCol() {
   const R = S.R, rv = review().findings;
-  const prios = R.priorities.map((p, i) => `<div class="prio ${p.included ? '' : 'off'}"><div class="n">${p.included ? R.priorities.filter((x) => x.included).indexOf(p) + 1 : '–'}</div><div><strong>${esc(p.title)}</strong><div class="chips">${chip('class-' + p.classification.toLowerCase(), CLASS_LABEL[p.classification])}${chip('conf-' + p.confidence.toLowerCase(), p.confidence)}${p.suppressed ? chip('st-ambiguous', 'suppressed') : p.included ? chip('st-complete', 'in swimmer report') : chip('coach', p.coachOnlyReason || 'not in report')}</div>
+  const prios = R.priorities.map((p, i) => `<div class="prio ${p.included ? '' : 'off'}"><div class="n">${p.included ? R.priorities.filter((x) => x.included).indexOf(p) + 1 : '–'}</div><div><strong>${esc(p.title)}</strong>${(() => { const ff = R.findings.find((x) => x.id === p.findingIds[0]); return ff && backgroundFlag(ff) ? '<div class="warn" style="margin-top:4px">Check this one against what you know about the swimmer (see the flag on its card).</div>' : ''; })()}<div class="chips">${chip('class-' + p.classification.toLowerCase(), CLASS_LABEL[p.classification])}${chip('conf-' + p.confidence.toLowerCase(), p.confidence)}${p.suppressed ? chip('st-ambiguous', 'suppressed') : p.included ? chip('st-complete', 'in swimmer report') : chip('coach', p.coachOnlyReason || 'not in report')}</div>
     ${p.drill !== undefined ? `<label class="f" style="margin-top:6px">Drill<select class="in" data-drill="${esc(p.findingIds[0])}"><option value="">None</option>${DRILLS.map((d) => `<option value="${d.id}"${p.drillId === d.id ? ' selected' : ''}>${esc(d.name)}</option>`).join('')}</select></label>` : ''}</div>
     <div class="ctl" style="margin:0"><button class="btn sm" data-act="up" data-id="${esc(p.findingIds[0])}" ${i === 0 ? 'disabled' : ''}>↑</button><button class="btn sm" data-act="down" data-id="${esc(p.findingIds[0])}" ${i === R.priorities.length - 1 ? 'disabled' : ''}>↓</button></div></div>`).join('');
   const cards = R.findings.map((f) => {
@@ -257,6 +257,7 @@ function findingsCol() {
       ${f.measurement.length ? `<span class="lbl">Measurement</span><ul>${f.measurement.slice(0, 8).map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
       ${f.interpretation ? `<span class="lbl">Interpretation (${esc(f.interpretation.classification.toLowerCase())})</span><p class="mini">${esc(f.interpretation.text)}</p>` : ''}
       ${f.caveats.length ? `<span class="lbl">Caveats</span><ul>${f.caveats.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+      ${backgroundFlag(f) ? `<div class="warn">${esc(backgroundFlag(f))}</div>` : ''}
       ${f.corroboration ? `<p class="mini"><strong>${esc(f.corroboration.status)}.</strong> ${esc(f.corroboration.detail)}</p>` : ''}
       ${f.coachConfirmation.required ? `<div class="warn">Coach confirmation required. ${esc(f.coachConfirmation.reason || '')}${(f.coachConfirmation.evidenceNeeded || []).length ? '<ul>' + f.coachConfirmation.evidenceNeeded.map((x) => `<li>${esc(x)}</li>`).join('') + '</ul>' : ''}</div>` : ''}
       ${f.text.PERFORMANCE ? `<label class="f">Swimmer wording<textarea class="in" data-edit="${esc(f.id)}" rows="2">${esc(r.editedText != null ? r.editedText : f.text.PERFORMANCE)}</textarea></label>` : ''}
@@ -346,7 +347,7 @@ function progressPanel() {
 }
 /** When the swimmer is invited back. The practice plan is built from the report's own focuses and drills over these weeks. */
 function retestPanel() {
-  const a = S.analysis, w = retestWeeks(a.coachReview && a.coachReview.retestWeeks), d = a.session.date && a.session.date.value ? retestDate(a.session.date.value, w) : null;
+  const a = S.analysis, w = retestWeeks(a.coachReview && a.coachReview.retestWeeks, isReturning(a)), d = a.session.date && a.session.date.value ? retestDate(a.session.date.value, w) : null;
   const n = S.RS.priorities.filter((p) => p.included).length;
   return `<div class="panel"><h2>Retest and practice plan</h2><p class="hint">The report invites the swimmer back and gives a week-by-week plan built from the ${n} focus${n === 1 ? '' : 'es'} above and the drill chosen for each. Six weeks is a starting suggestion: change it to what you would tell this swimmer.</p>
     <label class="f">Retest in<select class="in" id="o-weeks">${RETEST_WEEKS.map((x) => `<option value="${x}"${w === x ? ' selected' : ''}>${x} weeks</option>`).join('')}</select></label>
@@ -354,6 +355,47 @@ function retestPanel() {
     <p class="mini">EO prints no target for distance per stroke, so a goal appears on the report only if you set one.</p>
     <p class="mini">${d ? `Retest around ${esc(d)}.` : 'No session date, so the report says "in about ' + w + ' weeks".'}</p></div>`;
 }
+/* ---------------------------------------------------------------- about this swimmer */
+const INJURY_LABEL = { SORE: 'Sore now', RECOVERING: 'Recovering', CLEARED: 'Cleared by physio', PAST: 'In the past' };
+// findings that read one arm against the other, or a hand's path: these are the ones an injury can change the meaning of
+const SIDE_RULES = new Set(['ASYMMETRY_PROFILE', 'POSSIBLE_TECHNICAL_OPPORTUNITY', 'HAND_PATH_CROSSOVER', 'HAND_PATH_WRIST', 'HAND_PATH_CONSISTENCY', 'HAND_FORCE_FIELD']);
+const bgOf = () => (S.analysis.coachReview && S.analysis.coachReview.background) || {};
+function bgHasAny() { const b = bgOf(); return !!(b.recentSwims || b.lastSwim || b.goal || b.injuryNote || b.injuryStatus || (b.injurySides || []).length || b.returning); }
+/** A coach-only prompt to read a finding against what Britt knows. Never shown to the swimmer and never a diagnosis. */
+function backgroundFlag(f) {
+  const b = bgOf(), live = b.injuryStatus === 'SORE' || b.injuryStatus === 'RECOVERING' || ((b.injurySides || []).length && b.injuryStatus !== 'CLEARED' && b.injuryStatus !== 'PAST');
+  if (live && SIDE_RULES.has(f.ruleId)) {
+    const sides = (b.injurySides || []).map((x) => x.toLowerCase()).join(' and ');
+    return `Check against what you know: ${INJURY_LABEL[b.injuryStatus] ? INJURY_LABEL[b.injuryStatus].toLowerCase() : 'an injury is noted'}${sides ? ' (' + sides + ' side)' : ''}. A left against right difference may reflect the injury rather than a technique habit. Read it with that in mind before you approve or show it.`;
+  }
+  if (b.returning && f.ruleId === 'LAP_COMPARISON') return 'This swimmer is coming back after a break. A change from the first lap to the last may reflect time out of the water, so word it gently or leave it out.';
+  return null;
+}
+function backgroundWording() {
+  const b = bgOf(), end = (t) => { t = String(t || '').trim(); return t && !/[.!?]$/.test(t) ? t + '.' : t; }, out = [];
+  if (b.recentSwims) out.push('Recently: ' + end(b.recentSwims));
+  if (b.lastSwim) out.push(end(b.lastSwim));
+  if (b.returning) out.push('This plan starts gently and builds, so you come back to the water at a comfortable pace.');
+  if (b.injuryStatus === 'SORE' || b.injuryStatus === 'RECOVERING') out.push('We have kept your recent injury in mind when reading your numbers, especially left against right.');
+  if (b.goal) out.push('Your goal: ' + end(b.goal));
+  return out.join('\n');
+}
+function backgroundPanel() {
+  const b = bgOf(), sides = b.injurySides || [];
+  return `<div class="panel"><h2>About this swimmer</h2><p class="hint">What you know that the numbers cannot show: recent swims, time out of the water, any injury. It flags the findings that need care, and a swimmer coming back gets a gentler plan. This stays private to you. Only the box at the bottom reaches the swimmer.</p>
+    <label class="f">Recent swims or events<textarea class="in" data-bg="recentSwims" rows="2" maxlength="500" placeholder="e.g. Crossed the Crooke Straits and the English Channel this season">${esc(b.recentSwims || '')}</textarea></label>
+    <label class="f" style="margin-top:8px">Time since the last swim, and training now<input class="in" data-bg="lastSwim" maxlength="200" value="${esc(b.lastSwim || '')}" placeholder="e.g. Not swum since the Channel, starting slowly"></label>
+    <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px"><input type="checkbox" data-bg-check="returning" ${b.returning ? 'checked' : ''}> Coming back after a break or injury: ease the plan in, retest in 8 weeks</label>
+    <div class="grid2" style="margin-top:10px"><label class="f">Injury or niggle<select class="in" data-bg="injuryStatus"><option value="">None</option>${Object.keys(INJURY_LABEL).map((k) => `<option value="${k}"${b.injuryStatus === k ? ' selected' : ''}>${INJURY_LABEL[k]}</option>`).join('')}</select></label>
+      <div class="f">Which side<span style="display:flex;gap:14px;margin-top:8px;font-size:13px"><label><input type="checkbox" data-bg-side="LEFT" ${sides.includes('LEFT') ? 'checked' : ''}> Left</label><label><input type="checkbox" data-bg-side="RIGHT" ${sides.includes('RIGHT') ? 'checked' : ''}> Right</label></span></div></div>
+    <label class="f" style="margin-top:8px">Injury notes (physio, what moves badly)<textarea class="in" data-bg="injuryNote" rows="2" maxlength="500" placeholder="e.g. Right shoulder, now left. Seen a physio.">${esc(b.injuryNote || '')}</textarea></label>
+    <label class="f" style="margin-top:8px">What the swimmer wants from this<input class="in" data-bg="goal" maxlength="300" value="${esc(b.goal || '')}" placeholder="e.g. Build back slowly and find out what is holding the stroke back"></label>
+    <label class="f" style="margin-top:12px">What the swimmer sees (optional)<textarea class="in" data-bg="swimmerText" rows="4" maxlength="800" placeholder="Leave empty to show nothing. Injuries and notes above are never shown unless you write them here.">${esc(b.swimmerText || '')}</textarea></label>
+    <div class="ctl"><button class="btn sm" data-act="bg-suggest">Suggest wording from the above</button></div>
+    <p class="mini">The report appears as "Where you're starting from", near the top, only if this box has text. Check every word: it is signed by you.</p></div>`;
+}
+function setBg(k, v) { const r = review(); r.background = r.background || {}; r.background[k] = v; }
+
 function notePanel() {
   const a = S.analysis, note = (a.coachReview && a.coachReview.coachNote) || '';
   const ov = a.eoObservations.filter((o) => o.area === 'OVERVIEW').map((o) => o.text).slice(0, 3);
@@ -398,7 +440,7 @@ function outputCol() {
   return `<div class="col"><div class="col-h">Report output <small>what the swimmer gets</small></div>
     <div class="panel"><h2>Swimmer</h2><div class="grid2"><label class="f">Name<input class="in" id="o-name" value="${esc(a.swimmer.name === 'Unnamed swimmer' ? '' : a.swimmer.name)}" placeholder="required"></label><label class="f">Age<input class="in" id="o-age" inputmode="numeric" value="${a.swimmer.age && a.swimmer.age.value != null ? a.swimmer.age.value : ''}" placeholder="optional"></label></div>
       <label class="f" style="margin-top:10px">Report style<select class="in" id="o-profile">${SWIMMER_PROFILES.map((p) => `<option value="${p}"${S.profile === p ? ' selected' : ''}>${PROFILE_LABEL[p]}</option>`).join('')}</select></label></div>
-    ${notePanel()}${retestPanel()}${progressPanel()}<div class="panel"><h2>Headline</h2>${hero ? `<p class="rv-big" style="margin:6px 0">${hero.data.headline.map(esc).join(' ')}</p>` : ''}<h3>Priorities the swimmer will see</h3>${inc.map((p, i) => `<p style="margin:6px 0"><strong>${i + 1}. ${esc(p.title)}</strong><br><span class="mini">${esc(p.cue)}${p.drill ? ' • ' + esc(p.drill.name) : ''}</span></p>`).join('') || '<p class="mini">None yet.</p>'}
+    ${backgroundPanel()}${notePanel()}${retestPanel()}${progressPanel()}<div class="panel"><h2>Headline</h2>${hero ? `<p class="rv-big" style="margin:6px 0">${hero.data.headline.map(esc).join(' ')}</p>` : ''}<h3>Priorities the swimmer will see</h3>${inc.map((p, i) => `<p style="margin:6px 0"><strong>${i + 1}. ${esc(p.title)}</strong><br><span class="mini">${esc(p.cue)}${p.drill ? ' • ' + esc(p.drill.name) : ''}</span></p>`).join('') || '<p class="mini">None yet.</p>'}
       <h3>Sections</h3><div class="chips">${RS.report.sections.filter((s) => !['EVIDENCE', 'DATA_QUALITY', 'SOURCE'].includes(s.id)).map((s) => chip('st-' + s.status.toLowerCase(), s.id.toLowerCase() + ': ' + s.status.toLowerCase())).join('')}</div><p class="mini">A section with no evidence is left out of the report, never filled.</p></div>
     <div class="panel"><h2>Ready to publish?</h2>${rd.blockers.map((x) => `<p class="err">${esc(x)}</p>`).join('')}${rd.warnings.map((x) => `<p class="warn">${esc(x)}</p>`).join('')}${!rd.blockers.length && !rd.warnings.length ? '<p class="ok">Nothing outstanding.</p>' : ''}
       ${S.err ? `<p class="err">${esc(S.err)}</p>` : ''}${S.msg ? `<p class="ok">${esc(S.msg)}</p>` : ''}
@@ -411,6 +453,9 @@ function clientReadiness() {
   const peF = R.findings.find((f) => f.ruleId === 'POWER_EFFECTIVENESS'), cn = peF && peF.meta.explanationCandidates ? peF.meta.explanationCandidates : [], cl = (a.coachReview && a.coachReview.eoClaims) || {};
   if (cn.length && !cn.some((c) => cl[c.id])) warnings.push('You have not looked at EO’s explanation yet. Show the points you agree with, or the report will give numbers and targets without the reason.');
   if (!(a.coachReview && a.coachReview.coachNote && a.coachReview.coachNote.trim())) warnings.push('No note from you yet. A short personal note is what the swimmer remembers.');
+  if (!bgHasAny()) warnings.push('Nothing about the swimmer yet: recent swims, a break from the water, any injury. It changes how the left and right arms should be read.');
+  const flagged = R.findings.filter((f) => backgroundFlag(f) && !['APPROVED', 'EDITED', 'SUPPRESSED'].includes(((a.coachReview && a.coachReview.findings || {})[f.id] || {}).status || 'PENDING'));
+  if (flagged.length) warnings.push(`Read against what you know about the swimmer, then approve, reword or suppress: ${flagged.map((f) => f.title).join('; ')}.`);
   const un = R.quality.conflicts.filter((c) => c.realConflict && !c.selectionBasis); if (un.length) warnings.push(`Record a decision for conflicting values: ${un.map((c) => c.path).join(', ')}.`);
   const pend = R.findings.filter((f) => f.review.status === 'PENDING' && f.kind === 'OPPORTUNITY' && f.classification !== 'COACH_CONFIRMATION_REQUIRED').length; if (pend) warnings.push(`${pend} finding(s) not yet approved.`);
   return { blockers, warnings };
@@ -440,6 +485,9 @@ function bindReview() {
       return rerender();
     }
     if (t.id === 'o-dps') { const v = Number(t.value); if (t.value.trim() === '') delete review().dpsGoalM; else if (isFinite(v) && v > 0.5 && v < 5) review().dpsGoalM = v; else S.err = 'Enter a distance per stroke in metres, for example 2.90.'; return rerender(); }
+    if (t.dataset.bg) { setBg(t.dataset.bg, t.value); return rerender(); }
+    if (t.dataset.bgCheck) { setBg('returning', t.checked); return rerender(); }
+    if (t.dataset.bgSide) { const cur = new Set(bgOf().injurySides || []); t.checked ? cur.add(t.dataset.bgSide) : cur.delete(t.dataset.bgSide); setBg('injurySides', ['LEFT', 'RIGHT'].filter((x) => cur.has(x))); return rerender(); }
     if (t.id === 'o-weeks') { review().retestWeeks = Number(t.value); return rerender(); }
     if (t.id === 'o-note') { review().coachNote = t.value; return rerender(); }
     if (t.dataset.note !== undefined) { fr(t.dataset.note).note = t.value; return; }
@@ -451,7 +499,8 @@ function bindReview() {
   root.onclick = (e) => {
     const d = e.target.closest('details.d[data-d]'); if (d && e.target.closest('summary')) setTimeout(() => { S.openDetails[d.dataset.d] = d.open; }, 0);
     const b = e.target.closest('[data-act]'); if (!b) return; const act = b.dataset.act, id = b.dataset.id; S.err = null; S.msg = null;
-    if (act === 'approve') { const r = fr(id); r.status = r.editedText ? 'EDITED' : 'APPROVED'; }
+    if (act === 'bg-suggest') { const w = backgroundWording(); if (!w) { S.err = 'Fill in something above first, then the wording can be suggested.'; } else setBg('swimmerText', w); }
+    else if (act === 'approve') { const r = fr(id); r.status = r.editedText ? 'EDITED' : 'APPROVED'; }
     else if (act === 'suppress') fr(id).status = 'SUPPRESSED';
     else if (act === 'restore') fr(id).status = 'PENDING';
     else if (act === 'confirm') { const r = fr(id); r.technicalConfirmed = !r.technicalConfirmed; }

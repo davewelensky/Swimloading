@@ -63,6 +63,20 @@ export async function parseUpload(input, deps = {}) {
   return { analysis, diagnostics, layout, format, sha256, vision, exportInfo };
 }
 
+const INJURY_STATUS = ['SORE', 'RECOVERING', 'CLEARED', 'PAST'];
+/** What the coach knows about the swimmer beyond the numbers. Bounded strings and known values only; empty when nothing was entered. */
+export function cleanBackground(b) {
+  if (!b || typeof b !== 'object') return undefined;
+  const str = (v, n) => (typeof v === 'string' ? v.trim().slice(0, n) : '');
+  const out = {
+    recentSwims: str(b.recentSwims, 500), lastSwim: str(b.lastSwim, 200), goal: str(b.goal, 300), injuryNote: str(b.injuryNote, 500), swimmerText: str(b.swimmerText, 800),
+    returning: b.returning === true, injuryStatus: INJURY_STATUS.includes(b.injuryStatus) ? b.injuryStatus : '',
+    injurySides: Array.isArray(b.injurySides) ? ['LEFT', 'RIGHT'].filter((s) => b.injurySides.includes(s)) : [],
+  };
+  const any = out.recentSwims || out.lastSwim || out.goal || out.injuryNote || out.swimmerText || out.returning || out.injuryStatus || out.injurySides.length;
+  return any ? out : undefined;
+}
+
 /** Validate what the browser sends back and strip derived layers (they are recomputed from source + coach review). */
 export function cleanForStorage(analysis) {
   if (!analysis || typeof analysis !== 'object' || analysis.schemaVersion !== 3) throw fail('analysis_invalid', 400, 'expected a SwimAnalysis v3 object');
@@ -79,7 +93,7 @@ export function cleanForStorage(analysis) {
     if (!c || !['APPROVED', 'EDITED', 'HIDDEN'].includes(c.status) || !/^eo-obs-\d{1,4}$/.test(id)) continue;
     eoClaims[id] = c.status === 'EDITED' ? { status: 'EDITED', editedText: String(c.editedText || '').slice(0, 600) } : { status: c.status };
   }
-  a.coachReview = { findings: rv.findings || {}, priorityOrder: rv.priorityOrder, drillChoice: rv.drillChoice, eoClaims, coachNote: typeof rv.coachNote === 'string' ? rv.coachNote.slice(0, 1200) : '', retestWeeks: [4, 6, 8].includes(Number(rv.retestWeeks)) ? Number(rv.retestWeeks) : 6, dpsGoalM: typeof rv.dpsGoalM === 'number' && rv.dpsGoalM > 0.5 && rv.dpsGoalM < 5 ? Math.round(rv.dpsGoalM * 100) / 100 : undefined };
+  a.coachReview = { findings: rv.findings || {}, priorityOrder: rv.priorityOrder, drillChoice: rv.drillChoice, eoClaims, coachNote: typeof rv.coachNote === 'string' ? rv.coachNote.slice(0, 1200) : '', retestWeeks: rv.retestWeeks === undefined ? undefined : [4, 6, 8].includes(Number(rv.retestWeeks)) ? Number(rv.retestWeeks) : 6, background: cleanBackground(rv.background), dpsGoalM: typeof rv.dpsGoalM === 'number' && rv.dpsGoalM > 0.5 && rv.dpsGoalM < 5 ? Math.round(rv.dpsGoalM * 100) / 100 : undefined };
   if (JSON.stringify(a).length > MAX_ANALYSIS_BYTES) throw fail('analysis_too_large', 413);
   return a;
 }

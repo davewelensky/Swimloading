@@ -8,7 +8,7 @@ import { present, getPath } from './model.js';
 import { f0, f1, f2, mmss, fmtDate, span } from './language.js';
 import { progressRows, historyEntry } from './progress.js';
 import { classifyAgainst } from './rules.js';
-import { buildPlan, retestWeeks, retestDate, pullCount, BOOK_URL } from './plan.js';
+import { buildPlan, retestWeeks, retestDate, pullCount, isReturning, BOOK_URL } from './plan.js';
 
 const HEADLINES = {
   POWER_EFFECTIVENESS: (a, p) => {
@@ -93,6 +93,11 @@ export function buildReport(a, findings, priorities, quality, profile) {
   const rawNote = a.coachReview && a.coachReview.coachNote;
   const note = typeof rawNote === 'string' ? rawNote.trim().slice(0, 1200) : '';
   sections.push({ id: 'NOTE', status: note ? 'COMPLETE' : 'MISSING', data: note ? { text: note, from: 'Britt', club: 'Aqua Sharks' } : null });
+
+  // BACKGROUND: where the swimmer is starting from. Shown only as the wording the coach wrote or approved; injuries and notes are never auto-surfaced.
+  const rawBg = a.coachReview && a.coachReview.background && a.coachReview.background.swimmerText;
+  const bgText = typeof rawBg === 'string' ? rawBg.trim().slice(0, 800) : '';
+  sections.push({ id: 'BACKGROUND', status: bgText ? 'COMPLETE' : 'MISSING', data: bgText ? { headline: 'WHERE YOU’RE STARTING FROM', text: bgText } : null });
 
   // what the coach has approved of EO's own wording (hidden until approved)
   const claims = (a.coachReview && a.coachReview.eoClaims) || {};
@@ -234,8 +239,8 @@ export function buildReport(a, findings, priorities, quality, profile) {
     rows: prog } : null });
 
   // PLAN: what to work on in the weeks before the retest, one focus at a time, from this report's own priorities and drills
-  const weeks = retestWeeks(a.coachReview && a.coachReview.retestWeeks);
-  const steps = buildPlan(included.map((p) => ({ title: p.title, cue: p.cue, drill: p.drill })), weeks);
+  const weeks = retestWeeks(a.coachReview && a.coachReview.retestWeeks, isReturning(a));
+  const steps = buildPlan(included.map((p) => ({ title: p.title, cue: p.cue, drill: p.drill })), weeks, { returning: isReturning(a) });
   const pulls = pullCount(a);
   sections.push({ id: 'PLAN', status: steps.length ? 'COMPLETE' : 'MISSING', data: steps.length ? {
     headline: 'YOUR PRACTICE PLAN', weeks, steps, tip: 'One thing at a time. Slow it down: build each change at an easy pace first, then pick up the pace once it holds.',

@@ -36,6 +36,11 @@ function noteSec(sec) {
   return `<section class="pg rv-sec rv-note" data-sec="NOTE"><p class="eyebrow">A note from ${esc(d.from)}</p><blockquote class="rv-notebody">${esc(d.text).split(/\n+/).map((x) => `<p>${x}</p>`).join('')}</blockquote><p class="rv-notesig">${esc(d.from)}, ${esc(d.club)}</p></section>`;
 }
 
+function backgroundSec(sec) {
+  const d = sec.data;
+  return `<section class="pg rv-sec rv-note" data-sec="BACKGROUND"><p class="eyebrow">${esc(d.headline)}</p><div class="rv-notebody">${esc(d.text).split(/\n+/).map((x) => `<p>${x}</p>`).join('')}</div></section>`;
+}
+
 function strengths(sec) {
   const d = sec.data;
   return `<section class="pg rv-sec rv-good" data-sec="STRENGTHS"><header class="rv-sechead"><p class="eyebrow">Keep doing this</p><h2 class="rv-h2">${esc(d.headline)}</h2></header><ul class="rv-goodlist">${d.items.map((i) => `<li><i data-lucide="check"></i><div><strong>${esc(i.title)}</strong>${i.detail ? `<p>${esc(i.detail)}</p>` : ''}</div></li>`).join('')}</ul></section>`;
@@ -56,7 +61,7 @@ function progress(sec) {
 function plan(sec, m) {
   const d = sec.data, simple = m.profile.showNumbers === 'MINIMAL';
   return `<section class="pg rv-sec rv-plan" data-sec="PLAN"><header class="rv-sechead"><p class="eyebrow">Until your retest</p><h2 class="rv-h2">${esc(d.headline)}</h2></header>
-    <ol class="rv-steps">${d.steps.map((x) => `<li class="rv-step rv-step-${x.kind.toLowerCase()}"><span class="rv-stepwk">${esc(x.weeks)}</span><div><strong>${esc(x.title)}</strong>${x.drill ? `<p>Add <em>${esc(x.drill.name)}</em> to your warm-up (how it goes is on the focus page).</p>` : x.kind === 'TOGETHER' ? '<p>Swim your normal sets and bring the cues with you. Then come back and we measure what changed.</p>' : ''}${x.cue ? `<p class="rv-stepcue">Cue: &ldquo;${esc(x.cue)}&rdquo;</p>` : ''}</div></li>`).join('')}</ol>
+    <ol class="rv-steps">${d.steps.map((x) => `<li class="rv-step rv-step-${x.kind.toLowerCase()}"><span class="rv-stepwk">${esc(x.weeks)}</span><div><strong>${esc(x.title)}</strong>${x.drill ? `<p>Add <em>${esc(x.drill.name)}</em> to your warm-up (how it goes is on the focus page).</p>` : x.kind === 'EASE_IN' ? '<p>Swim at an easy, comfortable pace and let the amount build slowly. Nothing needs to be fast yet.</p>' : x.kind === 'TOGETHER' ? '<p>Swim your normal sets and bring the cues with you. Then come back and we measure what changed.</p>' : ''}${x.cue ? `<p class="rv-stepcue">Cue: &ldquo;${esc(x.cue)}&rdquo;</p>` : ''}</div></li>`).join('')}</ol>
     ${d.tip ? `<p class="rv-tip">${esc(d.tip)}</p>` : ''}
     ${d.check ? `<div class="rv-pull"><i data-lucide="hash"></i><div><p class="lbl">A number you can check yourself</p><p><strong>${simple ? '' : esc(d.check.perLength)}</strong>${simple ? 'Count how many times your right hand enters the water on one length.' : ` strokes per length today (one stroke is left and right arm together). ${esc(d.check.text)}`}</p></div></div>` : ''}</section>`;
 }
@@ -219,7 +224,7 @@ function source(sec) {
   </section>`;
 }
 
-const RENDER = { HERO: hero, NOTE: noteSec, STRENGTHS: strengths, PROGRESS: progress, PLAN: plan, POWER: power, HANDS: hands, HANDPATH: handpath, COMPARISON: comparison, ARMS: arms, FOCUS: focus, NEXT: next, EVIDENCE: evidence, DATA_QUALITY: quality, SOURCE: source };
+const RENDER = { HERO: hero, NOTE: noteSec, BACKGROUND: backgroundSec, STRENGTHS: strengths, PROGRESS: progress, PLAN: plan, POWER: power, HANDS: hands, HANDPATH: handpath, COMPARISON: comparison, ARMS: arms, FOCUS: focus, NEXT: next, EVIDENCE: evidence, DATA_QUALITY: quality, SOURCE: source };
 
 /** @param {import('./types').ReportModel} model */
 export function renderReport(model) {

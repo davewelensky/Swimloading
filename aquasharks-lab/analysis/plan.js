@@ -12,7 +12,10 @@ export const DEFAULT_RETEST_WEEKS = 6;
 export const BOOK_URL = 'https://www.swimloading.com/aquasharks-lab#book';
 
 /** @param {any} v */
-export const retestWeeks = (v) => (RETEST_WEEKS.includes(Number(v)) ? Number(v) : DEFAULT_RETEST_WEEKS);
+export const retestWeeks = (v, returning) => (RETEST_WEEKS.includes(Number(v)) ? Number(v) : returning ? 8 : DEFAULT_RETEST_WEEKS);
+
+/** True when the coach has said the swimmer is coming back after a break or injury: the plan eases in and the retest defaults to 8 weeks. @param {any} a */
+export const isReturning = (a) => !!(a && a.coachReview && a.coachReview.background && a.coachReview.background.returning);
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 /** "2026-10-06" + 6 weeks -> "17 November 2026". Calendar maths in UTC; never toISOString (SAST shifts the day back). */
@@ -25,16 +28,21 @@ export function retestDate(isoDate, weeks) {
 
 /**
  * One focus per stretch of weeks, in the order of the report's priorities, then a final week to put it together.
- * @param {{title: string, cue: string, drill: {name: string, what: string} | null}[]} focuses @param {number} weeks
+ * @param {{title: string, cue: string, drill: {name: string, what: string} | null}[]} focuses @param {number} weeks @param {{ returning?: boolean }} [opts]
  */
-export function buildPlan(focuses, weeks) {
+export function buildPlan(focuses, weeks, opts) {
   if (!focuses.length) return [];
-  const build = weeks - 1, n = focuses.length, base = Math.floor(build / n), extra = build % n;
-  let w = 1;
-  const steps = focuses.map((f, i) => {
+  const n = focuses.length;
+  // a swimmer coming back eases in first (two weeks, or one if the plan is short), but never at the cost of a focus getting no weeks
+  const lead = opts && opts.returning ? [2, 1, 0].find((l) => weeks - 1 - l >= n) ?? 0 : 0;
+  const build = weeks - 1 - lead, base = Math.floor(build / n), extra = build % n;
+  let w = lead + 1;
+  /** @type {any[]} */
+  const steps = lead ? [{ kind: 'EASE_IN', weeks: lead === 1 ? 'Week 1' : `Weeks 1–${lead}`, title: 'Ease back in', cue: '', drill: null }] : [];
+  steps.push(...focuses.map((f, i) => {
     const len = base + (i < extra ? 1 : 0), from = w, to = w + len - 1; w += len;
     return { kind: 'FOCUS', weeks: from === to ? `Week ${from}` : `Weeks ${from}–${to}`, title: f.title, cue: f.cue, drill: f.drill ? { name: f.drill.name, what: f.drill.what } : null };
-  });
+  }));
   steps.push({ kind: 'TOGETHER', weeks: `Week ${weeks}`, title: 'Put it together', cue: '', drill: null });
   return steps;
 }
