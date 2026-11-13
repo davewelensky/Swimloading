@@ -316,6 +316,8 @@ export interface SwimAnalysis {
       /** Coming back after a break or injury: the plan eases in and the retest defaults to 8 weeks. */
       returning?: boolean;
       injuryStatus?: '' | 'SORE' | 'RECOVERING' | 'CLEARED' | 'PAST';
+      /** Which side the swimmer breathes to. BOTH makes a breathing habit a less likely reason for one arm leading. */
+      breathing?: '' | 'LEFT' | 'RIGHT' | 'BOTH';
       injurySides?: ('LEFT' | 'RIGHT')[];
     };
     /** Weeks until the suggested retest (4, 6 or 8). Defaults to 6 (8 when the swimmer is coming back). */

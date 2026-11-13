@@ -366,8 +366,13 @@ export function asymmetryProfile(a) {
   // one arm leads in every lap: say so plainly, with the reasons EO's Technical Error Index lists (breathing, strength, timing)
   const persistent = lapLeads.length >= 2 && !lapSwap && outputGap && outputGap.higher !== 'EQUAL';
   const pSide = persistent ? lapLeads[0].higher.toLowerCase() : null, pGapW = persistent && present(lr.avgImpulseW.left) && present(lr.avgImpulseW.right) ? Math.abs(lr.avgImpulseW.left.value - lr.avgImpulseW.right.value) : null;
+  // the coach's note on which side the swimmer breathes to: a both-sides breather makes a breathing habit a less likely reason for one arm leading
+  const breath = a.coachReview && a.coachReview.background && a.coachReview.background.breathing;
+  const why = breath === 'BOTH' ? 'it can come from strength or from timing. Because you breathe to both sides, breathing is less likely to be the reason'
+    : breath === 'LEFT' || breath === 'RIGHT' ? `it can come from breathing to the ${breath.toLowerCase()}, from strength, or from timing`
+    : 'it can come from which side you breathe to, from strength, or from timing';
   const opportunity = persistent
-    ? `Your ${pSide} arm does more of the work in every lap${pGapW != null ? `, by about ${f0(pGapW)} W over the swim` : ''}. The opportunity is to find out why: it can come from which side you breathe to, from strength, or from timing. A difference between arms is not automatically a fault.`
+    ? `Your ${pSide} arm does more of the work in every lap${pGapW != null ? `, by about ${f0(pGapW)} W over the swim` : ''}. The opportunity is to find out why: ${why}. A difference between arms is not automatically a fault.`
     : lapSwap
     ? `Your stronger arm changes between laps: ${leadWords}. The opportunity is a steady stroke, where neither arm takes over from the other as the swim goes on.${multi ? ` The ${multi} arm’s force delivery is also less smooth than the ${other}.` : ''}`
     : multi

@@ -53,3 +53,17 @@ test('storage keeps only bounded, known background values and drops an empty one
   const a = clone(A); a.swimmer.name = 'Test'; a.coachReview = { findings: {}, background: { goal: 'Build back', injurySides: ['RIGHT'] } };
   const c = cleanForStorage(a).coachReview; assert.equal(c.background.goal, 'Build back'); assert.equal(c.retestWeeks, undefined, 'an unset retest stays unset so returning can default it');
 });
+
+test('breathing side changes the "why" offered for one arm leading: both sides makes breathing a less likely reason', () => {
+  const asym = (breathing) => { const a = clone(A); a.leftRight.byLap = [1, 2].map((lap) => ({ lap, higher: { value: 'RIGHT', status: 'COMPLETE', provenance: { origin: 'EO_REPORT' } }, leftW: { value: null, status: 'MISSING', absence: 'COACH_REQUIRED' }, rightW: { value: null, status: 'MISSING', absence: 'COACH_REQUIRED' } })); a.coachReview.background = breathing ? { breathing } : undefined; return analyse(a, 'COACH').findings.find((f) => f.ruleId === 'ASYMMETRY_PROFILE'); };
+  const none = asym(''), both = asym('BOTH'), left = asym('LEFT');
+  assert.ok(none.meta.persistent, 'the fixture must produce the persistent case for this to mean anything');
+  assert.match(none.text.COACH, /which side you breathe to, from strength, or from timing/);
+  assert.match(both.text.COACH, /from strength or from timing\. Because you breathe to both sides, breathing is less likely to be the reason/);
+  assert.doesNotMatch(both.text.COACH, /which side you breathe to/);
+  assert.match(left.text.COACH, /breathing to the left, from strength, or from timing/);
+});
+test('breathing is stored only as a known value', () => {
+  assert.equal(cleanBackground({ breathing: 'BOTH' }).breathing, 'BOTH'); assert.equal(cleanBackground({ breathing: 'BOTH', goal: 'x' }).breathing, 'BOTH');
+  assert.equal(cleanBackground({ breathing: 'EVIL', goal: 'x' }).breathing, '');
+});

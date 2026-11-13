@@ -97,6 +97,7 @@ injury notes, goal, and **What the swimmer sees**. Stored in `coachReview.backgr
 - **Private by default.** Only `swimmerText` (wording Britt writes or accepts via "Suggest wording") reaches the report, as a "Where you're starting from" section. Injury fields never surface and are never a diagnosis.
 - **Flags, not verdicts.** An active injury (sore/recovering, or a side ticked) puts a coach-only warning on the findings that read one side against the other (`SIDE_RULES` in `app.js`); returning adds one on the lap comparison. Publishing warns until each is approved, reworded or suppressed.
 - **Returning swimmers** get an "Ease back in" plan step (two weeks, one if short, none if it would starve a focus) and the retest defaults to 8 weeks (`isReturning`, `buildPlan(..., { returning })`). Britt's own choice of weeks always wins; an unset value now stays unset in storage.
+- **Breathing side** (`background.breathing`: left / right / both): the persistent-asymmetry "why" drops the breathing reason when the swimmer breathes both sides ("breathing is less likely to be the reason"), and names the side otherwise. Added 13 Nov after Dave's Tracey case.
 - Tests: `test/lab-background.test.js`. Not built: using age to change wording, or per-side watts from injury data.
 
 ## Incidents fixed (6 Oct 2026)

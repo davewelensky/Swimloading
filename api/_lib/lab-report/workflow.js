@@ -70,10 +70,10 @@ export function cleanBackground(b) {
   const str = (v, n) => (typeof v === 'string' ? v.trim().slice(0, n) : '');
   const out = {
     recentSwims: str(b.recentSwims, 500), lastSwim: str(b.lastSwim, 200), goal: str(b.goal, 300), injuryNote: str(b.injuryNote, 500), swimmerText: str(b.swimmerText, 800),
-    returning: b.returning === true, injuryStatus: INJURY_STATUS.includes(b.injuryStatus) ? b.injuryStatus : '',
+    returning: b.returning === true, injuryStatus: INJURY_STATUS.includes(b.injuryStatus) ? b.injuryStatus : '', breathing: ['LEFT', 'RIGHT', 'BOTH'].includes(b.breathing) ? b.breathing : '',
     injurySides: Array.isArray(b.injurySides) ? ['LEFT', 'RIGHT'].filter((s) => b.injurySides.includes(s)) : [],
   };
-  const any = out.recentSwims || out.lastSwim || out.goal || out.injuryNote || out.swimmerText || out.returning || out.injuryStatus || out.injurySides.length;
+  const any = out.recentSwims || out.lastSwim || out.goal || out.injuryNote || out.swimmerText || out.returning || out.injuryStatus || out.breathing || out.injurySides.length;
   return any ? out : undefined;
 }
 
