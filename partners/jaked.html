@@ -32,7 +32,7 @@
       --body:      #cbd5e1;
       --border:    rgba(255,255,255,0.06);
       --line:      rgba(255,255,255,0.09);
-      --wrap:      1040px;
+      --wrap:      1160px;
     }
     html { scroll-behavior: smooth; }
     body {
@@ -120,7 +120,9 @@
     /* SPLIT (wetsuit) */
     .split { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 56px; align-items: center; }
     .split-photo { position: relative; }
-    .split-photo img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 5; object-fit: cover; object-position: center top; border-radius: 16px; border: 1px solid var(--border); background: var(--bg-card); }
+    .photo-btn { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: zoom-in; }
+    .photo-btn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+    .split-photo img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 5; object-fit: cover; object-position: center top; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-card); }
     .spec-strip { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
     .spec-tag { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--text-sec); letter-spacing: 1.5px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 4px; padding: 5px 10px; text-transform: uppercase; }
     .spec-note { font-size: 12px; color: var(--text-sec); margin-top: 10px; }
@@ -133,7 +135,7 @@
     .order-foot { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--text-sec); letter-spacing: 1.5px; margin-top: 16px; text-transform: uppercase; }
 
     /* BAND (sunset + quote) */
-    .band { position: relative; border-radius: 20px; overflow: hidden; min-height: 460px; display: flex; align-items: flex-end; border: 1px solid var(--border); }
+    .band { position: relative; border-radius: 6px; overflow: hidden; min-height: 460px; display: flex; align-items: flex-end; border: 1px solid var(--border); }
     .band img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 6%; }
     .band::after { content: ''; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(5,13,26,0.94) 0%, rgba(5,13,26,0.55) 38%, rgba(5,13,26,0) 70%); }
     .band-copy { position: relative; z-index: 2; padding: 36px; max-width: 720px; }
@@ -141,11 +143,47 @@
     .band-quote span { color: var(--cyan); }
     .band-attr { font-family: 'DM Mono', monospace; font-size: 10px; color: rgba(241,245,249,0.7); letter-spacing: 1.5px; text-transform: uppercase; }
 
-    /* GALLERY */
-    .gallery { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 32px; }
-    .gallery figure { margin: 0; overflow: hidden; border-radius: 14px; border: 1px solid var(--border); background: var(--bg-card); }
-    .gallery img { display: block; width: 100%; height: auto; aspect-ratio: 2 / 3; object-fit: cover; object-position: center top; transition: transform 0.5s ease; }
-    .gallery figure:hover img { transform: scale(1.03); }
+    /* GALLERY: editorial grid. One large hero photo (about twice the size of the supporting photos), medium
+       portraits, a wide crop and one small detail crop. Rows are half a column tall so tiles can span 1, 2 or 4. */
+    .gallery {
+      --gap: 12px;
+      --col: calc((min(100vw, 1160px) - 48px - 3 * var(--gap)) / 4);
+      display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-auto-rows: calc(var(--col) * 0.75); gap: var(--gap); margin-top: 40px;
+    }
+    .g { position: relative; margin: 0; overflow: hidden; border-radius: 4px; background: var(--bg-card); }
+    .g button { display: block; width: 100%; height: 100%; padding: 0; border: 0; background: none; cursor: zoom-in; }
+    .g button:focus-visible { outline: 2px solid var(--cyan); outline-offset: -2px; }
+    .g img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center top; transition: transform 0.6s ease; }
+    .g:hover img { transform: scale(1.03); }
+    .g-a { grid-column: 1 / 3; grid-row: 1 / 5; }
+    .g-b { grid-column: 3; grid-row: 1 / 3; }
+    .g-c { grid-column: 4; grid-row: 1 / 3; }
+    .g-d { grid-column: 3 / 5; grid-row: 3 / 5; }
+    .g-d img { object-position: center 14%; }
+    .g-e { grid-column: 1; grid-row: 5 / 7; }
+    .g-f { grid-column: 2 / 4; grid-row: 5 / 7; }
+    .g-f img { object-position: center 32%; }
+    .g-g { grid-column: 4; grid-row: 5; }
+    .g-g img { object-position: center; }
+    .g-cta { grid-column: 4; grid-row: 6; background: linear-gradient(135deg, #07182a, #061221); border: 1px solid var(--cyan-border); }
+    .g-cta-inner { height: 100%; padding: 16px 18px; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 8px; }
+    .g-cta-title { font-family: 'Bebas Neue', sans-serif; font-size: 28px; line-height: 1; color: var(--text); letter-spacing: 0.3px; }
+
+    /* LIGHTBOX */
+    .lb { position: fixed; inset: 0; z-index: 10000; background: rgba(3, 8, 16, 0.95); display: flex; align-items: center; justify-content: center; }
+    .lb[hidden] { display: none; }
+    .lb-stage { margin: 0; max-width: 94vw; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+    .lb-stage img { display: block; max-width: 94vw; max-height: 82vh; width: auto; height: auto; object-fit: contain; border-radius: 2px; }
+    .lb-cap { font-size: 13px; color: var(--body); text-align: center; max-width: 640px; padding: 0 16px; }
+    .lb-count { position: absolute; top: 22px; left: 24px; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-sec); letter-spacing: 2px; }
+    .lb-btn { position: absolute; display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.18); background: rgba(8, 15, 26, 0.7); color: var(--text); cursor: pointer; transition: background 0.2s, border-color 0.2s; }
+    .lb-btn:hover { background: rgba(56,189,248,0.15); border-color: var(--cyan-border); }
+    .lb-btn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+    .lb-btn svg { width: 22px; height: 22px; }
+    .lb-close { top: 16px; right: 16px; }
+    .lb-prev { left: 16px; top: 50%; transform: translateY(-50%); }
+    .lb-next { right: 16px; top: 50%; transform: translateY(-50%); }
 
     /* CARDS GRID */
     .feature-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 28px; }
@@ -205,7 +243,17 @@
       .nav-cta { padding: 8px 16px; }
       .nav-cta i, .nav-cta svg { display: none; }
       .feature-grid { grid-template-columns: 1fr; }
-      .gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .gallery { --gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: auto; }
+      .g { grid-column: auto; grid-row: auto; aspect-ratio: 2 / 3; }
+      .g-a { grid-column: 1 / -1; aspect-ratio: 4 / 5; }
+      .g-d { grid-column: 1 / -1; aspect-ratio: 4 / 3; }
+      .g-f img { object-position: center top; }
+      .g-g { grid-column: 1 / -1; aspect-ratio: 4 / 3; }
+      .g-cta { grid-column: 1 / -1; aspect-ratio: auto; }
+      .g-cta-inner { padding: 22px; }
+      .lb-prev { left: 8px; } .lb-next { right: 8px; }
+      .lb-btn { width: 44px; height: 44px; background: rgba(8, 15, 26, 0.8); }
+      .lb-stage img { max-height: 78vh; }
       .band { min-height: 400px; }
       .band-copy { padding: 24px; }
       .order-block, .card, .note-card { padding: 22px; }
@@ -273,7 +321,7 @@
   <section id="wetsuit">
     <div class="split">
       <div class="split-photo">
-        <img src="/partners/jaked-carina-wetsuit-2.jpg" width="1237" height="1476" loading="lazy" alt="Carina Bruwer in her JAKED wetsuit, leaning on a railing above the shoreline">
+        <button type="button" class="photo-btn" data-full="/partners/jaked-carina-wetsuit-2.jpg" data-alt="Carina Bruwer in her JAKED wetsuit, leaning on a railing above the shoreline"><img src="/partners/jaked-carina-wetsuit-2.jpg" width="1237" height="1476" loading="lazy" alt="Carina Bruwer in her JAKED wetsuit, leaning on a railing above the shoreline"></button>
       </div>
       <div>
         <div class="section-label">Carina × JAKED · Wetsuit</div>
@@ -329,13 +377,21 @@
       Carina in her JAKED swimming costumes, in black and gold, bold multicolour and electric blue. There is interest in them from SwimLoading swimmers too, so we're taking enquiries.
     </div>
 
-    <div class="gallery">
-      <figure><img src="/partners/jaked-hd-blue.jpg" width="1000" height="1500" loading="lazy" alt="Carina Bruwer in a blue JAKED costume with yellow and pink trim, standing in front of a pale backdrop"></figure>
-      <figure><img src="/partners/jaked-hd-multi-1.jpg" width="1000" height="1500" loading="lazy" alt="Carina Bruwer in a multicoloured JAKED costume, adjusting her goggles"></figure>
-      <figure><img src="/partners/jaked-hd-gold-1.jpg" width="1000" height="1494" loading="lazy" alt="Carina Bruwer in the black and gold JAKED costume, hands on hips, against rippling water light"></figure>
-      <figure><img src="/partners/jaked-hd-multi-2.jpg" width="1000" height="1500" loading="lazy" alt="Carina Bruwer in a multicoloured JAKED costume and cap, hands on hips"></figure>
-      <figure><img src="/partners/jaked-hd-gold-2.jpg" width="1000" height="1500" loading="lazy" alt="Carina Bruwer in the black and gold JAKED costume, arms crossed, holding a swim cap"></figure>
-      <figure><img src="/partners/jaked-hd-gold-3.jpg" width="1000" height="1500" loading="lazy" alt="Carina Bruwer in the black and gold JAKED costume, adjusting her goggles"></figure>
+    <div class="gallery" id="gallery">
+      <figure class="g g-a"><button type="button" data-full="/partners/jaked-full-gold-1.jpg" data-alt="Carina Bruwer in the black and gold JAKED costume, hands on hips, against rippling water light"><img src="/partners/jaked-full-gold-1.jpg" width="1448" height="2164" alt="Carina Bruwer in the black and gold JAKED costume, hands on hips, against rippling water light"></button></figure>
+      <figure class="g g-b"><button type="button" data-full="/partners/jaked-full-multi-1.jpg" data-alt="Carina Bruwer in a multicoloured JAKED costume, adjusting her goggles"><img src="/partners/jaked-hd-multi-1.jpg" width="1000" height="1500" loading="lazy" alt="Carina Bruwer in a multicoloured JAKED costume, adjusting her goggles"></button></figure>
+      <figure class="g g-c"><button type="button" data-full="/partners/jaked-full-blue.jpg" data-alt="Carina Bruwer in a blue JAKED costume with yellow and pink trim, goggles in hand"><img src="/partners/jaked-hd-blue.jpg" width="1000" height="1500" loading="lazy" alt="Carina Bruwer in a blue JAKED costume with yellow and pink trim, goggles in hand"></button></figure>
+      <figure class="g g-d"><button type="button" data-full="/partners/jaked-full-multi-2.jpg" data-alt="Carina Bruwer in a multicoloured JAKED costume and cap, hands on hips"><img src="/partners/jaked-hd-multi-2.jpg" width="1000" height="1500" loading="lazy" alt="Carina Bruwer in a multicoloured JAKED costume and cap, hands on hips"></button></figure>
+      <figure class="g g-e"><button type="button" data-full="/partners/jaked-full-gold-2.jpg" data-alt="Carina Bruwer in the black and gold JAKED costume, arms crossed, holding a swim cap"><img src="/partners/jaked-hd-gold-2.jpg" width="1000" height="1500" loading="lazy" alt="Carina Bruwer in the black and gold JAKED costume, arms crossed, holding a swim cap"></button></figure>
+      <figure class="g g-f"><button type="button" data-full="/partners/jaked-full-gold-3.jpg" data-alt="Carina Bruwer in the black and gold JAKED costume, adjusting her goggles"><img src="/partners/jaked-hd-gold-3.jpg" width="1000" height="1500" loading="lazy" alt="Carina Bruwer in the black and gold JAKED costume, adjusting her goggles"></button></figure>
+      <figure class="g g-g"><button type="button" data-full="/partners/jaked-full-detail.jpg" data-alt="Detail of the black and gold JAKED costume: gold trim, logo and pattern"><img src="/partners/jaked-detail.jpg" width="800" height="600" loading="lazy" alt="Detail of the black and gold JAKED costume: gold trim, logo and pattern"></button></figure>
+      <div class="g g-cta">
+        <div class="g-cta-inner">
+          <div class="mono-label">Costumes</div>
+          <div class="g-cta-title">Want one?</div>
+          <a href="https://wa.me/27824482501?text=Hi%20SwimLoading%2C%20I%27m%20interested%20in%20ordering%20a%20JAKED%20costume%3A%20" target="_blank" rel="noopener" class="cta-btn cta-small" data-interest="costume-grid"><i data-lucide="message-circle" style="width:14px;height:14px;"></i> WhatsApp us</a>
+        </div>
+      </div>
     </div>
 
     <!-- Interest and enquiry only: price, delivery and discount are NOT agreed (PARTNERS.md), so none is stated. -->
@@ -584,6 +640,15 @@
   &copy; 2026 SwimLoading &nbsp;·&nbsp; Partnership enquiries: <a href="mailto:support@swimloading.com">support@swimloading.com</a>
 </footer>
 
+<!-- LIGHTBOX: every photo with data-full opens here (arrows, swipe, Esc to close) -->
+<div class="lb" id="lightbox" role="dialog" aria-modal="true" aria-label="Photo viewer" hidden>
+  <div class="lb-count" id="lbCount"></div>
+  <button type="button" class="lb-btn lb-close" aria-label="Close photo viewer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  <button type="button" class="lb-btn lb-prev" aria-label="Previous photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+  <button type="button" class="lb-btn lb-next" aria-label="Next photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
+  <figure class="lb-stage"><img id="lbImg" alt=""><figcaption class="lb-cap" id="lbCap"></figcaption></figure>
+</div>
+
 <script>
   document.addEventListener('mousemove', e => {
     document.documentElement.style.setProperty('--mouse-x', e.clientX + 'px');
@@ -664,6 +729,61 @@
       trackEvent('partner_jaked_outbound_click', withCtx({ to: (u.pathname || '/').slice(0, 80), label: (a.textContent || '').trim().slice(0, 40) }));
     }
   });
+
+  // Lightbox. Opens on any button carrying data-full; arrows / swipe / Esc; focus is kept inside and returned on close.
+  (function () {
+    var items = Array.prototype.slice.call(document.querySelectorAll('[data-full]'));
+    var lb = document.getElementById('lightbox');
+    if (!items.length || !lb) return;
+    var img = document.getElementById('lbImg'), cap = document.getElementById('lbCap'), count = document.getElementById('lbCount');
+    var closeBtn = lb.querySelector('.lb-close'), prevBtn = lb.querySelector('.lb-prev'), nextBtn = lb.querySelector('.lb-next');
+    var idx = 0, lastFocus = null, startX = null;
+    function show(i) {
+      idx = (i + items.length) % items.length;
+      var it = items[idx];
+      img.src = it.getAttribute('data-full');
+      img.alt = it.getAttribute('data-alt') || '';
+      cap.textContent = it.getAttribute('data-alt') || '';
+      count.textContent = (idx + 1) + ' / ' + items.length;
+      [idx + 1, idx - 1].forEach(function (n) { var j = (n + items.length) % items.length; (new Image()).src = items[j].getAttribute('data-full'); });
+    }
+    function open(i) {
+      lastFocus = document.activeElement;
+      lb.hidden = false;
+      document.body.style.overflow = 'hidden';
+      show(i);
+      closeBtn.focus();
+      trackEvent('partner_jaked_photo_open', withCtx({ n: i + 1 }));
+    }
+    function close() {
+      lb.hidden = true;
+      document.body.style.overflow = '';
+      img.removeAttribute('src');
+      if (lastFocus && lastFocus.focus) lastFocus.focus();
+    }
+    items.forEach(function (it, i) { it.addEventListener('click', function () { open(i); }); });
+    closeBtn.addEventListener('click', close);
+    prevBtn.addEventListener('click', function () { show(idx - 1); });
+    nextBtn.addEventListener('click', function () { show(idx + 1); });
+    lb.addEventListener('click', function (e) { if (e.target === lb || e.target.classList.contains('lb-stage')) close(); });
+    document.addEventListener('keydown', function (e) {
+      if (lb.hidden) return;
+      if (e.key === 'Escape') close();
+      else if (e.key === 'ArrowLeft') show(idx - 1);
+      else if (e.key === 'ArrowRight') show(idx + 1);
+      else if (e.key === 'Tab') {
+        var f = [closeBtn, prevBtn, nextBtn], pos = f.indexOf(document.activeElement);
+        e.preventDefault();
+        f[(pos + (e.shiftKey ? f.length - 1 : 1)) % f.length].focus();
+      }
+    });
+    lb.addEventListener('touchstart', function (e) { startX = e.changedTouches[0].clientX; }, { passive: true });
+    lb.addEventListener('touchend', function (e) {
+      if (startX === null) return;
+      var dx = e.changedTouches[0].clientX - startX; startX = null;
+      if (Math.abs(dx) > 50) show(idx + (dx < 0 ? 1 : -1));
+    }, { passive: true });
+  })();
 
   trackEvent('partner_jaked_page_view', CTX);
 </script>
