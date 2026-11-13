@@ -8,7 +8,7 @@ import { PROFILES } from '../analysis/profiles.js';
 import { DRILLS } from '../analysis/drills.js';
 import { debugRows, summariseRows } from '../analysis/parser/debug-rows.js';
 import { emptyComparison, overlay, num, rng, lapRef, missing, X } from '../analysis/model.js';
-import { printedValues } from '../analysis/calc.js';
+import { printedValues, autoDecideConflicts } from '../analysis/calc.js';
 import { fmtDate } from '../analysis/language.js';
 import { baselineFrom, comparability, progressRows, rankPrevious, sessionKey } from '../analysis/progress.js';
 import { retestWeeks, retestDate, RETEST_WEEKS, isReturning } from '../analysis/plan.js';
@@ -194,7 +194,7 @@ function openDraft(id) {
 /* ---------------------------------------------------------------- review model */
 const review = () => (S.analysis.coachReview = S.analysis.coachReview || { findings: {} });
 const fr = (id) => (review().findings[id] = review().findings[id] || { status: 'PENDING' });
-function compute() { S.analysis.reportDate = todayParts(); S.R = analyse(S.analysis, 'COACH'); S.RS = analyse(S.analysis, SWIMMER_PROFILES.includes(S.profile) ? S.profile : 'PERFORMANCE'); }
+function compute() { autoDecideConflicts(S.analysis); S.analysis.reportDate = todayParts(); S.R = analyse(S.analysis, 'COACH'); S.RS = analyse(S.analysis, SWIMMER_PROFILES.includes(S.profile) ? S.profile : 'PERFORMANCE'); }
 const chip = (cls, t) => `<span class="rv-chip rv-${cls}">${esc(t)}</span>`;
 const CLASS_LABEL = { MEASURED: 'Measured', OBSERVED: 'Observed', INFERRED: 'Inferred', COACH_CONFIRMATION_REQUIRED: 'Coach confirmation required' };
 
@@ -238,7 +238,7 @@ function evidenceCol() {
     <div class="panel"><div class="chips">${chip('st-complete', sum.COMPLETE + ' complete')}${chip('st-partial', sum.PARTIAL + ' partial')}${chip('st-ambiguous', sum.AMBIGUOUS + ' ambiguous')}${chip('st-missing', sum.MISSING + ' missing')}</div>
       <p class="mini">Layout ${esc(a.source.layout || 'unknown')}. Image labels: ${S.vision ? (S.vision.ok ? esc(S.vision.forceField) + ' force-field panel(s) read' : 'not read') : 'not run this session'}.</p>
       ${need.length ? `<p class="mini">The report cannot supply: ${need.map(esc).join('; ')}.</p>` : ''}</div>
-    ${fields}${q.conflicts.length ? `<details class="d" open><summary>Source conflicts<span class="mini">${q.conflicts.length}</span></summary><div class="dbody"><p class="mini">Several printed values for one quantity. The one in use is a decision, not ground truth: record why.</p>${conflicts}</div></details>` : ''}
+    ${fields}${q.conflicts.length ? `<details class="d"><summary>Source conflicts, decided for you<span class="mini">${q.conflicts.length}</span></summary><div class="dbody"><p class="mini">When EO prints two different numbers for one thing, the system uses the figure from EO’s own table, the one EO compares with its target ranges, and keeps the others on record. Nothing to do here. Only change one if you know better, and say why.</p>${conflicts}</div></details>` : ''}
     <details class="d"><summary>Source quality flags<span class="mini">${q.issues.length}</span></summary><div class="dbody"><ul class="rv-issues">${issues || '<li>None</li>'}</ul></div></details>
     <details class="d"><summary>EO statements and inferences<span class="mini">${a.eoObservations.length}</span></summary><div class="dbody"><ul class="rv-obs">${obs}</ul><p class="mini">EO's own diagnoses are kept here and never shown to a swimmer.</p></div></details>
     <details class="d"><summary>EO recommendations<span class="mini">${a.eoRecommendations.length}</span></summary><div class="dbody"><ul class="rv-obs">${recs}</ul></div></details>

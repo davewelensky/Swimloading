@@ -130,6 +130,36 @@ export function printedValues(m) {
   const alts = (m.alternates || []).map((a) => ({ value: a.value, location: a.location, used: false }));
   return [used, ...alts];
 }
+/**
+ * House rule for a quantity EO prints twice with different numbers (e.g. 41.23 in the summary, 40.6 in the distribution table). Britt
+ * cannot judge these, so the system decides and records why; every other printed value stays on record as an alternate.
+ * Order of trust: a figure from EO's own table (the one EO compares with its target ranges) > the summary > narrative text; a tie keeps the
+ * value already in use. Only real disagreements (beyond rounding) are decided; precision variants (2.9 vs 2.93) need no decision.
+ * Mutates and returns the paths it decided. @param {any} analysis @returns {string[]}
+ */
+export function autoDecideConflicts(analysis) {
+  const decided = [];
+  const rank = (loc) => (/distribution|table/i.test(loc || '') ? 3 : /summary|header/i.test(loc || '') ? 2 : 1);
+  (function walk(o, path) {
+    if (!o || typeof o !== 'object') return;
+    if ('status' in o && 'provenance' in o) {
+      if (o.selectionBasis || !hasRealConflict(o)) return;
+      const all = printedValues(o); if (all.length < 2) return;
+      const best = all.reduce((b, v) => (rank(v.location) > rank(b.location) ? v : b), all[0]);   // reduce keeps the earlier (in use) on a tie
+      const fromTable = rank(best.location) === 3 && all.some((v) => rank(v.location) < 3);
+      o.alternates = all.filter((v) => v !== best).map((v) => ({ value: v.value, location: v.location }));
+      o.value = best.value;
+      o.selectionBasis = fromTable ? 'House rule: the figure from EO’s own table is used, because it is the one EO compares with its target ranges. The other printed values are kept on record.'
+        : 'House rule: no table figure was printed for this, so the value already in use is kept. The other printed values are kept on record.';
+      o.provenance = { ...o.provenance, location: best.location || (o.provenance && o.provenance.location), note: 'Printed value selected by house rule' };
+      decided.push(path);
+      return;
+    }
+    if (Array.isArray(o)) { o.forEach((x, i) => walk(x, `${path}.${i}`)); return; }
+    for (const k of Object.keys(o)) if (!['aquaSharksFindings', 'priorities', 'coachReview'].includes(k)) walk(o[k], path ? `${path}.${k}` : k);
+  })(analysis, '');
+  return decided;
+}
 /** True when printed values differ by more than rounding (beyond 0.05). A 34.67 vs 34.7 pair is a precision variant, not a conflict. */
 export function hasRealConflict(m) {
   return !!(m && m.alternates && m.alternates.some((a) => Math.abs(a.value - m.value) > 0.05));

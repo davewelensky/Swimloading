@@ -67,3 +67,22 @@ test('breathing is stored only as a known value', () => {
   assert.equal(cleanBackground({ breathing: 'BOTH' }).breathing, 'BOTH'); assert.equal(cleanBackground({ breathing: 'BOTH', goal: 'x' }).breathing, 'BOTH');
   assert.equal(cleanBackground({ breathing: 'EVIL', goal: 'x' }).breathing, '');
 });
+
+// ------------------------------------------------------------------ source conflicts are decided by the system, not Britt
+import { autoDecideConflicts } from '../aquasharks-lab/analysis/calc.js';
+const leaf = (value, location, alts = []) => ({ value, unit: '%', status: 'COMPLETE', provenance: { origin: 'EO_REPORT', location }, alternates: alts });
+test('a real disagreement takes the table figure, records why, and keeps the other printed value', () => {
+  const a = { metrics: { propulsivePct: leaf(41.23, 'Summary', [{ value: 40.6, location: 'distribution table' }]) } };
+  assert.deepEqual(autoDecideConflicts(a), ['metrics.propulsivePct']);
+  const m = a.metrics.propulsivePct;
+  assert.equal(m.value, 40.6); assert.match(m.selectionBasis, /^House rule: the figure from EO’s own table/); assert.deepEqual(m.alternates, [{ value: 41.23, location: 'Summary' }]);
+  assert.deepEqual(autoDecideConflicts(a), [], 'idempotent: an already-decided value is left alone');
+});
+test('a table figure already in use stays; precision variants and coach decisions are untouched; no table keeps the value in use', () => {
+  const a = { x: leaf(40.6, 'Target Distribution of Power', [{ value: 41.23, location: 'summary line' }]), y: leaf(2.9, 'Target Distribution of Power', [{ value: 2.93, location: 'narrative (no unit printed)' }]),
+    z: { ...leaf(10, 'Summary', [{ value: 12, location: 'narrative' }]), selectionBasis: 'Coach decision: because' }, w: leaf(10, 'Summary', [{ value: 12, location: 'narrative' }]) };
+  assert.deepEqual(autoDecideConflicts(a), ['x', 'w']);
+  assert.equal(a.x.value, 40.6); assert.equal(a.y.value, 2.9, 'a precision variant is not a conflict'); assert.equal(a.y.selectionBasis, undefined);
+  assert.equal(a.z.value, 10); assert.equal(a.z.selectionBasis, 'Coach decision: because');
+  assert.equal(a.w.value, 10); assert.match(a.w.selectionBasis, /no table figure was printed/);
+});
