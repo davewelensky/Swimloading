@@ -17,7 +17,7 @@ import { setHandPathField } from '../analysis/hand-path.js';
 const SUPABASE_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
 const DEV = !!window.__LAB_DEV;
-const sb = window.supabase && !DEV ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+const sb = window.supabase && !DEV ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { global: { fetch: window.slSupabaseFetch } }) : null;
 const app = document.getElementById('app');
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const getPath = (o, p) => p.split('.').reduce((x, k) => (x == null ? undefined : x[k]), o);
@@ -72,7 +72,7 @@ function boot() {
 }
 function authView(msg) {
   show(`<h1>SIGN IN</h1><p class="lede">The report builder is for Aquasharks club admins. Enter your admin email and we will send a sign-in link.</p><div class="panel"><label class="f">Email<input class="in" id="em" type="email" autocomplete="email"></label>${msg ? `<p class="ok">${esc(msg)}</p>` : ''}<div class="actions"><button class="btn primary" id="send">Send sign-in link</button></div></div>`, 'upload');
-  document.getElementById('send').onclick = () => { const email = document.getElementById('em').value.trim(); if (!email) return; sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.href } }).then((r) => authView(r.error ? 'Could not send: ' + r.error.message : 'Link sent. Open it on this device.')); };
+  document.getElementById('send').onclick = () => { const email = document.getElementById('em').value.trim(); if (!email) return; sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.href, shouldCreateUser: false } }).then((r) => authView(r.error ? 'Could not send: ' + r.error.message : 'Link sent. Open it on this device.')); };
 }
 function route() { const id = new URLSearchParams(location.search).get('id'); id ? openDraft(id) : uploadView(); }
 
