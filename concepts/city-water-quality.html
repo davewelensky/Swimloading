@@ -210,7 +210,7 @@
         .scen-sub { font-size: 13px; color: var(--text-sec); margin: 0 0 10px; line-height: 1.45; }
 
         /* ── Representative location page frame ── */
-        .frame { margin-top: 16px; border: 1px solid var(--border); border-radius: 22px; padding: 0 20px 22px; background: rgba(255,255,255,0.012); }
+        .frame { scroll-margin-top: 64px; margin-top: 16px; border: 1px solid var(--border); border-radius: 22px; padding: 0 20px 22px; background: rgba(255,255,255,0.012); }
         .frame-label { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0 -20px; padding: 9px 20px; border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--cyan); }
         .frame-label svg { width: 15px; height: 15px; }
         .frame-label span.dim { color: var(--text-dim); font-weight: 700; }
@@ -286,8 +286,6 @@
         .band-key { display: inline-block; width: 14px; height: 0; margin-right: 6px; vertical-align: middle; border-top: 1px dashed rgba(255,181,42,0.85); }
         .readout { font-size: 14px; color: var(--text); margin-top: 10px; min-height: 21px; }
         .readout .t-dim { color: var(--text-sec); }
-        #panelWq .lt { border: 0; border-radius: 0; }
-        #panelWq .lt-row { background: none; padding: 11px 0; }
         .about { margin-top: 20px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
         .about summary { list-style: none; display: flex; justify-content: space-between; align-items: center; min-height: 48px; cursor: pointer; font-size: 14px; font-weight: 700; color: var(--text); }
         .about summary::-webkit-details-marker { display: none; }
@@ -320,9 +318,15 @@
         .real .wq { margin-top: 0; padding: 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--r-card); }
         .real .wq.sim { border: 1px dashed rgba(245,158,11,0.6); }
         .real .wq.is-alert:not(.sim) { border: 1px solid rgba(240,99,99,0.45); }
-        .real .wq-more svg { transition: transform .15s; }
-        .real .wq-more[aria-expanded="true"] svg { transform: rotate(180deg); }
-        .real .d-state { display: none; }
+        .real .d-state { margin-top: 6px; }
+        .r-topbar { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid rgba(56,189,248,0.15); background: rgba(10,22,40,0.95); }
+        .r-back { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 0 12px 0 6px; border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; background: rgba(255,255,255,0.04); color: var(--text); font: 600 14px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; cursor: pointer; }
+        .r-back:hover { border-color: rgba(56,189,248,0.4); color: var(--cyan); }
+        .r-back:focus-visible, .real .wq-more:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+        .r-topbar-t { font-size: 16px; font-weight: 700; color: var(--text); }
+        .r-topbar .proposed-pill { margin-left: auto; }
+        .r-detail { padding-top: 16px; }
+        .real .r-detail .about { margin-top: 20px; }
         .real .d-count { font-family: inherit; font-weight: 800; font-size: 44px; line-height: 1; }
         .real .alert { margin-top: 0; margin-bottom: 8px; }
         .alert-dot { width: 14px; height: 14px; border-radius: 50%; background: #F06363; flex-shrink: 0; margin-top: 3px; }
@@ -437,6 +441,7 @@
 <div class="frame">
     <div class="frame-label"><i data-lucide="smartphone"></i>Big Bay page on SwimLoading <span class="dim">· the live page, plus one proposed section: City water quality</span></div>
     <div class="real">
+    <div id="screenMain">
     <nav class="r-crumb" aria-label="Breadcrumb"><a href="/">SwimLoading</a> › <a href="/spots/west-coast">West Coast</a> › Big Bay</nav>
 
     <!-- Hero: same content as the live /spots/big-bay page (latest_spot_temps). -->
@@ -469,10 +474,46 @@
                 <div class="wq-line" id="wqLine"></div>
                 <div class="wq-foot">
                     <span id="wqFresh"></span>
-                    <button class="wq-more" id="wqMore" aria-expanded="false" aria-controls="panelWq"><span id="wqMoreText">Details</span> <i data-lucide="chevron-down"></i></button>
+                    <button class="wq-more" id="wqMore"><span id="wqMoreText">Details</span> <i data-lucide="chevron-right"></i></button>
                 </div>
 
-                <div id="panelWq" hidden>
+
+            </div>
+        </section>
+
+        <!-- Hazards: the live page's section, unchanged. A City coastal alert
+             would appear here, attributed to the City, next to community
+             reports. It is never re-worded and never feeds a score. -->
+        <section>
+            <h2 class="r-h2">Hazards</h2>
+            <div class="alert" id="alert" role="alert">
+                <span class="alert-dot" aria-hidden="true"></span>
+                <div>
+                    <div class="alert-title" id="alertTitle"></div>
+                    <div class="alert-body" id="alertBody"></div>
+                    <div class="alert-meta" id="alertMeta"></div>
+                </div>
+            </div>
+            <p class="r-none">No active hazards reported by the SwimLoading community.</p>
+            <div class="discuss explainer">
+                <div class="discuss-k"><i data-lucide="message-circle-question"></i>For discussion with the City</div>
+                <div class="discuss-q">Should SwimLoading community hazards and City information be reported separately? Proposed here: separately, each labelled with its source. Real-time coastal alerts are posted on the Beach Alerts web page rather than stored with the results database, so how they reach SwimLoading, and how they are shown, still needs to be agreed.</div>
+            </div>
+        </section>
+
+        <p class="r-rest">The rest of the page is unchanged: recent logs, all-time community data, map, nearby spots and upcoming swims.</p>
+    </div>
+    </div><!-- /screenMain -->
+
+    <!-- Second screen: opened from "Details". The spot page above keeps only the
+         compact strip; the City's fuller information lives here, one tap away. -->
+    <div id="screenDetail" class="r-screen" hidden>
+        <div class="r-topbar">
+            <button class="r-back" id="detailBack" aria-label="Back to Big Bay"><i data-lucide="chevron-left"></i>Big Bay</button>
+            <span class="r-topbar-t">City water quality</span>
+            <span class="proposed-pill">Proposed</span>
+        </div>
+        <div class="r-body r-detail">
                     <div class="d-state" id="dState"></div>
                     <div class="d-prov" id="dProv"></div>
 
@@ -518,31 +559,7 @@
                             <span class="source-hint">Opens the City's site, beachalerts.capetown.gov.za</span>
                         </div>
                     </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Hazards: the live page's section, unchanged. A City coastal alert
-             would appear here, attributed to the City, next to community
-             reports. It is never re-worded and never feeds a score. -->
-        <section>
-            <h2 class="r-h2">Hazards</h2>
-            <div class="alert" id="alert" role="alert">
-                <span class="alert-dot" aria-hidden="true"></span>
-                <div>
-                    <div class="alert-title" id="alertTitle"></div>
-                    <div class="alert-body" id="alertBody"></div>
-                    <div class="alert-meta" id="alertMeta"></div>
-                </div>
-            </div>
-            <p class="r-none">No active hazards reported by the SwimLoading community.</p>
-            <div class="discuss explainer">
-                <div class="discuss-k"><i data-lucide="message-circle-question"></i>For discussion with the City</div>
-                <div class="discuss-q">Should SwimLoading community hazards and City information be reported separately? Proposed here: separately, each labelled with its source. Real-time coastal alerts are posted on the Beach Alerts web page rather than stored with the results database, so how they reach SwimLoading, and how they are shown, still needs to be agreed.</div>
-            </div>
-        </section>
-
-        <p class="r-rest">The rest of the page is unchanged: recent logs, all-time community data, map, nearby spots and upcoming swims.</p>
+        </div>
     </div>
     </div>
   </div>
@@ -768,7 +785,8 @@ function selectState(key) {
     });
     selected = STATES[key].samples.length - 1;
     renderCity(STATES[key]);
-    setDetail(false);
+    showDetail(false, false);
+    updateMoreLabel();
     const card = document.getElementById('wq');
     card.classList.remove('swap'); void card.offsetWidth; card.classList.add('swap');
 }
@@ -937,21 +955,36 @@ document.getElementById('chart').addEventListener('click', e => {
     if (b) selectSample(+b.dataset.i);
 });
 
-// ─── DETAILS (expand in place; no tabs) ──────────────────────────────────
-const panelWq = document.getElementById('panelWq');
+// ─── DETAILS: a second screen, not an expanding panel ────────────────────
+// The spot page keeps only the compact City strip. "Details" (or a tap on a
+// sample dot) opens the City's fuller information on its own screen, with a
+// Back button; the browser's Back button works too.
+const screenMain = document.getElementById('screenMain');
+const screenDetail = document.getElementById('screenDetail');
 const moreBtn = document.getElementById('wqMore');
-function setDetail(open) {
-    panelWq.hidden = !open;
-    moreBtn.setAttribute('aria-expanded', String(open));
-    document.getElementById('wqMoreText').textContent = open ? 'Hide details' : (STATES[current].alert ? 'View alert' : 'Details');
+const backBtn = document.getElementById('detailBack');
+let detailOpen = false;
+function showDetail(open, push = true) {
+    if (open === detailOpen) return;
+    detailOpen = open;
+    screenMain.hidden = open;
+    screenDetail.hidden = !open;
+    if (open && push) history.pushState({ cwqDetail: true }, '');
+    document.querySelector('.frame').scrollIntoView({ block: 'start' });
+    (open ? backBtn : moreBtn).focus({ preventScroll: true });
     drawIcons();
 }
-moreBtn.addEventListener('click', () => setDetail(panelWq.hidden));
+function updateMoreLabel() {
+    document.getElementById('wqMoreText').textContent = STATES[current].alert ? 'View alert' : 'Details';
+}
+moreBtn.addEventListener('click', () => showDetail(true));
+backBtn.addEventListener('click', () => { if (history.state && history.state.cwqDetail) history.back(); else showDetail(false); });
+window.addEventListener('popstate', () => { if (detailOpen) showDetail(false, false); });
 document.getElementById('marks').addEventListener('click', e => {
     const m = e.target.closest('.mk');
     if (!m) return;
     selectSample(+m.dataset.i);
-    setDetail(true);
+    showDetail(true);
 });
 
 document.getElementById('tableToggle').addEventListener('click', e => {
@@ -1054,7 +1087,9 @@ function setDemo(on) {
 demoBtn.addEventListener('click', () => setDemo(!document.body.classList.contains('demo')));
 // Escape leaves demo view.
 document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && document.body.classList.contains('demo')) setDemo(false);
+    if (e.key !== 'Escape') return;
+    if (detailOpen) backBtn.click();
+    else if (document.body.classList.contains('demo')) setDemo(false);
 });
 
 selectState('city');
