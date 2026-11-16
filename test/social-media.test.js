@@ -110,7 +110,9 @@ test('verdict: unconfirmed provenance, share-alike licence and unconsented ident
   const sel = (a) => ({ asset: a, tier: TIERS.THEMATIC, reason: 'r' });
   assert.deepEqual(imageVerdict(sel(A({ id: 'ok' })), {}).review, []);
   assert.match(imageVerdict(sel(A({ id: 'x', provenanceConfirmed: false })), {}).review[0], /not yet confirmed/);
-  assert.match(imageVerdict(sel(A({ id: 'x', permission: 'cc-by-sa', attribution: 'a' })), {}).review[0], /share-alike/);
+  assert.match(imageVerdict(sel(A({ id: 'x', permission: 'cc-by-sa', attribution: 'a' })), {}, { acceptShareAlike: false }).review[0], /share-alike/);
+  assert.deepEqual(imageVerdict(sel(A({ id: 'x', permission: 'cc-by-sa', attribution: 'a' })), {}).review, [], 'accepted by default since 17 Nov 2026');
+  assert.equal(imageVerdict(sel(A({ id: 'x', permission: 'cc-by-sa' })), {}).checks.find((c) => c.name.startsWith('attribution')).pass, false, 'but never without the credit');
   assert.deepEqual(imageVerdict(sel(A({ id: 'x', permission: 'cc-by-sa', attribution: 'a' })), {}, { acceptShareAlike: true }).review, []);
   assert.match(imageVerdict(sel(A({ id: 'x', identifiablePeople: true, consent: 'unknown' })), {}).review[0], /consent/);
   assert.equal(imageVerdict(sel(A({ id: 'x', permission: 'cc-by' })), {}).checks.find((c) => c.name.startsWith('attribution')).pass, false, 'licensed image without attribution fails');

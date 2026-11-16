@@ -21,7 +21,10 @@ export const SOCIAL_DEFAULTS = {
     dupDistance: 10,         // dHash Hamming distance (of 64) at or below which two images count as the same shot
     repeatDays: 21,          // do not reuse the same photograph inside this window if an alternative exists
     maxUpscale: 1.6,         // a full-bleed crop may enlarge the source at most this much
-    acceptShareAlike: false, // CC BY-SA images need one policy decision from Dave; until then they route to review
+    // CC BY-SA photographs (e.g. Wikimedia Commons venue photos) are allowed. Decided by Dave, 17 Nov 2026. The licence name and the
+    // photographer's credit are drawn on every such image (attribution is checked per image); the graphic adapts the photo, so it
+    // carries the same licence. Set false to send CC BY-SA posts back to review.
+    acceptShareAlike: true,
   },
   // Weekly autopilot (api/_lib/social/autopilot.js).
   autopilot: {
