@@ -16,11 +16,13 @@ import { dbGet } from '../../seo-utils.js';
 import { SOCIAL_DEFAULTS, CATEGORIES, MIX_GROUP, nextSlots } from './config.js';
 import { validatePost } from './validate.js';
 import { spotlightFromVenueMap, exploreUpcoming } from './sources.js';
-import { conditionsWeekly, regionalUnits, regionalMap, crossingAngles, partnerCards } from './series.js';
+import { conditionsWeekly, regionalUnits, regionalMap, crossingAngles, partnerCards, jakedAngles } from './series.js';
 import { slotMs } from './queue.js';
 
-export const GROUPS = ['explore', 'locations', 'crossings', 'ocean', 'partners', 'clubsAndPlatform'];
+export const GROUPS = ['explore', 'locations', 'crossings', 'ocean', 'partners', 'jaked', 'clubsAndPlatform'];
 export const groupOf = (category) => MIX_GROUP[category] || null;
+/** A stored post's mix group: Jaked posts (source key `jaked:*`) count toward the priority partner, not the general partner cap. */
+export const groupOfPost = (p) => (/^jaked:/.test(p.source_key || '') ? 'jaked' : groupOf(p.category));
 const DAY = 86400e3;
 
 // ── de-duplication ─────────────────────────────────────────────────────────
@@ -68,12 +70,13 @@ export function windowCounts(posts, size = SOCIAL_DEFAULTS.autopilot.recentWindo
   const live = posts.filter((p) => ['PUBLISHED', 'SCHEDULED', 'APPROVED'].includes(p.status) && !p.is_reserve)
     .sort((a, b) => slotMs(b.scheduled_for || b.created_at) - slotMs(a.scheduled_for || a.created_at)).slice(0, size);
   const counts = {};
-  for (const p of live) { const g = groupOf(p.category); if (g) counts[g] = (counts[g] || 0) + 1; }
+  for (const p of live) { const g = groupOfPost(p); if (g) counts[g] = (counts[g] || 0) + 1; }
   return { counts, total: live.length };
 }
 /** May one more partner post go out without the partner share of the window exceeding the cap? */
 export const partnerAllowed = (counts, cap = SOCIAL_DEFAULTS.partnerMaxShare) => {
   const total = GROUPS.reduce((n, g) => n + (counts[g] || 0), 0);
+  if (total < SOCIAL_DEFAULTS.autopilot.minWindowForShare) return true;
   return ((counts.partners || 0) + 1) / (total + 1) <= cap + 1e-9;
 };
 
@@ -108,7 +111,12 @@ export async function buildPool(data, { now = new Date(), recentExploreIds = new
   // crossings
   for (const c of await data.crossings()) for (const post of crossingAngles(c)) add('crossings', post.sourceKey, () => post);
   // partners (never reserves: they are capped and always deliberate)
-  for (const post of partnerCards(await data.partners())) add('partners', post.sourceKey, () => post, { evergreen: false });
+  const partnerRows = await data.partners();
+  for (const post of partnerCards(partnerRows.filter((r) => !/jaked/i.test(r.name)))) add('partners', post.sourceKey, () => post, { evergreen: false });
+  // JAKED: priority partner with its own group and several angles (wetsuit, costumes, brand, enquire). Never reserves.
+  const jaked = jakedAngles(partnerRows);
+  pool.notes = [...(pool.notes || []), ...(jaked.note ? [jaked.note] : [])];
+  for (const post of jaked.posts) add('jaked', post.sourceKey, () => post, { evergreen: false });
   return pool;
 }
 
@@ -130,7 +138,7 @@ export async function runAutopilot({ pool, posts, ledgerKeys = {}, now = new Dat
   const ap = cfg.autopilot;
   const horizon = now.getTime() + ap.horizonDays * DAY;
   const keyMap = recentKeyMap(posts, ledgerKeys);
-  const plan = [], notes = [];
+  const plan = [], notes = [...(pool.notes || [])];
   const work = posts.map((p) => ({ ...p }));
   let reviewMade = 0;
   const skipped = [];
@@ -144,7 +152,7 @@ export async function runAutopilot({ pool, posts, ledgerKeys = {}, now = new Dat
     .sort((a, b) => String(a.expires_at || '9').localeCompare(String(b.expires_at || '9')) || String(a.created_at).localeCompare(String(b.created_at)));
   for (const p of waiting) {
     const s = free.shift(); if (!s) break;
-    plan.push({ slot: s, action: 'assign-existing', key: p.source_key, group: groupOf(p.category) });
+    plan.push({ slot: s, action: 'assign-existing', key: p.source_key, group: groupOfPost(p) });
     p.status = 'SCHEDULED'; p.scheduled_for = s;
     if (assignExisting) await assignExisting(p, s);
   }
@@ -174,7 +182,10 @@ export async function runAutopilot({ pool, posts, ledgerKeys = {}, now = new Dat
         if (post.gap) { tried.push({ key: c.key, skip: post.gap }); continue; }
         if (isRecent(keyMap, post.sourceKey, now) || used.has(post.sourceKey)) { tried.push({ key: post.sourceKey, skip: 'used within 90 days' }); continue; }
         if (post.events && recheck) { const rv = await recheck({ ...post, created_at: now.toISOString() }, now); if (!rv.ok) { tried.push({ key: post.sourceKey, skip: rv.reason }); continue; } }
-        const share = ((counts.partners || 0) + (post.partner ? 1 : 0)) / (GROUPS.reduce((n, x) => n + (counts[x] || 0), 0) + 1);
+        // Share of the recent window this partner post would reach: the priority partner against its own group, others against `partners`.
+        const winTotal = GROUPS.reduce((n, x) => n + (counts[x] || 0), 0);
+        const ownCount = post.partner?.priority ? (counts.jaked || 0) : (counts.partners || 0);
+        const share = !post.partner || winTotal < ap.minWindowForShare ? 0 : (ownCount + 1) / (winTotal + 1);
         const v = validatePost(post, { now, recentSourceKeys: keyMap, partnerShare: share });
         const entry = { slot: slotIso, group: g, ...summarise(post, v) };
         if (v.risk === 'BLOCKED') { tried.push({ key: post.sourceKey, skip: `blocked: ${v.reasons.join('; ')}` }); continue; }

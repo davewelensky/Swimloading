@@ -91,8 +91,11 @@ test('reserve queue low: one alert per day; none when healthy', async () => {
 test('alerts are not sent during a dry run, and a paused run does nothing at all', async () => {
   const { notify, sent } = notifier();
   await runPublisher({ store: mk([], { reserves: 0 }), meta: mkMeta(), notify, now: NOW, dry: true, publicUrl: URL_, platforms: ['fb'] });
-  const paused = await runPublisher({ store: mk([post()], { settings: { paused: true } }), meta: mkMeta(), notify, now: NOW, publicUrl: URL_, platforms: ['fb'] });
-  assert.equal(sent.length, 0); assert.equal(paused.status, 'paused');
+  assert.equal(sent.length, 0, 'a dry run never emails');
+  const meta = mkMeta();
+  const paused = await runPublisher({ store: mk([post()], { settings: { paused: true } }), meta, notify, now: NOW, publicUrl: URL_, platforms: ['fb'] });
+  assert.equal(paused.status, 'paused'); assert.equal(meta.n.fb, 0, 'a paused run posts nothing');
+  // a due post while paused is reported (once a day), see test/social-jaked-reliability.test.js
 });
 
 test('store.alertOnce: first caller wins, a 409 means already alerted, other errors surface', async () => {

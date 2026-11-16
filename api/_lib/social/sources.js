@@ -2,6 +2,8 @@
 // as the public site). A candidate is { category, angle, sourceKey, sourceUrl, ... facts[] }
 // and carries NO prose: wording is produced later from facts alone.
 import { readFileSync } from 'node:fs';
+import { resolve as resolvePath, isAbsolute } from 'node:path';
+const REPO_ROOT = resolvePath(new URL('../../..', import.meta.url).pathname);
 import { dbGet } from '../../seo-utils.js';
 import { countryByCode } from '../../_countries.js';
 import { VENUE_MAP } from '../../mywaterlive-config.js';
@@ -13,7 +15,7 @@ const SITE = 'https://www.swimloading.com';
 const WATER = { POOL: 'Pool', LAKE: 'Lake', OCEAN: 'Sea', RIVER: 'River', DAM: 'Dam', LAGOON: 'Lagoon' };
 /** Page text as a reader sees it: tags stripped, entities decoded, whitespace collapsed. */
 export function plainText(file) {
-  return readFileSync(file, 'utf8')
+  return readFileSync(isAbsolute(file) ? file : resolvePath(REPO_ROOT, file), 'utf8')
     .replace(/<(script|style)[\s\S]*?<\/\1>/g, ' ').replace(/<[^>]+>/g, ' ')
     .replace(/&amp;/g, '&').replace(/&middot;/g, '·').replace(/&times;/g, '×').replace(/&nbsp;/g, ' ')
     .replace(/&#39;|&rsquo;/g, "'").replace(/\\'/g, "'").replace(/\s+/g, ' ');

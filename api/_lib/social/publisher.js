@@ -39,7 +39,17 @@ export async function runPublisher({ store, meta, recheck = async () => ({ ok: t
   platforms = ['fb', 'ig'], preflight = null }) {
   const log = { at: now.toISOString(), dry, actions: [] };
   const settings = await store.getSettings();
-  if (!settings || settings.paused !== false) return { ...log, status: 'paused' };
+  if (!settings || settings.paused !== false) {
+    // Paused is a legitimate state, but a post that is due while publishing is paused must not go unnoticed.
+    if (!dry && store.alertOnce && store.listPublishable) {
+      const stuck = (await store.listPublishable()).filter((p) => isDue(p, now, rules) === 'due');
+      if (stuck.length) {
+        const day0 = now.toISOString().slice(0, 10);
+        if (await store.alertOnce(`paused-due:${day0}`)) await notify('Social publishing is paused with a post due', `${stuck.length} post(s) are due (${stuck.map((p) => p.source_key).join(', ')}) but publishing is paused, so nothing was posted. Resume with: node scripts/social-queue.mjs resume --confirm-live`);
+      }
+    }
+    return { ...log, status: 'paused' };
+  }
   const active = PLATFORMS.filter((p) => platforms.includes(p.key));      // e.g. Facebook only until Instagram is connected
   const day = now.toISOString().slice(0, 10);
   // One email per problem per day (store.alertOnce is insert-if-absent). Never alerts during a dry run.
@@ -92,7 +102,12 @@ export async function runPublisher({ store, meta, recheck = async () => ({ ok: t
 
   // 4. Claim the slot, then attempt each platform independently.
   const key = `${post.id}:${post.scheduled_for}`;
-  if (!dry && !(await store.claim(post, key))) return { ...log, status: 'claimed-elsewhere' };
+  if (!dry && !(await store.claim(post, key))) {
+    // Nothing was posted and nothing will be on the next run either: this is exactly how a post went missing on 5 Nov 2026.
+    log.actions.push({ post: post.id, action: 'claim-refused', slot: post.scheduled_for });
+    await alertOnce(`claim:${post.id}`, 'Social post could not be claimed', `Post ${post.source_key} (slot ${post.scheduled_for}) is due but another run, or a stale lock, holds it, so it was not posted. If no other run is active, check the idempotency_key on the row.`);
+    return { ...log, status: 'claimed-elsewhere' };
+  }
   const imageUrls = (post.image_paths || []).map(publicUrl);
   const patch = {}, outcome = {};
   for (const p of active) {
@@ -124,7 +139,18 @@ export async function runPublisher({ store, meta, recheck = async () => ({ ok: t
   log.actions.push({ post: post.id, action: 'publish', outcome, status: patch.status });
   if (!dry) {
     await store.update(post.id, patch);
-    if (patch.status === 'FAILED') await notify('Social post failed', `Post ${post.source_key}: ${JSON.stringify(outcome)}. Facebook/Instagram results are recorded on the row; the schedule continues with the next slot.`);
+    if (patch.status === 'FAILED') {
+      // The slot must still deliver: a reserve takes it now (the next hourly run posts it), while the 12 h late window is open.
+      let replacement = null;
+      if (isDue({ ...post, status: 'SCHEDULED' }, now, rules) === 'due') {
+        for (const r of (await store.listReserves()).filter((x) => x.id !== post.id)) {
+          const v = (r.expires_at && new Date(r.expires_at) <= now) ? { ok: false } : await recheck(r);
+          if (v.ok) { replacement = r; break; }
+        }
+        if (replacement) { await store.update(replacement.id, { is_reserve: false, status: 'SCHEDULED', scheduled_for: post.scheduled_for }); log.actions.push({ post: post.id, action: 'replaced-by-reserve', reserve: replacement.id }); }
+      }
+      await notify('Social post failed', `Post ${post.source_key}: ${JSON.stringify(outcome)}. ${replacement ? `A reserve post (${replacement.source_key}) now holds the slot and goes out on the next hourly run.` : 'No reserve post was available, so this slot stays empty.'} Results are recorded on the row.`);
+    }
   }
   return { ...log, status: dry ? 'dry-run' : patch.status.toLowerCase() };
 }

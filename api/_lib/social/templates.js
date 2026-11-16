@@ -163,6 +163,7 @@ html,body{width:1080px;height:1350px;background:#080f1a;color:#f1f5f9;font-famil
 .k.o{color:#f97316}
 .ill{font:500 20px 'DM Sans';letter-spacing:1px;color:rgba(255,255,255,.85);background:rgba(8,15,26,.6);border-radius:50px;padding:9px 18px}
 .plate{background:#fff;border-radius:16px;padding:14px 22px;display:flex;align-items:center}
+.plate.dark{background:rgba(8,15,26,.82);border:2px solid rgba(255,255,255,.18)}
 .plate img{height:48px;max-width:240px;object-fit:contain;display:block}
 .stack{position:absolute;left:64px;right:64px;bottom:150px}
 .kick{font:400 84px/1 'Bebas Neue';color:#f97316;margin-bottom:6px}
@@ -199,6 +200,7 @@ export function visualCopy(post, i = null) {
       return { headline: F('name'), sub: `${F('distance')} · ${q / 60} hour qualifying swim`, chip: null };
     }
     case CATEGORIES.BEHIND_THE_BRAND:
+      if (post.visual) return post.visual;
       if (!F('claim')) return { headline: post.partner.name, sub: 'Official SwimLoading partner', chip: null };
       return { headline: F('claim'), sub: 'Official SwimLoading partner', chip: F('range') };
     case CATEGORIES.DISCOVERS:
@@ -250,7 +252,7 @@ export function visualSlide(spec) {
     const pos = asset?.focus ? `${asset.focus.x}% ${asset.focus.y}%` : '50% 50%';
     bg = `<div class="bg" style="background-image:url('${photoUri}');background-position:${pos}"></div>`;
     if (asset?.attribution) credit = `<div class="cr" style="left:64px">${esc(asset.attribution)}</div>`;
-    if (template === 'product-led') { shade = 'shade heavy'; topRight = `<div class="plate">${spec.partnerLogo ? `<img src="${spec.partnerLogo}" alt="${esc(post.partner.name)}">` : `<span style="font:400 40px/1 'Bebas Neue';color:#080f1a;letter-spacing:1px">${esc(post.partner.name)}</span>`}</div>`; }
+    if (template === 'product-led') { shade = 'shade heavy'; topRight = `<div class="plate${post.partner.logoOnDark ? ' dark' : ''}">${spec.partnerLogo ? `<img src="${spec.partnerLogo}" alt="${esc(post.partner.name)}">` : `<span style="font:400 40px/1 'Bebas Neue';color:#080f1a;letter-spacing:1px">${esc(post.partner.name)}</span>`}</div>`; }
     else if (illustrative) topRight = '<div class="ill">Illustrative photo</div>';
     if (template === 'product-led' && illustrative) credit += '<div class="cr" style="right:64px">Illustrative photo, not a product image</div>';
   }

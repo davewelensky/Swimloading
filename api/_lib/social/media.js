@@ -182,7 +182,8 @@ export function selectImage(post, catalogue, { history = [], now = new Date() } 
 
   // 2. Approved partner product image.
   if (post.partner) {
-    p = pick(usable.filter((a) => a.kind === 'product' && a.partner === post.partner.slug));
+    // an asset with `angles` may only illustrate those angles (a costume photo must never stand in for a wetsuit claim)
+    p = pick(usable.filter((a) => a.kind === 'product' && a.partner === post.partner.slug && (!a.angles || !post.imageAngle || a.angles.includes(post.imageAngle))));
     if (p) return done(TIERS.PRODUCT, 'product-led', p, `Approved ${post.partner.name} product image.`, false);
   }
 

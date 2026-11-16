@@ -224,3 +224,66 @@ export function partnerCards(rows) {
 }
 export const weekdayName = (iso) => WEEKDAY[new Date(iso).getUTCDay()];
 export { fmtDate };
+
+// ── JAKED: the priority partner (Dave, 16 Nov 2026: push the partnership and sell the products) ──────────────────────
+// Five angles, each quoted from partners/jaked.html (the quote must still be on the page or the post is BLOCKED by
+// validatePost), each tied to the product photographs that actually show that product (media `angles`). The only call to
+// action is the page's own enquiry form: SwimLoading coordinates South African enquiries; no price, discount or stock is
+// ever stated, because none is on the page.
+const JAKED_FILE = 'partners/jaked.html';
+const jq = (key, text, quote) => fact(key, text, { file: JAKED_FILE, quote });
+const JAKED_ASK = jq('ask', 'Register your interest and SwimLoading will come back with availability, sizing guidance, pricing and delivery details', 'availability, sizing guidance, pricing and delivery details');
+const JAKED_TAGS = ['#jaked', '#openwaterswimming', '#swimwear', '#swimloading'];
+
+export const JAKED_ANGLES = {
+  wetsuit: {
+    facts: () => [jq('line', 'Carina Bruwer wears the JAKED BLADE, the open water wetsuit', 'wears the JAKED BLADE'),
+      jq('features', 'Multi-thickness, GBS seams, YKK zip, raw-cut finishes, as listed by JAKED', 'Multi-thickness GBS seams YKK zip Raw-cut finishes'), JAKED_ASK],
+    visual: { headline: 'Seen in the BLADE', sub: 'JAKED open water wetsuit', chip: 'Register your interest' },
+    caption: (F) => `Seen in the BLADE.\n\n${F('line')}.\n\nFeatures as listed by JAKED: multi-thickness, GBS seams, YKK zip, raw-cut finishes.\n\nWant one? Register your interest and SwimLoading will come back to you with availability, sizing guidance, pricing and delivery details.`,
+  },
+  costumes: {
+    facts: () => [jq('line', 'Carina in her JAKED swimming costumes', 'Carina in her JAKED swimming costumes'),
+      jq('interest', 'SwimLoading is taking enquiries for the costumes', 'taking enquiries'), JAKED_ASK],
+    visual: { headline: 'In the costumes', sub: 'Carina Bruwer in JAKED', chip: 'Register your interest' },
+    caption: (F) => `${F('line')}.\n\nThere is interest from SwimLoading swimmers too, so SwimLoading is taking enquiries.\n\nRegister your interest and we will come back to you with availability, sizing guidance, pricing and delivery details.`,
+  },
+  about: {
+    facts: () => [jq('line', 'JAKED is an Italian swim and open water brand built on research, innovation and competition', 'JAKED is an Italian swim and open water brand built on research, innovation and competition.'),
+      jq('sponsor', 'JAKED sponsors SwimLoading\'s own Carina Bruwer', 'They sponsor SwimLoading')],
+    visual: { headline: 'JAKED', sub: 'Italian swim and open water brand', chip: 'SwimLoading partner' },
+    caption: (F) => `JAKED is a SwimLoading partner.\n\n${F('line')}. JAKED sponsors SwimLoading's own Carina Bruwer, and her kit is on the water.\n\nSee the range and register your interest on the JAKED page.`,
+  },
+  jkai: {
+    facts: () => [jq('line', 'J-KAI is JAKED\'s open water racing suit, developed with open water marathon swimmer Domenico Acerenza', 'was developed with open water marathon swimmer Domenico Acerenza'), JAKED_ASK],
+    visual: { headline: 'J-KAI', sub: 'JAKED open water racing suit', chip: 'Register your interest' },
+    caption: (F) => `${F('line')}.\n\nInterested? Register your interest and SwimLoading will come back to you with availability, sizing guidance, pricing and delivery details.`,
+  },
+  enquire: {
+    facts: () => [jq('line', 'SwimLoading is coordinating South African product enquiries and upcoming orders', 'SwimLoading is coordinating South African product enquiries and upcoming orders.'),
+      jq('range', 'Performance wetsuits, racing swimsuits and training swimwear', 'performance wetsuits, racing swimsuits and training swimwear'), JAKED_ASK],
+    visual: { headline: 'Want JAKED?', sub: 'Wetsuits, racing suits, training swimwear', chip: 'Register your interest' },
+    caption: (F) => `Want JAKED?\n\n${F('line')}.\n\nThe range: ${F('range').toLowerCase()}.\n\nRegister your interest on the JAKED page and we will come back to you with availability, sizing guidance, pricing and delivery details.`,
+  },
+};
+
+/** @param rows partner_pages rows. @returns { posts: [...], note } ; no posts (and a reason) unless JAKED is live in partner_pages. */
+export function jakedAngles(rows) {
+  const row = (rows || []).find((r) => /jaked/i.test(r.name || ''));
+  if (!row) return { posts: [], note: 'JAKED: no JAKED row in partner_pages, so no JAKED posts were built.' };
+  if (row.chip_state !== 'live') return { posts: [], note: `JAKED: partner_pages chip_state is "${row.chip_state}", not "live", so no JAKED posts were built.` };
+  const logo = row.logo_url && existsSync(resolve(ROOT, row.logo_url.replace(/^\//, ''))) ? row.logo_url.replace(/^\//, '') : 'icons/jaked-logo.png';
+  const posts = Object.entries(JAKED_ANGLES).map(([angle, a]) => {
+    const facts = [fact('name', 'JAKED', { table: 'partner_pages', row: row.id, column: 'name' }), ...a.facts()];
+    const F = (k) => facts.find((f) => f.key === k)?.text;
+    return {
+      category: CATEGORIES.BEHIND_THE_BRAND, angle: `jaked-${angle}`, imageAngle: angle,
+      sourceKey: `jaked:${angle}`, sourceUrl: `${SITE}/partners/jaked`,
+      partner: { name: 'JAKED', slug: 'jaked', chipState: row.chip_state, logo, logoOnDark: true, priority: true, pageId: row.id },   // icons/jaked-logo.png is white: it needs a dark plate
+      facts, visual: a.visual, captionSpec: { body: a.caption(F), fbCta: 'See the range and register your interest:', tags: JAKED_TAGS },
+      image: { url: null, licenceVerified: true },
+      freshnessAssessment: 'Evergreen partner copy quoted from the JAKED partner page. The partner must still be live at publish time. No prices, discounts or stock are stated.',
+    };
+  });
+  return { posts, note: null };
+}

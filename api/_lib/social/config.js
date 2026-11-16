@@ -10,10 +10,12 @@ export const SOCIAL_DEFAULTS = {
     { day: 6, hour: 10, minute: 0 },
   ],
   // Target share of posts. Targets, not quotas: a weak candidate is skipped, never padded in.
-  mix: { explore: 0.30, locations: 0.25, crossings: 0.15, ocean: 0.10, partners: 0.10, clubsAndPlatform: 0.10 },
+  // jaked: priority partner (Dave, 16 Nov 2026: push the partnership and sell the products). Its own share, on top of the 10% cap that applies to every other partner.
+  mix: { explore: 0.27, locations: 0.22, crossings: 0.13, ocean: 0.08, partners: 0.07, jaked: 0.15, clubsAndPlatform: 0.08 },
   dedupeDays: 90,
   reserveMin: 6,                      // validated evergreen posts held back as fallback
-  partnerMaxShare: 0.10,              // never more than this share of recent posts
+  partnerMaxShare: 0.10,              // never more than this share of recent posts (every partner except the priority one)
+  priorityPartnerMaxShare: 0.20,      // the priority partner (JAKED) has its own, higher ceiling; its target is mix.jaked
   media: {
     rotationPosts: 3,        // a photograph from the same session as any of the last N posts' photographs is skipped
     dupDistance: 10,         // dHash Hamming distance (of 64) at or below which two images count as the same shot
@@ -27,7 +29,8 @@ export const SOCIAL_DEFAULTS = {
     lateBindingHours: 30,       // measured-conditions posts are only built when their slot is this close (readings age)
     reviewPerRun: 3,            // at most this many PENDING_REVIEW items created per run (never blocks the schedule)
     reserveBatch: 6,            // at most this many reserves built per run
-    recentWindow: 20,           // posts looked at for mix and partner-share maths
+    recentWindow: 20,
+    minWindowForShare: 8,       // a share is meaningless in a near-empty window (1 post of 1 is 100%): caps apply from this many posts           // posts looked at for mix and partner-share maths
     exploreExcludeDays: 14,     // an Explore event already in a post this recent is not repeated
     regionMaxPages: 3,          // distinct "three spots" posts per region before it counts as exhausted
     regionMaxSpanKm: 700,       // the three spots must fit one regional map

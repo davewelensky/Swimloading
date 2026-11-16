@@ -52,7 +52,8 @@ export function validatePost(post, { now = new Date(), recentSourceKeys = {}, pa
     const live = post.partner.chipState === 'live';
     ok('partner is live/approved', live);
     if (!live) raise(RISK.REVIEW, `partner status is "${post.partner.chipState}"`);
-    if (partnerShare > SOCIAL_DEFAULTS.partnerMaxShare) raise(RISK.REVIEW, 'partner share of recent posts would exceed cap');
+    const cap = post.partner.priority ? SOCIAL_DEFAULTS.priorityPartnerMaxShare : SOCIAL_DEFAULTS.partnerMaxShare;
+    if (partnerShare > cap) raise(RISK.REVIEW, `partner share of recent posts would exceed its ${Math.round(cap * 100)}% cap`);
   }
 
   // 7. Conflicts and thin content.

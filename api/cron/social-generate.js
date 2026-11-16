@@ -6,6 +6,7 @@
 import { requireCronAuth } from './_auth.js';
 import { createStore } from '../_lib/social/store.js';
 import { runWeekly, formatPlan } from '../_lib/social/autopilot-run.js';
+import { weeklyReport } from '../_lib/social/report.js';
 
 async function notifyDave(subject, text) {
   if (!process.env.RESEND_API_KEY) return;
@@ -25,6 +26,14 @@ export default async function handler(req, res) {
     const empty = r.plan.filter((p) => p.action === 'left-empty');
     if (!dry && (r.reserves.shortfall || empty.length)) {
       await notifyDave(r.reserves.shortfall ? 'Reserve queue could not be refilled' : 'A slot was left empty', formatPlan(r));
+    }
+    // The weekly delivery report goes out whether or not anything is wrong: silence must never be the only sign of a problem.
+    if (!dry && new Date().getUTCDay() === 1) {   // Mondays only; the run itself is daily so measured-conditions posts are built inside their 30 h window
+      try {
+        const rows = await store.rest('social_posts?select=source_key,status,scheduled_for,is_reserve,fb_result&status=neq.REJECTED&order=scheduled_for.desc&limit=80');
+        const rep = weeklyReport(rows, new Date());
+        await notifyDave(rep.subject, `${rep.text}\n\n--- This run's plan ---\n${formatPlan(r)}`);
+      } catch (e) { console.error('social-generate: weekly report failed', e.message); }
     }
     return res.status(200).json({ dry, scheduled: r.plan.filter((p) => p.action === 'schedule').length, held: r.plan.filter((p) => p.action === 'held-for-conditions').length,
       review: r.plan.filter((p) => p.action === 'pending-review').length, empty: empty.length, reserves: r.reserves, notes: r.notes, plan: r.plan });

@@ -35,6 +35,8 @@ export default async function handler(req, res) {
     // Time-sensitive posts (Explore events, measured temperatures) and partner posts are re-validated immediately before they go out.
     const recheck = makeRecheck(store.rest);
     const result = await runPublisher({ store, meta, recheck, notify: notifyDave, dry, publicUrl, platforms, preflight });
+    const bad = ['claimed-elsewhere', 'token-problem', 'failed', 'held'].includes(result.status) || result.actions?.some((a) => ['claim-refused', 'missed-slot', 'recheck-failed', 'no-content-for-slot', 'replaced-by-reserve'].includes(a.action));
+    (bad ? console.error : console.log)('[social-publish]', JSON.stringify({ status: result.status, reason: result.reason, actions: result.actions, live, dry }));
     return res.status(200).json({ ...result, metaConfigured: configured, platforms, live });
   } catch (e) {
     if (/PGRST205|42P01|HTTP 404/.test(e.message)) return res.status(200).json({ status: 'not-initialised', note: 'social_* tables not created yet' });

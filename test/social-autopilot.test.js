@@ -162,13 +162,13 @@ test('planner: nothing is written without realise (dry run), and the plan covers
   assert.ok(slots.length >= 5 && slots.length <= 6);
   for (const s of slots) { const d = new Date(new Date(s).getTime() + 2 * 3600e3); assert.ok([2, 4, 6].includes(d.getUTCDay()) && d.getUTCHours() === 10); assert.ok(new Date(s) - NOW <= 14 * 86400e3); }
 });
-test('planner: follows the configured mix over a window (30/25/15/10/10/10) and redistributes the share of an empty group', async () => {
+test('planner: follows the configured mix over a window (27/22/13/8/7/15 JAKED/8) and redistributes the share of an empty group', async () => {
   assert.equal(pickGroup({}, SOCIAL_DEFAULTS.mix, new Set(['explore', 'locations', 'crossings'])), 'explore');
   const c = { explore: 3, locations: 3, crossings: 1, ocean: 1, partners: 1, clubsAndPlatform: 0 };
   assert.equal(pickGroup(c, SOCIAL_DEFAULTS.mix, new Set(['explore', 'locations', 'crossings', 'ocean', 'partners', 'clubsAndPlatform'])), 'clubsAndPlatform');
   assert.equal(pickGroup(c, SOCIAL_DEFAULTS.mix, new Set(['explore', 'locations', 'crossings', 'ocean', 'partners'])), 'crossings', 'with no clubs supply the next-most-owed group is chosen');
   // simulate 20 slots: counts stay within one post of target
-  let counts = {}; const avail = new Set(['explore', 'locations', 'crossings', 'ocean', 'partners', 'clubsAndPlatform']);
+  let counts = {}; const avail = new Set(['explore', 'locations', 'crossings', 'ocean', 'partners', 'jaked', 'clubsAndPlatform']);
   for (let i = 0; i < 20; i++) { const g = pickGroup(counts, SOCIAL_DEFAULTS.mix, avail); counts[g] = (counts[g] || 0) + 1; }
   for (const [g, share] of Object.entries(SOCIAL_DEFAULTS.mix)) assert.ok(Math.abs((counts[g] || 0) - share * 20) <= 1, `${g}: ${counts[g]} vs ${share * 20}`);
 });
@@ -190,7 +190,8 @@ test('ledger: publish-ledger ids are mapped to source keys through posts.json', 
   const m = recentKeyMap([], loadLedgerKeys(dir)); assert.ok(m['crossing:8c08']);
 });
 test('planner: partner cap, no un-capped partner posts', async () => {
-  assert.ok(!partnerAllowed({ explore: 1, partners: 1 }), '1 of 3 = 33%: refused');
+  assert.ok(partnerAllowed({ explore: 1, partners: 1 }), 'a window under 8 posts has no meaningful share: not capped');
+  assert.ok(!partnerAllowed({ explore: 4, locations: 4, partners: 1 }), '(1+1)/(9+1) = 20% over a real window: refused');
   assert.ok(partnerAllowed({ explore: 5, locations: 4, crossings: 3, ocean: 1, partners: 0 }));
   assert.ok(!partnerAllowed({ explore: 9, locations: 9, partners: 2 }), '(2+1)/(20+1) > 10%');
   const full = Array.from({ length: 12 }, (_, i) => ({ source_key: `k${i}`, status: 'PUBLISHED', category: i < 2 ? CAT.partners : CAT.locations, created_at: hoursAgo(24 * (i + 1)), scheduled_for: hoursAgo(24 * (i + 1)) }));
@@ -258,7 +259,9 @@ test('explore events already in a recent post are excluded from the next one', (
 });
 test('every category the engine can produce belongs to a mix group', () => {
   for (const c of [CATEGORIES.THIS_WEEK, CATEGORIES.SWIM_SPOTLIGHT, CATEGORIES.DISCOVERS, CATEGORIES.CROSSING_INTELLIGENCE, CATEGORIES.OPEN_WATER_INTEL, CATEGORIES.BEHIND_THE_BRAND]) assert.ok(MIX_GROUP[c], c);
-  assert.deepEqual(Object.keys(SOCIAL_DEFAULTS.mix).sort(), [...new Set(Object.values(MIX_GROUP))].sort());
+  // `jaked` is the priority partner: it has its own mix group, assigned by source key (jaked:*) rather than by category.
+  assert.deepEqual(Object.keys(SOCIAL_DEFAULTS.mix).filter((g) => g !== 'jaked').sort(), [...new Set(Object.values(MIX_GROUP))].sort());
+  assert.ok('jaked' in SOCIAL_DEFAULTS.mix);
 });
 
 test('buildPool: supply per group from fixtures (no network, nothing built yet)', async () => {
@@ -287,11 +290,11 @@ test('the autopilot function has a long maxDuration and bundles Chromium (cron r
   assert.match(v.functions['api/cron/social-generate.js'].includeFiles, /chromium/);
 });
 
-test('vercel.json schedules the generator weekly (Monday 08:00 UTC = 10:00 SAST) with Chromium and fonts bundled', async () => {
+test('vercel.json schedules the generator DAILY at 08:00 UTC (conditions posts can only be built within 30 h of their slot) with Chromium and fonts bundled', async () => {
   const cfg = JSON.parse(readFileSync('vercel.json', 'utf8'));
   const cron = cfg.crons.find((c) => c.path === '/api/cron/social-generate');
   assert.ok(cron, 'social-generate must be in crons');
-  assert.equal(cron.schedule, '0 8 * * 1');
+  assert.equal(cron.schedule, '0 8 * * *');
   const fn = cfg.functions['api/cron/social-generate.js'];
   assert.ok(fn.maxDuration >= 300 && fn.memory >= 1769);
   assert.match(fn.includeFiles, /sparticuz\/chromium/); assert.match(fn.includeFiles, /social\/fonts/);

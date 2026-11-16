@@ -49,7 +49,7 @@ const BUILDERS = {
       body: `Planning the ${F(p, 'name')}?\n\n${F(p, 'route') ? `The route runs ${F(p, 'distance')} from ${F(p, 'route')}.` : `The route is ${F(p, 'distance')}.`}\n\n${F(p, 'qualifying')}.${obs ? ` ${obs}.` : ''}\n\nCheck the governing body's current rules before you plan your training.`,
       fbCta: 'Crossing intelligence, conditions and preparation:', tags };
   },
-  [CATEGORIES.BEHIND_THE_BRAND]: (p) => F(p, 'claim') ? ({
+  [CATEGORIES.BEHIND_THE_BRAND]: (p) => p.captionSpec ? ({ body: p.captionSpec.body, fbCta: p.captionSpec.fbCta, tags: p.captionSpec.tags }) : F(p, 'claim') ? ({
     body: `${p.partner.name} and SwimLoading.\n\n${F(p, 'claim')}\n\n${F(p, 'range')} ${F(p, 'stock')}`,
     fbCta: `Read more on the ${p.partner.name} partner page:`,
     tags: ['#openwaterswimming', '#swimnutrition', '#swimloading'],
