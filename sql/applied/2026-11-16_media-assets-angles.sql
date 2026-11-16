@@ -6,6 +6,7 @@
 --               so on Vercel (which reads the table) the guard would be lost. The selector now fails closed (an asset with
 --               no angles is never used for an angled post), so JAKED posts cannot be built until this is applied and
 --               scripts/sync-media-to-supabase.mjs has been re-run.
+-- APPLIED:      16 Nov 2026 via supabase-admin (apply_migration "media_assets_angles"); verified: column present (text[]), 58 existing rows unchanged.
 -- PRE-CHECKS:   media_assets exists; column `angles` absent. Read-only:
 --               SELECT column_name FROM information_schema.columns WHERE table_name='media_assets' AND column_name='angles';  -- expect 0 rows
 -- BACKUP:       not required: additive nullable column, no existing row changes.
