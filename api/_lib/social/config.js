@@ -44,6 +44,9 @@ export const SOCIAL_DEFAULTS = {
     windowDays: 21,
     // An event today or tomorrow is not worth a post by the time it is seen. Earliest start = publish date + this.
     minLeadDays: 2,
+    // How old an edition's last verification may be before the post goes to review. 90 days until 17 Nov 2026, when it was
+    // relaxed to 120 (Dave): the discovery crawler stopped re-verifying, so Explore posts were all stalling. Tighten again once it refreshes.
+    maxVerificationAgeDays: 120,
     // 'unverified' is never auto-published. 'listed' = published with a disclaimer (Dave's publish model).
     autoTiers: ['confirmed', 'listed'],
     // Explore holds registration_status='unknown' on every future edition today, so we

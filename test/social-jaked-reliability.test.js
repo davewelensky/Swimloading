@@ -193,3 +193,13 @@ test('media rows round-trip the angles', async () => {
   assert.deepEqual(row.angles, ['wetsuit', 'enquire']);
   assert.deepEqual(rowToAsset({ ...row, width: a.width, height: a.height }).angles, ['wetsuit', 'enquire']);
 });
+
+test('event verification limit is 120 days: 105 days old is accepted, 125 days old goes to review', () => {
+  assert.equal(SOCIAL_DEFAULTS.event.maxVerificationAgeDays, 120);
+  const days = (n) => new Date(NOW.getTime() - n * 86400e3).toISOString();
+  const ev = (n) => ({ category: 'THIS WEEK IN OPEN WATER', sourceKey: 'explore:week:x', sourceUrl: 'https://www.swimloading.com/explore', facts: [], events: [{ title: 'E', isoDate: '2026-11-25', tier: 'listed', lastVerifiedAt: days(n) }] });
+  const f = [{ key: 'k', text: 'E', source: { table: 'event_editions', row: 'x' }, kind: 'evergreen' }];
+  assert.equal(validatePost({ ...ev(105), facts: f }, { now: NOW }).risk, RISK.AUTO);
+  assert.equal(validatePost({ ...ev(125), facts: f }, { now: NOW }).risk, RISK.REVIEW);
+  assert.match(validatePost({ ...ev(125), facts: f }, { now: NOW }).reasons.join(' '), /last verified 125 days ago/);
+});

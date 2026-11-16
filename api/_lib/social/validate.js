@@ -5,7 +5,6 @@ import { plainText } from './sources.js';
 import { eventIneligibility } from './sources.js';
 import { imageVerdict } from './media.js';
 
-const EVENT_MAX_VERIFICATION_AGE_DAYS = 90;
 
 export function validatePost(post, { now = new Date(), recentSourceKeys = {}, partnerShare = 0 } = {}) {
   const reasons = [];   // blockers or review triggers
@@ -67,7 +66,7 @@ export function validatePost(post, { now = new Date(), recentSourceKeys = {}, pa
       if (e.isoDate < today) raise(RISK.BLOCKED, `${e.title} is in the past`);
       if (!SOCIAL_DEFAULTS.event.autoTiers.includes(e.tier)) raise(RISK.REVIEW, `${e.title}: tier ${e.tier}`);
       const ageDays = (now - new Date(e.lastVerifiedAt)) / 86400e3;
-      if (!(ageDays <= EVENT_MAX_VERIFICATION_AGE_DAYS)) raise(RISK.REVIEW, `${e.title}: last verified ${Math.round(ageDays)} days ago`);
+      if (!(ageDays <= SOCIAL_DEFAULTS.event.maxVerificationAgeDays)) raise(RISK.REVIEW, `${e.title}: last verified ${Math.round(ageDays)} days ago`);
     }
     ok('events: future, acceptable tier, recently verified', risk !== RISK.BLOCKED);
     warnings.push('Registration status is "unknown" for all events: copy must not say registration is open.');
