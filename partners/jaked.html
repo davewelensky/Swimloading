@@ -170,6 +170,50 @@
     .g-cta-inner { height: 100%; padding: 16px 18px; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 8px; }
     .g-cta-title { font-family: 'Bebas Neue', sans-serif; font-size: 28px; line-height: 1; color: var(--text); letter-spacing: 0.3px; }
 
+    /* ENQUIRY FORM (register interest) */
+    .enq-card { background: linear-gradient(135deg, #07182a, #061221); border: 1px solid var(--cyan-border); border-radius: 16px; padding: 36px; }
+    .enq-card .section-title { margin-bottom: 16px; }
+    .enq-form { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--line); }
+    .enq-form[hidden], .enq-done[hidden], #enqIntro[hidden] { display: none; }
+    .enq-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 18px; margin-bottom: 18px; }
+    .fld { display: flex; flex-direction: column; gap: 7px; font-size: 13px; font-weight: 600; color: var(--text); border: 0; min-width: 0; }
+    .fld-wide { margin-bottom: 18px; }
+    .fld legend { font-size: 13px; font-weight: 600; margin-bottom: 9px; padding: 0; }
+    .fl { display: block; }
+    .req { color: var(--cyan); }
+    .opt { font-weight: 400; color: var(--text-sec); font-size: 12px; }
+    .enq-form input:not([type=radio]):not([type=checkbox]), .enq-form select, .enq-form textarea {
+      width: 100%; min-height: 46px; padding: 11px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(5,13,26,0.7); color: var(--text); font: 400 15px 'DM Sans', sans-serif; }
+    .enq-form textarea { resize: vertical; min-height: 92px; line-height: 1.5; }
+    .enq-form input:focus, .enq-form select:focus, .enq-form textarea:focus { outline: 2px solid var(--cyan); outline-offset: 1px; border-color: transparent; }
+    .enq-form [aria-invalid="true"] { border-color: #ef4444 !important; }
+    .choice-row { display: flex; flex-wrap: wrap; gap: 10px; }
+    .choice { position: relative; cursor: pointer; }
+    .choice input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+    .choice span { display: inline-flex; align-items: center; min-height: 44px; padding: 10px 18px; border-radius: 50px; border: 1px solid rgba(255,255,255,0.16); font-size: 14px; font-weight: 600; color: var(--body); transition: border-color .2s, background .2s; }
+    .choice input:checked + span { background: var(--cyan); border-color: var(--cyan); color: #080f1a; }
+    .choice input:focus-visible + span { outline: 2px solid var(--cyan); outline-offset: 2px; }
+    .choice input[aria-invalid="true"] + span { border-color: #ef4444; }
+    .tick { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: var(--body); margin: 0 0 18px; cursor: pointer; line-height: 1.5; }
+    .tick input { width: 20px; height: 20px; flex-shrink: 0; margin-top: 1px; accent-color: var(--cyan); }
+    .tick-consent { margin-bottom: 8px; color: var(--text); }
+    .enq-small { font-size: 12px; color: var(--text-sec); line-height: 1.6; }
+    .enq-small a { color: var(--cyan); }
+    .enq-err { color: #fca5a5; font-size: 14px; min-height: 20px; margin-top: 14px; }
+    .enq-wa { display: inline-flex; align-items: center; gap: 6px; color: var(--text-sec); font-size: 13px; text-decoration: none; min-height: 44px; }
+    .enq-wa:hover { color: var(--cyan); }
+    .hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+    .enq-done { display: flex; gap: 14px; margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--line); }
+    .enq-done > i, .enq-done > svg { color: #10b981; flex-shrink: 0; margin-top: 4px; }
+    .enq-done:focus { outline: none; }
+    .enq-ref { margin: 14px 0 6px; font-size: 15px; color: var(--body); }
+    .enq-ref strong { font-family: 'DM Mono', monospace; color: var(--cyan); letter-spacing: 1.5px; font-size: 17px; }
+    @media (max-width: 640px) {
+      .enq-card { padding: 24px 18px; }
+      .enq-grid { grid-template-columns: 1fr; }
+    }
+
     /* LIGHTBOX */
     .lb { position: fixed; inset: 0; z-index: 10000; background: rgba(3, 8, 16, 0.95); display: flex; align-items: center; justify-content: center; }
     .lb[hidden] { display: none; }
@@ -288,8 +332,8 @@
         JAKED is an Italian swim and open water brand built on research, innovation and competition. They sponsor SwimLoading's own Carina Bruwer, and her kit is on the water.
       </p>
       <div class="hero-ctas">
-        <a href="https://wa.me/27824482501?text=Hi%20SwimLoading%2C%20I%27m%20interested%20in%20buying%20JAKED%20gear%3A%20" target="_blank" rel="noopener" class="cta-btn" data-interest="general">
-          <i data-lucide="shopping-bag" style="width:16px;height:16px;"></i> Order JAKED gear
+        <a href="#interest" class="cta-btn" data-interest="general" data-register="">
+          <i data-lucide="clipboard-list" style="width:16px;height:16px;"></i> Register your interest
         </a>
         <a href="https://www.jaked.com/en" target="_blank" rel="noopener" class="cta-ghost" id="siteBtn">Explore JAKED <i data-lucide="arrow-up-right" style="width:14px;height:14px;"></i></a>
       </div>
@@ -341,15 +385,12 @@
         <div class="spec-note">BLADE features as listed by JAKED.</div>
 
         <div class="order-block">
-          <div class="mono-label">Order through SwimLoading</div>
+          <div class="mono-label">Enquire through SwimLoading</div>
           <div class="order-title">Want a JAKED wetsuit?</div>
-          <div class="body-text">Message us the model, size and colour you're after and we'll come back to you with price and delivery.</div>
+          <div class="body-text">Tell us the model, size and colour you're after and we'll come back to you with availability, sizing guidance, price and delivery.</div>
           <div class="order-actions">
-            <a href="https://wa.me/27824482501?text=Hi%20SwimLoading%2C%20I%27m%20interested%20in%20ordering%20a%20JAKED%20wetsuit%20%28BLADE%29%3A%20" target="_blank" rel="noopener" class="cta-btn" data-interest="wetsuit">
-              <i data-lucide="message-circle" style="width:16px;height:16px;"></i> WhatsApp us
-            </a>
-            <a href="mailto:support@swimloading.com?subject=JAKED%20wetsuit%20enquiry" class="cta-ghost" data-interest="wetsuit-email">
-              <i data-lucide="mail" style="width:16px;height:16px;"></i> Email us
+            <a href="#interest" class="cta-btn" data-interest="wetsuit" data-register="open_water_wetsuit" data-model="BLADE">
+              <i data-lucide="clipboard-list" style="width:16px;height:16px;"></i> Register your interest
             </a>
           </div>
         </div>
@@ -389,26 +430,102 @@
         <div class="g-cta-inner">
           <div class="mono-label">Costumes</div>
           <div class="g-cta-title">Want one?</div>
-          <a href="https://wa.me/27824482501?text=Hi%20SwimLoading%2C%20I%27m%20interested%20in%20ordering%20a%20JAKED%20costume%3A%20" target="_blank" rel="noopener" class="cta-btn cta-small" data-interest="costume-grid"><i data-lucide="message-circle" style="width:14px;height:14px;"></i> WhatsApp us</a>
+          <a href="#interest" class="cta-btn cta-small" data-interest="costume-grid" data-register=""><i data-lucide="clipboard-list" style="width:14px;height:14px;"></i> Register interest</a>
         </div>
       </div>
     </div>
+  </section>
 
-    <!-- Interest and enquiry only: price, delivery and discount are NOT agreed (PARTNERS.md), so none is stated. -->
-    <div class="order-block" id="interest">
-      <div class="mono-label">Order through SwimLoading</div>
-      <div class="order-title">Want a JAKED costume?</div>
-      <div class="body-text">Tell us which one you like, your size and where you're based, and we'll come back to you with price and delivery. You can also buy direct from JAKED.</div>
-      <div class="order-actions">
-        <a href="https://wa.me/27824482501?text=Hi%20SwimLoading%2C%20I%27m%20interested%20in%20ordering%20a%20JAKED%20costume%3A%20" target="_blank" rel="noopener" class="cta-btn" data-interest="costume" id="interestBtn">
-          <i data-lucide="message-circle" style="width:16px;height:16px;"></i> WhatsApp us
-        </a>
-        <a href="mailto:support@swimloading.com?subject=JAKED%20costume%20enquiry" class="cta-ghost" data-interest="costume-email">
-          <i data-lucide="mail" style="width:16px;height:16px;"></i> Email us
-        </a>
+  <!-- ENQUIRIES: register interest. Enquiry coordination only: no price, stock, delivery time or discount is stated,
+       because none is agreed with JAKED yet (PARTNERS.md). Submits to /api/partner-enquiry; see api/_lib/partner-enquiries/core.js. -->
+  <section id="interest">
+    <div class="enq-card">
+      <div class="section-label">Enquiries · South Africa</div>
+      <h2 class="section-title">Interested in JAKED <span>swimwear?</span></h2>
+      <div class="body-text">
+        Explore JAKED's range of performance wetsuits, racing swimsuits and training swimwear. SwimLoading is coordinating South African product enquiries and upcoming orders. Register your interest and we'll contact you with availability, sizing guidance, pricing and delivery details.
+      </div>
+      <div class="order-actions" id="enqIntro">
+        <button type="button" class="cta-btn" id="enqOpen" data-register="">
+          <i data-lucide="clipboard-list" style="width:16px;height:16px;"></i> Register Your Interest
+        </button>
         <a href="https://www.jaked.com/en" target="_blank" rel="noopener" class="cta-ghost">Buy direct from jaked.com <i data-lucide="arrow-up-right" style="width:14px;height:14px;"></i></a>
       </div>
-      <div class="order-foot">Price and delivery confirmed when we reply</div>
+
+      <form id="enqForm" class="enq-form" novalidate hidden>
+        <div class="enq-grid">
+          <label class="fld"><span class="fl">Your name <span class="req">*</span></span>
+            <input name="customer_name" autocomplete="name" maxlength="120" required>
+          </label>
+          <label class="fld"><span class="fl">Email address <span class="req">*</span></span>
+            <input name="email" type="email" autocomplete="email" maxlength="254" required>
+          </label>
+          <label class="fld"><span class="fl">Contact number <span class="opt">optional</span></span>
+            <input name="phone" type="tel" autocomplete="tel" maxlength="40">
+          </label>
+          <label class="fld"><span class="fl">Quantity</span>
+            <input name="quantity" type="number" inputmode="numeric" min="1" max="20" value="1" required>
+          </label>
+        </div>
+
+        <fieldset class="fld fld-wide">
+          <legend>What are you interested in? <span class="req">*</span></legend>
+          <div class="choice-row">
+            <label class="choice"><input type="radio" name="product_category" value="open_water_wetsuit" required><span>Open-water wetsuit</span></label>
+            <label class="choice"><input type="radio" name="product_category" value="racing_swimsuit"><span>Racing swimsuit</span></label>
+            <label class="choice"><input type="radio" name="product_category" value="training_swimwear"><span>Training swimwear</span></label>
+          </div>
+        </fieldset>
+
+        <div class="enq-grid">
+          <label class="fld"><span class="fl">Preferred model <span class="opt">if known</span></span>
+            <input name="preferred_model" list="enqModels" maxlength="120" placeholder="e.g. BLADE">
+            <datalist id="enqModels"><option value="BLADE"></option></datalist>
+          </label>
+          <label class="fld"><span class="fl">Fit <span class="opt">where relevant</span></span>
+            <select name="fit">
+              <option value="">Choose</option>
+              <option value="womens">Women's</option>
+              <option value="mens">Men's</option>
+              <option value="unisex">Unisex</option>
+              <option value="not_sure">Not sure</option>
+            </select>
+          </label>
+          <label class="fld"><span class="fl">Size</span>
+            <input name="size" maxlength="40" placeholder="Your usual size">
+          </label>
+          <label class="fld"><span class="fl">Preferred colour <span class="opt">if relevant</span></span>
+            <input name="colour" maxlength="60">
+          </label>
+        </div>
+        <label class="tick"><input type="checkbox" name="size_help"><span>Unsure, I need help with sizing</span></label>
+
+        <label class="fld fld-wide"><span class="fl">Anything else we should know? <span class="opt">optional</span></span>
+          <textarea name="comments" rows="3" maxlength="2000" placeholder="e.g. the event you're training for, or the costume you liked in the photos"></textarea>
+        </label>
+
+        <!-- Hidden from people; bots fill it in and are quietly dropped. -->
+        <div class="hp" aria-hidden="true"><label>Website <input name="website" tabindex="-1" autocomplete="off"></label></div>
+
+        <label class="tick tick-consent"><input type="checkbox" name="consent" required><span id="enqConsentText">SwimLoading may contact me about this enquiry, and share my order details with JAKED only if I go ahead with an order.</span></label>
+        <div class="enq-small">This does not sign you up to the newsletter or any marketing. See our <a href="/privacy">privacy policy</a>.</div>
+
+        <div class="enq-err" id="enqErr" role="alert" aria-live="assertive"></div>
+        <div class="order-actions">
+          <button type="submit" class="cta-btn" id="enqSubmit"><i data-lucide="send" style="width:16px;height:16px;"></i> Send enquiry</button>
+          <a href="https://wa.me/27824482501?text=Hi%20SwimLoading%2C%20I%27m%20interested%20in%20buying%20JAKED%20gear%3A%20" target="_blank" rel="noopener" class="enq-wa" data-interest="whatsapp"><i data-lucide="message-circle" style="width:14px;height:14px;"></i> Prefer WhatsApp? Message us</a>
+        </div>
+      </form>
+
+      <div class="enq-done" id="enqDone" role="status" aria-live="polite" tabindex="-1" hidden>
+        <i data-lucide="check-circle-2" style="width:22px;height:22px;"></i>
+        <div>
+          <div class="order-title">Enquiry received.</div>
+          <div class="body-text">Thank you for your interest in JAKED. We've received your enquiry and will contact you regarding availability, pricing, sizing and delivery options.</div>
+          <div class="enq-ref">Your reference: <strong id="enqRef"></strong></div>
+          <div class="enq-small" id="enqEmailed" hidden>We've emailed you a copy.</div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -596,11 +713,11 @@
       </details>
       <details>
         <summary>Where can I get one?</summary>
-        <div class="answer">Two ways. <a href="#interest">Message us</a> with the model, size and colour you want and we'll come back to you with price and delivery. Or buy direct from <a href="https://www.jaked.com/en" target="_blank" rel="noopener">jaked.com</a> and check the delivery options for your country at checkout.</div>
+        <div class="answer">Two ways. <a href="#interest" data-register="">Register your interest</a> with the model, size and colour you want and we'll come back to you with availability, sizing, price and delivery. Or buy direct from <a href="https://www.jaked.com/en" target="_blank" rel="noopener">jaked.com</a> and check the delivery options for your country at checkout.</div>
       </details>
       <details>
         <summary>What does it cost, and how long does delivery take?</summary>
-        <div class="answer">Price and delivery depend on the item, your size and where you're based, so we confirm both when we reply to your message. We don't publish JAKED prices here.</div>
+        <div class="answer">Price and delivery depend on the item, your size and where you're based, so we confirm both when we reply to your enquiry. We don't publish JAKED prices here.</div>
       </details>
       <details>
         <summary>Is there a member discount?</summary>
@@ -783,6 +900,123 @@
       var dx = e.changedTouches[0].clientX - startX; startX = null;
       if (Math.abs(dx) > 50) show(idx + (dx < 0 ? 1 : -1));
     }, { passive: true });
+  })();
+
+  // Register-your-interest form. Posts to /api/partner-enquiry, which stores it server side (the browser never
+  // touches the enquiries table), emails SwimLoading and sends the customer their reference.
+  (function () {
+    var form = document.getElementById('enqForm');
+    if (!form) return;
+    var intro = document.getElementById('enqIntro'), done = document.getElementById('enqDone');
+    var err = document.getElementById('enqErr'), submit = document.getElementById('enqSubmit');
+    var opened = false;
+
+    // A signed-in SwimLoading member: the app keeps its session in this browser under this key.
+    function session() {
+      try {
+        var s = JSON.parse(localStorage.getItem('sb-szgkzuswelntnevobnoh-auth-token') || 'null');
+        if (!s || !s.access_token || !s.user) return null;
+        if (s.expires_at && s.expires_at * 1000 < Date.now()) return null;
+        return s;
+      } catch (e) { return null; }
+    }
+    function setIfEmpty(name, v) { var el = form.elements[name]; if (el && !el.value && v) el.value = v; }
+    function prefill() {
+      var s = session();
+      if (!s) return;
+      var md = s.user.user_metadata || {};
+      setIfEmpty('email', s.user.email);
+      setIfEmpty('customer_name', md.full_name || md.name);
+      if (form.elements.customer_name.value) return;
+      fetch(SB_URL + '/rest/v1/profiles?id=eq.' + encodeURIComponent(s.user.id) + '&select=full_name,display_name', {
+        headers: { apikey: SB_KEY, Authorization: 'Bearer ' + s.access_token }
+      }).then(function (r) { return r.ok ? r.json() : []; })
+        .then(function (rows) { if (rows[0]) setIfEmpty('customer_name', rows[0].full_name || rows[0].display_name); })
+        .catch(function () {});
+    }
+
+    function open(cat, model) {
+      if (!done.hidden) { done.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+      form.hidden = false;
+      intro.hidden = true;
+      if (cat) { var r = form.querySelector('input[name=product_category][value="' + cat + '"]'); if (r) r.checked = true; }
+      if (model) setIfEmpty('preferred_model', model);
+      if (!opened) { opened = true; prefill(); trackEvent('partner_jaked_register_click', withCtx({ cat: cat || '' })); }
+      document.getElementById('interest').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // put the cursor in the first thing still to fill in
+      setTimeout(function () {
+        var el = form.elements, f = !el.customer_name.value ? el.customer_name : !el.email.value ? el.email
+          : !form.querySelector('input[name=product_category]:checked') ? form.querySelector('input[name=product_category]') : el.size;
+        if (f) f.focus({ preventScroll: true });
+      }, 450);
+    }
+
+    document.querySelectorAll('[data-register]').forEach(function (el) {
+      el.addEventListener('click', function (e) {
+        e.preventDefault();
+        open(el.getAttribute('data-register'), el.getAttribute('data-model'));
+      });
+    });
+    if (location.hash === '#interest') open('', '');
+
+    var MESSAGES = {
+      name_required: 'Please add your name.',
+      email_invalid: 'Please check your email address.',
+      phone_invalid: 'Please check your contact number, or leave it blank.',
+      category_required: 'Please choose what you are interested in.',
+      quantity_invalid: 'Quantity should be between 1 and 20.',
+      consent_required: 'Please tick the box so we can contact you about this enquiry.',
+      too_many: "You've sent a few enquiries already. We'll be in touch, or message us on WhatsApp.",
+    };
+    var FIELD = { name_required: 'customer_name', email_invalid: 'email', phone_invalid: 'phone', quantity_invalid: 'quantity', consent_required: 'consent' };
+
+    function fail(code) {
+      err.textContent = MESSAGES[code] || 'Something went wrong sending your enquiry. Please try again, or message us on WhatsApp.';
+      var f = FIELD[code] && form.elements[FIELD[code]];
+      if (code === 'category_required') f = form.querySelector('input[name=product_category]');
+      if (f && f.setAttribute) { f.setAttribute('aria-invalid', 'true'); f.focus(); }
+    }
+
+    form.addEventListener('input', function (e) { if (e.target.removeAttribute) e.target.removeAttribute('aria-invalid'); err.textContent = ''; });
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      err.textContent = '';
+      var el = form.elements, cat = form.querySelector('input[name=product_category]:checked');
+      // the same checks the server makes, so most mistakes are caught before sending
+      if (!el.customer_name.value.trim()) return fail('name_required');
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(el.email.value.trim())) return fail('email_invalid');
+      if (!cat) return fail('category_required');
+      var q = parseInt(el.quantity.value, 10);
+      if (!(q >= 1 && q <= 20)) return fail('quantity_invalid');
+      if (!el.consent.checked) return fail('consent_required');
+
+      var body = {
+        partner: 'jaked',
+        customer_name: el.customer_name.value, email: el.email.value, phone: el.phone.value,
+        product_category: cat.value, preferred_model: el.preferred_model.value, fit: el.fit.value,
+        size: el.size.value, size_help: el.size_help.checked, colour: el.colour.value, quantity: q,
+        comments: el.comments.value, consent: el.consent.checked, website: el.website.value,
+      };
+      var headers = { 'Content-Type': 'application/json' };
+      var s = session(); if (s) headers.Authorization = 'Bearer ' + s.access_token;
+
+      submit.disabled = true;
+      submit.lastChild.textContent = ' Sending…';
+      fetch('/api/partner-enquiry', { method: 'POST', headers: headers, body: JSON.stringify(body) })
+        .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, j: j }; }); })
+        .then(function (res) {
+          if (!res.ok || !res.j.reference) { fail(res.j.error); return; }
+          document.getElementById('enqRef').textContent = res.j.reference;
+          document.getElementById('enqEmailed').hidden = !res.j.emailed;
+          form.hidden = true;
+          done.hidden = false;
+          done.focus();
+          trackEvent('partner_jaked_enquiry_submit', withCtx({ cat: body.product_category }));
+        })
+        .catch(function () { fail(''); })
+        .then(function () { submit.disabled = false; submit.lastChild.textContent = ' Send enquiry'; });
+    });
   })();
 
   trackEvent('partner_jaked_page_view', CTX);

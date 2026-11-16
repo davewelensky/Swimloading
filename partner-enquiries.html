@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Partner enquiries | SwimLoading</title>
+  <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg:#080f1a;--card:#0d1728;--cyan:#38bdf8;--text:#f1f5f9;--sec:#94a3b8;--dim:#64748b;--border:rgba(255,255,255,0.08);--green:#10b981;--amber:#f59e0b;--danger:#ef4444}
+    body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;line-height:1.55;min-height:100vh;padding-bottom:calc(40px + env(safe-area-inset-bottom,0px))}
+    body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;background:radial-gradient(18px circle at var(--mouse-x,-999px) var(--mouse-y,-999px),rgba(56,189,248,0.55),transparent 100%),radial-gradient(500px circle at var(--mouse-x,-999px) var(--mouse-y,-999px),rgba(56,189,248,0.07),transparent 70%)}
+    nav{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:rgba(8,15,26,0.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+    .brand{display:flex;align-items:center;gap:8px;text-decoration:none;font-size:20px;font-weight:800;letter-spacing:-0.5px;background:linear-gradient(135deg,#38bdf8 0%,#0ea5e9 50%,#0284c7 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .brand img{height:22px;width:auto}
+    .navlinks{display:flex;gap:16px}
+    .navlinks a{color:var(--sec);text-decoration:none;font-size:13px;min-height:44px;display:flex;align-items:center}
+    .wrap{max-width:1040px;margin:0 auto;padding:24px 16px}
+    h1{font-family:'Bebas Neue',sans-serif;font-weight:400;font-size:44px;letter-spacing:1px;line-height:1.05}
+    .sub{color:var(--sec);margin-top:4px;max-width:680px}
+    .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:18px 0}
+    select,textarea{background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:0 12px;min-height:44px;font:500 14px 'DM Sans',sans-serif}
+    textarea{padding:10px 12px;width:100%;min-height:70px;resize:vertical}
+    .pill{min-height:44px;padding:0 18px;border-radius:50px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:var(--text);font:700 13px 'DM Sans',sans-serif;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+    .pill.primary{background:var(--cyan);border-color:var(--cyan);color:#080f1a}
+    .pill:disabled{opacity:.5;cursor:default}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px}
+    .big{font-family:'Bebas Neue',sans-serif;font-size:46px;line-height:1;color:var(--cyan)}
+    .lbl{font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--dim)}
+    h2{font-size:13px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--sec);margin:22px 0 10px}
+    table{width:100%;border-collapse:collapse}
+    td{padding:8px 0;border-bottom:1px solid var(--border);font-size:14px}
+    td.n{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+    .two{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+    .msg{padding:40px 16px;text-align:center;color:var(--sec)}
+    .msg a{color:var(--cyan)}
+    .enq{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px}
+    .enq-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-items:baseline}
+    .ref{font:700 13px 'DM Sans',sans-serif;letter-spacing:1px;color:var(--cyan)}
+    .when{font-size:12px;color:var(--dim)}
+    .who{font-weight:700;font-size:16px;margin-top:4px}
+    .contact{font-size:14px;color:var(--sec);word-break:break-all}
+    .contact a{color:var(--sec)}
+    .facts{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+    .tag{font-size:12px;font-weight:600;padding:4px 10px;border-radius:50px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);color:var(--text)}
+    .tag.warn{background:rgba(245,158,11,0.1);border-color:rgba(245,158,11,0.3)}
+    .comments{font-size:14px;color:var(--text);background:rgba(255,255,255,0.03);border-radius:10px;padding:10px 12px;white-space:pre-wrap;margin-bottom:10px}
+    .edit{display:grid;grid-template-columns:220px 1fr auto;gap:10px;align-items:start}
+    .saved{font-size:12px;color:var(--green);min-height:16px;margin-top:6px}
+    .saved.err{color:var(--danger)}
+    .st{display:inline-block;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:3px 9px;border-radius:50px;border:1px solid var(--border);color:var(--sec)}
+    .st.new{color:#080f1a;background:var(--cyan);border-color:var(--cyan)}
+    .st.done{color:var(--green);border-color:rgba(16,185,129,.4)}
+    @media (max-width:640px){.edit{grid-template-columns:1fr}h1{font-size:36px}}
+  </style>
+</head>
+<body>
+<nav>
+  <a class="brand" href="/"><img src="/icons/logo-wave.png" alt="">SwimLoading</a>
+  <div class="navlinks"><a href="/partner-stats?partner=jaked">Page stats</a><a href="/growth-hub">Growth Hub</a></div>
+</nav>
+<div class="wrap" id="root"><div class="msg">Loading…</div></div>
+
+<script>
+  document.addEventListener('mousemove', e => { document.documentElement.style.setProperty('--mouse-x', e.clientX + 'px'); document.documentElement.style.setProperty('--mouse-y', e.clientY + 'px'); });
+  const sb = window.supabase.createClient('https://szgkzuswelntnevobnoh.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA', { auth: { persistSession: true, storageKey: 'sb-szgkzuswelntnevobnoh-auth-token' } });
+  const root = document.getElementById('root');
+  const partner = 'jaked';
+  let data = null, lastSaved = null, filter = new URLSearchParams(location.search).get('status') || 'open';
+  // Everything a customer typed is escaped before it touches the page.
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+  const when = iso => new Date(iso).toLocaleString('en-ZA', { timeZone: 'Africa/Johannesburg', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+  async function token() {
+    const { data: d } = await sb.auth.getSession();
+    return d && d.session ? d.session.access_token : null;
+  }
+
+  function table(rows, label) {
+    if (!rows || !rows.length) return '<div class="when">None yet.</div>';
+    return '<table>' + rows.map(r => `<tr><td>${esc(label ? label(r.key) : r.key)}</td><td class="n">${r.count}</td></tr>`).join('') + '</table>';
+  }
+
+  function visible() {
+    const rows = data.rows;
+    if (filter === 'all') return rows;
+    if (filter === 'open') return rows.filter(r => !['completed', 'cancelled'].includes(r.status));
+    return rows.filter(r => r.status === filter);
+  }
+
+  function enquiryCard(r) {
+    const S = data.statuses, C = data.categories, F = data.fits;
+    const facts = [
+      C[r.product_category],
+      r.preferred_model && 'Model: ' + r.preferred_model,
+      r.fit && F[r.fit],
+      r.size && 'Size: ' + r.size,
+      r.colour && 'Colour: ' + r.colour,
+      'Qty ' + r.quantity,
+      r.user_id && 'SwimLoading member',
+    ].filter(Boolean).map(t => `<span class="tag">${esc(t)}</span>`).join('') + (r.size_help ? '<span class="tag warn">Needs sizing help</span>' : '');
+    const stCls = r.status === 'new' ? 'new' : (['completed', 'confirmed', 'ordered_from_jaked', 'shipped'].includes(r.status) ? 'done' : '');
+    return `<div class="enq" data-id="${esc(r.id)}">
+      <div class="enq-head"><span class="ref">${esc(r.reference)} &nbsp;<span class="st ${stCls}">${esc(S[r.status] || r.status)}</span></span><span class="when">Received ${esc(when(r.created_at))}${r.status_changed_at && r.status_changed_at !== r.created_at ? ' · status changed ' + esc(when(r.status_changed_at)) : ''}</span></div>
+      <div class="who">${esc(r.customer_name)}</div>
+      <div class="contact"><a href="mailto:${esc(r.email)}?subject=${encodeURIComponent('Your JAKED enquiry (' + r.reference + ')')}">${esc(r.email)}</a>${r.phone ? ' · ' + esc(r.phone) : ''}</div>
+      <div class="facts">${facts}</div>
+      ${r.comments ? `<div class="comments">${esc(r.comments)}</div>` : ''}
+      <div class="edit">
+        <select data-f="status" aria-label="Status">${Object.entries(S).map(([k, v]) => `<option value="${k}"${k === r.status ? ' selected' : ''}>${esc(v)}</option>`).join('')}</select>
+        <textarea data-f="notes" placeholder="Internal notes (never shown to the customer)" aria-label="Internal notes">${esc(r.internal_notes || '')}</textarea>
+        <button class="pill primary" data-save type="button">Save</button>
+      </div>
+      <div class="saved" data-out>${lastSaved && lastSaved.id === r.id ? esc(lastSaved.text) : ''}</div>
+    </div>`;
+  }
+
+  function render() {
+    const s = data.summary, C = data.categories, S = data.statuses;
+    const list = visible();
+    root.innerHTML = `
+      <h1>JAKED enquiries</h1>
+      <div class="sub">From the "Register your interest" form on <a href="/partners/jaked" style="color:var(--cyan)">/partners/jaked</a>. Prices and delivery are confirmed by hand with JAKED, then sent to the customer. Admins only.</div>
+      <div class="bar">
+        <button class="pill" id="csvBtn" type="button">Download CSV</button>
+        <button class="pill" id="refreshBtn" type="button">Refresh</button>
+      </div>
+      <div class="grid">
+        <div class="card"><div class="lbl">Total enquiries</div><div class="big">${s.total}</div></div>
+        <div class="card"><div class="lbl">New, not yet contacted</div><div class="big">${s.newCount}</div></div>
+        <div class="card"><div class="lbl">Open</div><div class="big">${s.open}</div></div>
+        <div class="card"><div class="lbl">Confirmed orders</div><div class="big">${s.confirmed}</div></div>
+      </div>
+      <div class="two">
+        <div><h2>By product</h2><div class="card">${table(s.byCategory, k => C[k] || k)}</div></div>
+        <div><h2>Units asked for (not cancelled)</h2><div class="card">${table(s.unitsByCategory, k => C[k] || k)}</div></div>
+      </div>
+      <div class="two">
+        <div><h2>Models</h2><div class="card">${table(s.models)}</div></div>
+        <div><h2>Sizes</h2><div class="card">${table(s.sizes)}</div></div>
+      </div>
+      <h2>By status</h2><div class="card">${table(s.byStatus.filter(x => x.count), k => S[k] || k)}</div>
+      <h2>Enquiries</h2>
+      <div class="bar"><select id="filterSel" aria-label="Show">
+        <option value="open">Open (not completed or cancelled)</option><option value="all">All</option>
+        ${Object.entries(S).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('')}
+      </select><span class="when">${list.length} shown</span></div>
+      ${list.length ? list.map(enquiryCard).join('') : '<div class="msg">No enquiries here yet.</div>'}`;
+    document.getElementById('filterSel').value = filter;
+    document.getElementById('filterSel').addEventListener('change', e => { filter = e.target.value; history.replaceState(null, '', '?status=' + filter); render(); });
+    document.getElementById('refreshBtn').addEventListener('click', load);
+    document.getElementById('csvBtn').addEventListener('click', downloadCsv);
+    root.querySelectorAll('[data-save]').forEach(btn => btn.addEventListener('click', () => save(btn.closest('.enq'))));
+  }
+
+  async function save(card) {
+    const id = card.getAttribute('data-id'), out = card.querySelector('[data-out]'), btn = card.querySelector('[data-save]');
+    const status = card.querySelector('[data-f="status"]').value, internal_notes = card.querySelector('[data-f="notes"]').value;
+    btn.disabled = true; out.className = 'saved'; out.textContent = 'Saving…';
+    try {
+      const t = await token();
+      const r = await fetch('/api/partner-enquiries', { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + t }, body: JSON.stringify({ id, status, internal_notes }) });
+      const body = await r.json();
+      if (!r.ok) throw new Error(body.error || 'Could not save');
+      const row = data.rows.find(x => x.id === id);
+      Object.assign(row, body.row);
+      lastSaved = { id, text: 'Saved ' + when(body.row.updated_at) };
+      await load(); // refresh the counts, keeping the scroll position
+    } catch (e) { out.className = 'saved err'; out.textContent = e.message; btn.disabled = false; }
+  }
+
+  async function downloadCsv() {
+    const t = await token();
+    const r = await fetch('/api/partner-enquiries?partner=' + partner + '&format=csv', { headers: { Authorization: 'Bearer ' + t } });
+    if (!r.ok) { alert('Could not export. Refresh and try again.'); return; }
+    const blob = await r.blob();
+    const name = (r.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = name ? name[1] : partner + '-enquiries.csv';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
+
+  async function load() {
+    const y = window.scrollY;
+    const t = await token();
+    if (!t) { root.innerHTML = '<div class="msg">Please <a href="/app">sign in to SwimLoading</a> with your admin account, then come back to this page.</div>'; return; }
+    try {
+      const r = await fetch('/api/partner-enquiries?partner=' + partner, { headers: { Authorization: 'Bearer ' + t } });
+      const body = await r.json();
+      if (!r.ok) { root.innerHTML = '<div class="msg">' + esc(body.error || 'Could not load enquiries') + '</div>'; return; }
+      data = body; render(); window.scrollTo(0, y);
+    } catch (e) { root.innerHTML = '<div class="msg">Could not load enquiries. Check your connection and refresh.</div>'; }
+  }
+  load();
+</script>
+</body>
+</html>
