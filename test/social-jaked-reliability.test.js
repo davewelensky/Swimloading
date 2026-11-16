@@ -179,3 +179,17 @@ test('autopilot dry run on an empty queue plans JAKED without tripping the share
   assert.ok(jaked.length >= 1, 'JAKED is planned: ' + JSON.stringify(r.plan.map((p) => [p.slot, p.action, p.key])));
   assert.ok(!jaked.some((p) => /exceed/.test((p.reasons || []).join(' '))));
 });
+
+test('FAIL CLOSED: a product photo with no declared angles is never used for an angled post (e.g. when the database drops the field)', () => {
+  const cat = loadCatalogue().map((a) => (a.partner === 'jaked' ? { ...a, angles: undefined } : a));
+  const p = jakedAngles(live).posts.find((x) => x.imageAngle === 'wetsuit');
+  const s = selectImage(p, cat, { now: NOW });
+  assert.notEqual(s.tier, TIERS.PRODUCT, 'no angles declared means no product photo, not "any product photo"');
+});
+test('media rows round-trip the angles', async () => {
+  const { assetToRow, rowToAsset } = await import('../api/_lib/social/media.js');
+  const a = loadCatalogue().find((x) => x.id === 'jaked-carina-wetsuit-1');
+  const row = assetToRow(a);
+  assert.deepEqual(row.angles, ['wetsuit', 'enquire']);
+  assert.deepEqual(rowToAsset({ ...row, width: a.width, height: a.height }).angles, ['wetsuit', 'enquire']);
+});

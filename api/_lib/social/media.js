@@ -50,7 +50,7 @@ export function assetToRow(a, size = {}) {
     location: a.location || null, country: a.country || null, spot_id: a.spotId || null, region: a.region || null, crossing_slug: a.crossingSlug || null, partner: a.partner || null,
     subject: a.subject || 'generic', tags: a.tags || [], width: size.w ?? a.width ?? null, height: size.h ?? a.height ?? null, permission: a.permission || 'owned', attribution: a.attribution || null,
     approved_for_social: !!a.approvedForSocial, provenance_confirmed: !!a.provenanceConfirmed, identifiable_people: a.identifiablePeople ?? null, consent: a.consent || 'n/a',
-    session_id: a.sessionId || null, captured_at: a.capturedAt || null, dhash: a.dhash || null, focus_x: a.focus?.x ?? 50, focus_y: a.focus?.y ?? 50, quality: a.quality ?? null, notes: a.notes || null,
+    session_id: a.sessionId || null, captured_at: a.capturedAt || null, dhash: a.dhash || null, focus_x: a.focus?.x ?? 50, focus_y: a.focus?.y ?? 50, quality: a.quality ?? null, angles: a.angles || null, notes: a.notes || null,
   };
 }
 /** media_assets row -> asset in the shape the selector uses. Files not on disk are fetched by `materialise`. */
@@ -66,7 +66,7 @@ export function rowToAsset(r, root = ROOT) {
     owner: r.owner, photographer: r.photographer, location: r.location, country: r.country, spotId: r.spot_id, region: r.region, crossingSlug: r.crossing_slug, partner: r.partner,
     subject: r.subject, tags: r.tags || [], permission: r.permission, attribution: r.attribution, approvedForSocial: r.approved_for_social, provenanceConfirmed: r.provenance_confirmed,
     identifiablePeople: r.identifiable_people, consent: r.consent, sessionId: r.session_id, capturedAt: r.captured_at, dhash: r.dhash, focus: { x: r.focus_x, y: r.focus_y },
-    quality: r.quality ?? undefined, notes: r.notes, abs: local, width: w, height: h, exists: !!(w && h), inStorage: !existsSync(repoFile), orientation: !w ? null : w > h ? 'landscape' : w < h ? 'portrait' : 'square',
+    quality: r.quality ?? undefined, angles: r.angles || undefined, notes: r.notes, abs: local, width: w, height: h, exists: !!(w && h), inStorage: !existsSync(repoFile), orientation: !w ? null : w > h ? 'landscape' : w < h ? 'portrait' : 'square',
   };
 }
 /** Make sure the original is on disk (downloads from the private bucket into the git-ignored media-library/.cache). */
@@ -182,8 +182,8 @@ export function selectImage(post, catalogue, { history = [], now = new Date() } 
 
   // 2. Approved partner product image.
   if (post.partner) {
-    // an asset with `angles` may only illustrate those angles (a costume photo must never stand in for a wetsuit claim)
-    p = pick(usable.filter((a) => a.kind === 'product' && a.partner === post.partner.slug && (!a.angles || !post.imageAngle || a.angles.includes(post.imageAngle))));
+    // when a post names an angle, only assets that DECLARE that angle may illustrate it (a costume photo must never stand in for a wetsuit claim); an asset with no `angles` is therefore never used for an angled post
+    p = pick(usable.filter((a) => a.kind === 'product' && a.partner === post.partner.slug && (!post.imageAngle || (Array.isArray(a.angles) && a.angles.includes(post.imageAngle)))));
     if (p) return done(TIERS.PRODUCT, 'product-led', p, `Approved ${post.partner.name} product image.`, false);
   }
 
