@@ -1811,15 +1811,24 @@
         // achieves that with an API whose behaviour can actually be verified.
         // The cost is one small request for a visitor who never scrolls here,
         // which is the right trade against shipping an untested trigger.
-        function go(){
+        // Two quiet retries. The search can briefly fail (a database statement
+        // timeout returns 502, seen Nov 2026), and before this one failure left
+        // the strip empty for that visitor until they reloaded the page.
+        var RETRY_MS = [1500, 4000];
+        function go(attempt){
+            attempt = attempt || 0;
             fetch('/api/explore/events?sort=date&page=1&page_size=18')
                 .then(function(r){ return r.ok ? r.json() : Promise.reject(new Error(r.status)); })
                 .then(render)
-                .catch(function(e){ console.warn('Explore preview unavailable:', e); });
+                .catch(function(e){
+                    if(attempt < RETRY_MS.length){ setTimeout(function(){ go(attempt + 1); }, RETRY_MS[attempt]); return; }
+                    console.warn('Explore preview unavailable:', e);
+                });
         }
         function schedule(){
-            if(window.requestIdleCallback) requestIdleCallback(go, { timeout: 2500 });
-            else setTimeout(go, 400);
+            // wrapped: requestIdleCallback passes an IdleDeadline, which go() would read as the attempt number
+            if(window.requestIdleCallback) requestIdleCallback(function(){ go(0); }, { timeout: 2500 });
+            else setTimeout(function(){ go(0); }, 400);
         }
         if(document.readyState === 'complete') schedule();
         else window.addEventListener('load', schedule, { once: true });
