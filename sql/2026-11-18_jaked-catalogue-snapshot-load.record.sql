@@ -2,7 +2,7 @@
 -- RECORD ONLY — contains NO supplier data. Do not add any.
 -- Migration: 2026-11-18_jaked-catalogue-snapshot-load
 -- STATUS:    PROPOSED 18 Nov 2026. Awaiting the literal word "apply".
--- DEPENDS ON: sql/2026-11-18_jaked-business-store.sql
+-- DEPENDS ON: sql/applied/2026-11-18_jaked-business-store.sql
 -- ================================================================
 -- Why the SQL itself is not in this repo:
 --   It inserts JAKED's confidential wholesale price list and stock

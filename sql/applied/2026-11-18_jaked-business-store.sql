@@ -30,7 +30,7 @@ END $$;
 -- ================================================================
 -- Migration: 2026-11-18_jaked-business-store.sql
 -- Process:   see MIGRATIONS.md — no section below may be left empty
--- STATUS:    PROPOSED 18 Nov 2026. Awaiting the literal word "apply".
+-- STATUS:    APPLIED 18 Nov 2026 13:11:08 UTC on production (szgkzuswelntnevobnoh) after Dave typed "apply"; Supabase migration 20261118131108_jaked_business_store (MIGRATION section verbatim). Verified: V1-V5 as expected; save function, workspace columns and policy fingerprints identical to the tested file.
 -- DEPENDS ON: sql/applied/2026-11-18_create-user-roles.sql,
 --             sql/applied/2026-11-18_jaked-business-workspace.sql,
 --             sql/applied/2026-11-18_jaked-function-privileges.sql
