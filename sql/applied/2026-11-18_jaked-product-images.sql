@@ -30,7 +30,7 @@ END $$;
 -- ================================================================
 -- Migration: 2026-11-18_jaked-product-images.sql
 -- Process:   see MIGRATIONS.md — no section below may be left empty
--- STATUS:    PROPOSED 18 Nov 2026. Awaiting the literal word "apply".
+-- STATUS:    APPLIED 18 Nov 2026 14:44:17 UTC on production (szgkzuswelntnevobnoh) after Dave typed "apply"; Supabase migration 20261118144417_jaked_product_images (MIGRATION section verbatim). Verified: RLS on, 0 rows, anon cannot read, authenticated cannot insert, team-read policy present.
 -- DEPENDS ON: sql/applied/2026-11-18_jaked-business-store.sql (and the role migrations)
 -- ================================================================
 

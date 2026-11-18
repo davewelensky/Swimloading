@@ -2,7 +2,7 @@
 -- RECORD ONLY — contains NO images. Do not add any.
 -- Migration: 2026-11-18_jaked-product-images-load
 -- STATUS:    PROPOSED 18 Nov 2026. Awaiting the literal word "apply".
--- DEPENDS ON: sql/2026-11-18_jaked-product-images.sql
+-- DEPENDS ON: sql/applied/2026-11-18_jaked-product-images.sql
 -- ================================================================
 -- Why the SQL is not in this repo: it inserts JAKED's catalogue photos
 -- (supplier material). This repository is public, so the executable file
