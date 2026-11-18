@@ -56,6 +56,9 @@ self.addEventListener('fetch', (event) => {
     // cache-first rule below would pin the first copy of each forever, so a new builder page asks an old module for functions it does
     // not have and the page goes blank. Leave them to the browser (served no-cache, see vercel.json).
     if (url.pathname.startsWith('/aquasharks-lab/')) return;
+    // Same for the JAKED Business workspace (/jaked-business/*.js, *.css: ES modules served no-store). Cache-first pinned the
+    // first copy forever, so after the 18 Nov 2026 redesign shipped Dave still saw the old design (confirmed root cause).
+    if (url.pathname.startsWith('/jaked-business/')) return;
 
     // Never cache-first these — they're served with Cache-Control: no-cache
     // specifically so an edit is live immediately, no ?v=N bump needed
