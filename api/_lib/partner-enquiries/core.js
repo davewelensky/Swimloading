@@ -191,7 +191,7 @@ export function toCsv(rows) {
 
 const SB_URL = () => process.env.SUPABASE_URL || 'https://szgkzuswelntnevobnoh.supabase.co';
 const KEY = () => process.env.SUPABASE_SERVICE_KEY;
-const ADMIN_COLS = 'id,created_at,updated_at,status_changed_at,partner,reference,source,customer_name,email,phone,product_category,preferred_model,fit,size,size_help,colour,quantity,comments,user_id,status,internal_notes';
+const ADMIN_COLS = 'id,created_at,updated_at,status_changed_at,partner,reference,source,customer_name,email,phone,product_category,preferred_model,fit,size,size_help,colour,quantity,comments,user_id,status,internal_notes,entry_method,channel,assigned_to,created_by';
 
 export function supabaseStore() {
   const rest = async (path, init = {}) => {
@@ -274,16 +274,37 @@ export function supabaseWhoIs() {
   };
 }
 
-/** Admin auth for the admin handler: { userId } | { error, status }. Same check as /api/partner-stats. */
+/** The JAKED partner (partner_pages.id) — the resource the JAKED team role is scoped to (sql/applied/2026-11-18_*). */
+export const JAKED_PARTNER_ID = 'eb8644d9-28d2-4d08-87f1-4230da07e1c5';
+
+/**
+ * Who may manage JAKED enquiries: a SwimLoading admin (profiles.is_admin), or anyone with an active
+ * user_roles grant of platform_admin, or partner_manager on the JAKED partner (Carina, 18 Nov 2026).
+ * Pure function so the rule is unit-tested; roles = rows of user_roles for this user.
+ */
+export function canManageJakedEnquiries(profile, roles) {
+  if (profile && profile.is_admin === true) return true;
+  return (Array.isArray(roles) ? roles : []).some((r) => r && !r.revoked_at && (
+    (r.role === 'platform_admin' && r.scope === 'platform') ||
+    (r.role === 'partner_manager' && r.scope === 'partner' && r.resource_id === JAKED_PARTNER_ID)));
+}
+
+/** Auth for the admin handler: { userId } | { error, status }. SwimLoading admins or the JAKED team role. */
 export function supabaseAdminAuth() {
   const whoIs = supabaseWhoIs();
   return async function auth(req) {
     if (!String((req.headers && req.headers.authorization) || '').replace(/^Bearer\s+/i, '')) return { status: 401, error: 'Sign in first' };
     const userId = await whoIs(req);
     if (!userId) return { status: 401, error: 'Session expired. Sign in again.' };
-    const r = await fetch(`${SB_URL()}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&select=is_admin`, { headers: { apikey: KEY(), Authorization: `Bearer ${KEY()}` } });
-    const prof = r.ok ? await r.json() : [];
-    if (!prof[0] || prof[0].is_admin !== true) return { status: 403, error: 'Admins only' };
+    const h = { headers: { apikey: KEY(), Authorization: `Bearer ${KEY()}` } };
+    const id = encodeURIComponent(userId);
+    const [p, r] = await Promise.all([
+      fetch(`${SB_URL()}/rest/v1/profiles?id=eq.${id}&select=is_admin`, h),
+      fetch(`${SB_URL()}/rest/v1/user_roles?user_id=eq.${id}&revoked_at=is.null&select=role,scope,resource_id,revoked_at`, h),
+    ]);
+    const prof = p.ok ? await p.json() : [];
+    const roles = r.ok ? await r.json() : [];
+    if (!canManageJakedEnquiries(prof[0], roles)) return { status: 403, error: 'JAKED team only' };
     return { userId };
   };
 }

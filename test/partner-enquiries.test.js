@@ -255,3 +255,17 @@ test('migration keeps the table server-only and matches the code', () => {
   assert.doesNotMatch(body, /CREATE POLICY/, 'no policies: the browser must never read or write this table');
   for (const s of Object.keys(STATUSES)) assert.ok(body.includes(`'${s}'`), 'status ' + s + ' allowed by the CHECK');
 });
+
+// ── JAKED team access (18 Nov 2026): admins OR the JAKED role in user_roles ─────────────────────────────
+test('JAKED enquiries access: admin, platform_admin, JAKED partner_manager in; everyone else out', async () => {
+  const { canManageJakedEnquiries, JAKED_PARTNER_ID } = await import('../api/_lib/partner-enquiries/core.js');
+  const pm = (resource_id, extra = {}) => ({ role: 'partner_manager', scope: 'partner', resource_id, revoked_at: null, ...extra });
+  assert.equal(canManageJakedEnquiries({ is_admin: true }, []), true, 'SwimLoading admin keeps access');
+  assert.equal(canManageJakedEnquiries({ is_admin: false }, [{ role: 'platform_admin', scope: 'platform', resource_id: null, revoked_at: null }]), true, 'platform_admin');
+  assert.equal(canManageJakedEnquiries({ is_admin: false }, [pm(JAKED_PARTNER_ID)]), true, 'Carina: partner_manager on JAKED');
+  assert.equal(canManageJakedEnquiries({ is_admin: false }, [pm('00000000-0000-0000-0000-000000000001')]), false, 'manager of another partner');
+  assert.equal(canManageJakedEnquiries({ is_admin: false }, [pm(JAKED_PARTNER_ID, { revoked_at: '2026-11-18T10:00:00Z' })]), false, 'revoked grant');
+  assert.equal(canManageJakedEnquiries({ is_admin: false }, [{ role: 'partner_viewer', scope: 'partner', resource_id: JAKED_PARTNER_ID, revoked_at: null }]), false, 'viewer role is not a manager');
+  assert.equal(canManageJakedEnquiries(undefined, undefined), false, 'no profile, no roles');
+  assert.equal(canManageJakedEnquiries({ is_admin: 'true' }, []), false, 'only a real boolean true counts');
+});
