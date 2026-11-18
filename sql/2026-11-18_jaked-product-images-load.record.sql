@@ -1,0 +1,44 @@
+-- ================================================================
+-- RECORD ONLY — contains NO images. Do not add any.
+-- Migration: 2026-11-18_jaked-product-images-load
+-- STATUS:    PROPOSED 18 Nov 2026. Awaiting the literal word "apply".
+-- DEPENDS ON: sql/2026-11-18_jaked-product-images.sql
+-- ================================================================
+-- Why the SQL is not in this repo: it inserts JAKED's catalogue photos
+-- (supplier material). This repository is public, so the executable file
+-- is kept out of git (.gitignore: sql/**/*PRIVATE*.sql) and is run by Dave
+-- in the Supabase SQL editor (MIGRATIONS.md fallback: ~1.4 MB, too large
+-- for the MCP tool).
+--
+-- Purpose: photos for 41 of the 46 priced products that had none in
+-- JAKED's public feed.
+-- Requested by: Dave, 18 Nov 2026 ("Fill missing photos").
+--
+-- Sources (uploaded by Dave 18 Nov 2026, never committed):
+--   JAKED Racing FW26-27 (Catalogo_Race_FW26-27_BASSA.pdf, 76 pages)
+--   JAKED Swim FW26-27 part 1 (CATALOGO_SWIM_FW26-27_Bassa1.pdf, 80 pages)
+--   JAKED Swim FW26-27 part 2 (CATALOGO_SWIM_FW26-27_Bassa2.pdf, 52 pages)
+-- Method: for each photo-less SKU, catalogue pages containing the EXACT
+--   product code (no fuzzy/name matching); the page with the most product
+--   image area was chosen and cropped to its main image group (badges,
+--   swatches and text excluded). All 41 crops checked visually against
+--   their code, model and description on 18 Nov 2026.
+-- Not found in any of the three catalogues (5, left without photo):
+--   JKCF7BW01X (long hair swim cap), JKAN8BI01X (paddle strap),
+--   JWANX99005 (club spare strap), JRUSHEVOFWSO, JRUSHEVOPSM (RUSH PRO).
+--
+-- Controls: 41 rows · 1,405,088-byte executable file · largest image
+--   56,379 chars · content sha256 (sku + data_url per row, sorted by sku)
+--   8027018361963fb8fdc2790f77f3b954222ea05e30d9d91d3f809778382d8186
+-- The file, in one transaction: project-identity check → abort if the
+--   table is missing or already has rows → INSERT 41 → abort unless
+--   exactly 41 rows and every SKU exists in jaked_business_catalogue.
+-- Tested 18 Nov 2026 on local Postgres 16 after the full migration chain:
+--   41 loaded (1,369 kB); re-run refused; anon denied; Carina reads 41;
+--   unrelated user reads 0.
+--
+-- Rollback: DELETE FROM jaked_business_product_images;
+-- Verify (read-only, after apply):
+--   select count(*), pg_size_pretty(sum(octet_length(data_url))::bigint),
+--          count(distinct split_part(source, ' p', 1))
+--     from jaked_business_product_images;   -- expect 41 | 1369 kB | 3
