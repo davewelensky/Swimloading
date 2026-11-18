@@ -1,0 +1,56 @@
+-- ================================================================
+-- RECORD ONLY — contains NO supplier data. Do not add any.
+-- Migration: 2026-11-18_jaked-catalogue-snapshot-load
+-- STATUS:    PROPOSED 18 Nov 2026. Awaiting the literal word "apply".
+-- DEPENDS ON: sql/2026-11-18_jaked-business-store.sql
+-- ================================================================
+-- Why the SQL itself is not in this repo:
+--   It inserts JAKED's confidential wholesale price list and stock
+--   snapshot. This repository is public, so the executable file is kept
+--   out of git (see .gitignore) and the data lives only in the private
+--   jaked_business_catalogue table (JAKED team read-only). A copy of this
+--   supplier data was exposed on 18 Nov 2026 via a since-deleted branch;
+--   GitHub purge requested by Dave. This record exists so the load is
+--   still auditable from the repo.
+--
+-- Purpose:
+--   Load supplier snapshot 2026-11-16 (Dave's reconciliation of the three
+--   JAKED workbooks) into jaked_business_catalogue, plus the two
+--   supplier SwissTransfer catalogue links (moved out of page code).
+-- Requested by:
+--   Dave, 18 Nov 2026 (Stage 1: "Yes, build Stage 1 now").
+--
+-- Source (Dave's Mac, never committed):
+--   ~/swimloading/sql/2026-11-18_jaked-business-catalogue.sql, generated
+--   by scripts/build-jaked-import.mjs from:
+--     16.11.2026 Stock Jaked_en.xlsx
+--     SWIM PRICE LIST 2026-2027.xlsx
+--     RACING COLLECTION 2026-2027.xlsx
+--   Images: exact parent-code matches from JAKED's official product feed,
+--   retrieved 18 Nov 2026 (cdn.shopify.com).
+--
+-- Controls checked before load (18 Nov 2026):
+--   products 122 (every one priced) · variants 3,836 (1,352 with a priced
+--   parent) · stock total 149,054 (recomputed from variants = workbook
+--   control) · photo matches 76 · no email addresses in the payload ·
+--   catalogueLinks 2 added.
+--   Executable file: 982,496 bytes; payload JSON sha256
+--   d2c0661b150cdcd7d6ca716535ab9f3a255c95e8152c2975a22394df6de273a4
+--
+-- The executable file (kept privately) does, in one transaction:
+--   project-identity check → abort if the store table is missing or the
+--   2026-11-16 snapshot already exists → INSERT the snapshot → abort
+--   unless products = 122, variants = 3,836, stockTotal = 149,054.
+--
+-- Backup: insert-only into an empty table; nothing existing changes.
+--
+-- Rollback:
+--   DELETE FROM jaked_business_catalogue WHERE snapshot_date = '2026-11-16';
+--
+-- Verify (read-only, after apply):
+--   select jsonb_array_length(payload->'products'), jsonb_array_length(payload->'variants'),
+--          payload->'sourceControls'->>'stockTotal', jsonb_array_length(payload->'catalogueLinks'),
+--          payload_md5
+--     from jaked_business_catalogue where snapshot_date = '2026-11-16';
+--   -- expect 122 | 3836 | 149054 | 2 | 0ae6bfbd28cdd1509b450b5144ef857f
+--   (md5 measured on a local Postgres 16 load of the identical file)
