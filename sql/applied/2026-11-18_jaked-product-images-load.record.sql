@@ -1,7 +1,7 @@
 -- ================================================================
 -- RECORD ONLY — contains NO images. Do not add any.
 -- Migration: 2026-11-18_jaked-product-images-load
--- STATUS:    PROPOSED 18 Nov 2026. Awaiting the literal word "apply".
+-- STATUS:    APPLIED 18 Nov 2026 by Dave in the Supabase SQL editor (4 parts, after "apply"). Verified read-only: 41 photos | 1369 kB | 3 catalogues | 0 SKUs missing from the catalogue | content sha256 (sku|data_url per row, sorted) f42ee17e27ea8971d8c8447e50dd56934cc99bd12098f4bd7d612604a6275c98, identical to the checked crops.
 -- DEPENDS ON: sql/applied/2026-11-18_jaked-product-images.sql
 -- ================================================================
 -- Why the SQL is not in this repo: it inserts JAKED's catalogue photos
