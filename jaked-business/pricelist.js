@@ -49,3 +49,28 @@ export function safeImage(u) {
   if (/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(s)) return s;
   try { const x = new URL(s); return x.protocol === 'https:' && !x.username && !x.password ? x.href : null; } catch { return null; }
 }
+
+// ── Live rate + defaults (Dave, 18 Nov 2026: "surely we pick up the exchange rate EUR vs ZAR") ───────────
+export const SA_VAT_DEFAULT = 0.15;   // South African VAT; a typed rate in Landed cost / Price list always wins
+
+/** The rate and VAT the Price list actually uses, and where each came from (shown on the page). */
+export function effectiveRates(scenario = {}, live = null) {
+  const own = num(scenario.fx) && scenario.fx > 0;
+  const liveOk = live && num(live.rate) && live.rate > 0;
+  const vatOwn = num(scenario.salesVat) && scenario.salesVat >= 0 && scenario.salesVat < 1;
+  return {
+    fx: own ? scenario.fx : liveOk ? live.rate : null,
+    fxSource: own ? 'yours' : liveOk ? 'live' : 'none',
+    fxDate: !own && liveOk ? live.date || null : null,
+    salesVat: vatOwn ? scenario.salesVat : SA_VAT_DEFAULT,
+    vatSource: vatOwn ? 'yours' : 'default',
+  };
+}
+
+/** Parse an ECB-rate response from Frankfurter ({ base:'EUR', date, rates:{ ZAR } }); null if it is not a usable EUR→ZAR rate. */
+export function parseLiveRate(json) {
+  const r = json && json.rates && json.rates.ZAR;
+  if (!(typeof r === 'number' && Number.isFinite(r) && r > 5 && r < 100)) return null;   // sanity band for ZAR per EUR
+  if (json.base && json.base !== 'EUR') return null;
+  return { rate: r, date: typeof json.date === 'string' ? json.date.slice(0, 10) : null, source: 'European Central Bank via Frankfurter' };
+}
