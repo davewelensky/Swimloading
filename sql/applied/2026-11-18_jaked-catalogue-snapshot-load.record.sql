@@ -1,7 +1,7 @@
 -- ================================================================
 -- RECORD ONLY — contains NO supplier data. Do not add any.
 -- Migration: 2026-11-18_jaked-catalogue-snapshot-load
--- STATUS:    PROPOSED 18 Nov 2026. Awaiting the literal word "apply".
+-- STATUS:    APPLIED 18 Nov 2026 by Dave via the Supabase SQL editor (MIGRATIONS.md fallback: file too large for the MCP tool), after Dave typed "apply". Verified read-only: 1 row, 2026-11-16 | 122 | 3836 | 149054 | 2 links | payload_md5 0ae6bfbd28cdd1509b450b5144ef857f (identical to the tested file).
 -- DEPENDS ON: sql/applied/2026-11-18_jaked-business-store.sql
 -- ================================================================
 -- Why the SQL itself is not in this repo:
