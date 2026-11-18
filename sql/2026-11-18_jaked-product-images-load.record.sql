@@ -8,7 +8,11 @@
 -- (supplier material). This repository is public, so the executable file
 -- is kept out of git (.gitignore: sql/**/*PRIVATE*.sql) and is run by Dave
 -- in the Supabase SQL editor (MIGRATIONS.md fallback: ~1.4 MB, too large
--- for the MCP tool).
+-- for the MCP tool). The editor also refused 1.4 MB in one query, so it is
+-- split into 4 parts (364,598 / 372,910 / 353,250 / 317,141 bytes; 11/10/11/9
+-- photos) that must run in order: each refuses to run unless exactly the
+-- photos of the earlier parts are present, and part 4 checks all 41 and that
+-- every SKU exists in the catalogue. Tested out of order and repeated.
 --
 -- Purpose: photos for 41 of the 46 priced products that had none in
 -- JAKED's public feed.
@@ -40,5 +44,5 @@
 -- Rollback: DELETE FROM jaked_business_product_images;
 -- Verify (read-only, after apply):
 --   select count(*), pg_size_pretty(sum(octet_length(data_url))::bigint),
---          count(distinct split_part(source, ' p', 1))
+--          count(distinct regexp_replace(source, ' p[0-9]+$', ''))
 --     from jaked_business_product_images;   -- expect 41 | 1369 kB | 3
