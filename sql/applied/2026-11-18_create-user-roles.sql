@@ -28,10 +28,9 @@ BEGIN
 END $$;
 
 -- ================================================================
--- Migration: 2026-07-19_create-user-roles.sql
+-- Migration: 2026-11-18_create-user-roles.sql (drafted 2026-07-19, renamed on apply)
 -- Process:   see MIGRATIONS.md — no section below may be left empty
--- STATUS:    ⛔ PROPOSED — NOT YET APPLIED. Awaiting Dave's review and
---            the literal word "apply" per MIGRATIONS.md step 4.
+-- STATUS:    APPLIED 18 Nov 2026 10:15:30 UTC on production (szgkzuswelntnevobnoh) after Dave typed "apply"; Supabase migration 20261118101530_create_user_roles (comments stripped, statements identical). Verified: 1 row (Dave platform_admin), RLS on, function/column/constraint fingerprints identical to the tested file.
 -- ================================================================
 
 -- Purpose:
@@ -43,7 +42,10 @@ END $$;
 --   those keep their existing, narrower purposes.
 
 -- Requested by:
---   Dave — SwimLoading v2 Platform Refactor, Phase 1, Step 1
+--   Dave — SwimLoading v2 Platform Refactor, Phase 1, Step 1 (drafted Jul 2026).
+--   Dave, 18 Nov 2026 — chosen as the access model for the JAKED business
+--   platform (Carina gets partner_manager on JAKED only, granted in the
+--   follow-on migration 2026-11-18_jaked-business-workspace.sql).
 
 -- Pre-checks (run on the read-only `supabase` server before applying):
 --   1. select count(*) from information_schema.tables
@@ -52,8 +54,8 @@ END $$;
 --   2. select count(*) from pg_proc where proname in
 --      ('has_role','grant_role','revoke_role');
 --      -- expect 0 (functions must not already exist)
---   3. select id, email from auth.users where email = '<dave's email>';
---      -- confirms the user_id to seed the first platform_admin grant with
+--   3. select id from auth.users where lower(email) = 'dave.welensky@gmail.com';
+--      -- expect df137255-3add-4153-b368-32e06e2be188 (verified read-only 18 Nov 2026)
 
 -- Backup:
 --   Not applicable — this migration only creates new objects. It does not
@@ -206,15 +208,14 @@ CREATE POLICY user_roles_read_all_for_admins ON user_roles
 -- direct INSERT in this migration, and it's the only time it should ever
 -- happen outside grant_role().
 --
--- ⚠️ REPLACE '<DAVE_USER_ID>' below with the real auth.users.id from the
--- pre-check query before applying. Left as a placeholder deliberately —
--- do not guess an ID.
+-- Dave's auth.users.id, filled in 18 Nov 2026 from pre-check 3 (read-only
+-- lookup by email, not guessed). Re-run pre-check 3 before applying.
 INSERT INTO user_roles (user_id, role, scope, granted_by, metadata)
 VALUES (
-  '<DAVE_USER_ID>'::uuid,
+  'df137255-3add-4153-b368-32e06e2be188'::uuid,
   'platform_admin',
   'platform',
-  '<DAVE_USER_ID>'::uuid,  -- self-referential only for this one bootstrap row
+  'df137255-3add-4153-b368-32e06e2be188'::uuid,  -- self-referential only for this one bootstrap row
   '{"note": "bootstrap grant — migration 2026-07-19_create-user-roles"}'::jsonb
 );
 
