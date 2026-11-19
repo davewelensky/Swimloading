@@ -4,6 +4,8 @@
 >
 > **Onboarding a new club?** See [CLUB_ONBOARDING.md](CLUB_ONBOARDING.md) — 8-step process, feature flag SQL, club type rules. Do not improvise.
 >
+> **Working on the JAKED Business workspace (`/jaked-business`, `jaked-business/`, `jaked_*` tables, partner enquiries)?** Read [docs/jaked-business/HANDOVER.md](docs/jaked-business/HANDOVER.md) first — supplier data never goes in git (this repo is public), and its rules are mandatory.
+>
 > **Adding a page, partner, club, or feature?** See [GROWTH_HUB.md](GROWTH_HUB.md) — /growth-hub (Master Index) MUST be updated in the same ship. Missing this loses track of effort and developments.
 
 ---
