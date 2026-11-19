@@ -59,20 +59,37 @@ export default async function handler(req, res) {
   const total = points.length ? Number(points[0].total_count) : 0;
   const pages = Math.min(Math.ceil(total / 60), Math.ceil(MAX_POINTS / 60));
 
-  for (let page = 2; page <= pages; page++) {
-    const { data: more, error: err } = await sb.rpc('search_events_v2', {
-      p_sort: 'date',
-      p_page: page,
-      p_page_size: 60,
-      p_include_multisport: includeMultisport,
-    });
-    // A failed later page degrades the map rather than emptying it: better
-    // to plot 180 of 250 swims than to show a blank world.
-    if (err) {
-      console.error(`explore/map-points: page ${page} failed:`, err.message);
-      break;
+  // The pages are independent, so fetch them a few at a time rather than
+  // one after another. Strictly in sequence this took about 6 s on a cold
+  // cache (11 pages x ~0.5 s on 19 Nov 2026, 619 swims), which is what made
+  // /explore look stuck. Four at a time keeps the burst on the database small.
+  const PARALLEL = 4;
+  const rest = [];
+  for (let page = 2; page <= pages; page++) rest.push(page);
+  let failed = false;
+  for (let i = 0; i < rest.length && !failed; i += PARALLEL) {
+    const batch = rest.slice(i, i + PARALLEL);
+    const results = await Promise.all(batch.map((page) =>
+      sb.rpc('search_events_v2', {
+        p_sort: 'date',
+        p_page: page,
+        p_page_size: 60,
+        p_include_multisport: includeMultisport,
+      })
+    ));
+    // Pages are appended in order, and the first failed page stops the walk:
+    // a failed later page degrades the map rather than emptying it (better
+    // to plot 180 of 250 swims than to show a blank world), and stopping at
+    // the gap keeps the plotted set a clean prefix of the date-sorted list.
+    for (let j = 0; j < results.length; j++) {
+      const { data: more, error: err } = results[j];
+      if (err) {
+        console.error(`explore/map-points: page ${batch[j]} failed:`, err.message);
+        failed = true;
+        break;
+      }
+      points.push(...(more || []));
     }
-    points.push(...(more || []));
   }
 
   const truncated = total > points.length;
@@ -80,7 +97,15 @@ export default async function handler(req, res) {
     console.warn(`explore/map-points: returned ${points.length} of ${total}; raise MAX_POINTS`);
   }
 
-  res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=900');
+  // After the 5-minute fresh window, the next visitor is served the previous
+  // copy instantly while the edge refetches in the background (for up to a
+  // day of no visits), instead of waiting on the database. The copy is at
+  // most one refresh behind.
+  // A partial map (a page failed) must not be kept for a day; let it be
+  // replaced within a minute.
+  res.setHeader('Cache-Control', failed
+    ? 'public, s-maxage=60'
+    : 'public, s-maxage=300, stale-while-revalidate=86400');
 
   // The headline tallies are computed over EVERY row, before the
   // coordinate filter below drops the unplottable ones. On 2026-08-05 that
