@@ -23,8 +23,21 @@ test('no logo file is invented: the wordmark is text until Zero BS supply one', 
   assert.doesNotMatch(page, /<img[^>]+zerobs/i);
 });
 
-test('does not mention things that are not agreed: athlete names, paid content, the old 350 allocation', () => {
-  assert.doesNotMatch(text, /carina|bruwer|stramrood|ryan|content fee|\b350\b/i);
+test('does not mention things that are not agreed: paid content, other athletes, the old 350 allocation', () => {
+  // Carina Bruwer is named since 20 Nov 2026: Dave confirmed she and Zero BS
+  // are fine with her video on the page. Paid content is still not agreed.
+  assert.doesNotMatch(text, /stramrood|ryan|content fee|paid content|sponsored athlete|\b350\b/i);
+});
+
+test('swimmer media: Carina video, Amber-Rose and Big Bay photos, captions make no claims about the swims', () => {
+  assert.match(page, /<video[^>]+src="\/partners\/zero-bs-carina-shade\.mp4"[^>]+preload="none"/);
+  assert.match(page, /poster="\/partners\/zero-bs-carina-shade-poster\.jpg"/);
+  for (const f of ['zero-bs-amber-rose-1.jpg', 'zero-bs-amber-rose-2.jpg', 'zero-bs-big-bay-safety.jpg', 'zero-bs-carina-shade.mp4', 'zero-bs-carina-shade-poster.jpg']) {
+    assert.ok(fs.existsSync(path.join(root, 'partners', f)), f + ' is in the repo');
+  }
+  // Dave asked for names only: no swim, route, date or record for Amber-Rose.
+  assert.doesNotMatch(text, /Amber-Rose[^.]*(crossing|robben|record|km|\b20\d\d\b)/i);
+  assert.match(page, /partner_zerobs_video_play/);
 });
 
 test('Langebaan Express recap states the delivered count and carries no pack-back claims', () => {
