@@ -389,7 +389,7 @@
             };
 
             if (!email) return fail('Please enter your email address above first.');
-            if (code.length !== 6) return fail('Enter the 6-digit code from your email.');
+            if (code.length < 6 || code.length > 8) return fail('Enter the code from your email.');
 
             if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; btn.textContent = 'Checking...'; }
             msgEl.style.display = 'block';
@@ -852,10 +852,10 @@
                     <i data-lucide="mail" style="width:48px;height:48px;color:var(--ocean-light);margin-bottom:16px;"></i>
                     <h3 style="color: var(--text-primary); font-size: 20px; margin-bottom: 8px;">Enter your code</h3>
                     <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 16px; line-height: 1.5;">
-                        We emailed a 6-digit code to<br>
+                        We emailed you a code to<br>
                         <strong id="verifyEmailLabel" style="color: var(--ocean-light);"></strong>
                     </p>
-                    <input type="text" id="signupCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456"
+                    <input type="text" id="signupCode" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="12345678"
                         style="text-align:center;font-size:24px;letter-spacing:8px;margin-bottom:12px;">
                     <div id="signupCodeMsg" style="display:none;font-size:13px;margin-bottom:12px;color:var(--danger);"></div>
                     <button class="btn" id="signupCodeBtn" style="width:100%;margin-bottom:16px;">Verify and continue</button>
@@ -875,8 +875,10 @@
             document.getElementById('verifyEmailLabel').textContent = email;
             const codeEl = document.getElementById('signupCode');
             codeEl.addEventListener('input', () => {
-                codeEl.value = codeEl.value.replace(/\D/g, '').slice(0, 6);
-                if (codeEl.value.length === 6) verifySignupCode(email);
+                codeEl.value = codeEl.value.replace(/\D/g, '').slice(0, 8);
+                // The project sends 8-digit codes; submit on the last digit. Shorter
+                // codes (6-7) can still be sent with the button.
+                if (codeEl.value.length === 8) verifySignupCode(email);
             });
             document.getElementById('signupCodeBtn').addEventListener('click', () => verifySignupCode(email));
             document.getElementById('resendVerifyBtn').addEventListener('click', () => resendVerification(email));
@@ -899,7 +901,7 @@
                 btn.disabled = false;
                 btn.textContent = 'Verify and continue';
             };
-            if (code.length !== 6) return fail('Enter the 6-digit code from your email.');
+            if (code.length < 6 || code.length > 8) return fail('Enter the code from your email.');
             _verifyingSignupCode = true;
             btn.disabled = true;
             btn.textContent = 'Checking...';

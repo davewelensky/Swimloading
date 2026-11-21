@@ -52,3 +52,14 @@ test('join gate still requires phone and emergency contact', () => {
 test('profile-complete no longer depends on phone', () => {
   assert.match(js, /const isIncompleteProfile = !profile\.onboarding_completed_at;/);
 });
+
+// The Supabase project sends 8-digit codes (found in live testing), so the
+// code boxes must not assume 6.
+test('code boxes accept 8-digit codes (signup and reset)', () => {
+  const html = readFileSync('index.html', 'utf8');
+  assert.match(block, /maxlength="8"/);
+  assert.match(block, /slice\(0, 8\)/);
+  assert.match(html, /id="resetCode"[\s\S]{0,160}maxlength="8"/);
+  assert.doesNotMatch(block, /length !== 6|length === 6/);
+  assert.doesNotMatch(js.slice(js.indexOf('async function verifyResetCode'), js.indexOf('function showResetPasswordForm')), /length !== 6/);
+});
