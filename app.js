@@ -831,7 +831,11 @@
             }
         }
 
-        // Show a helpful email verification waiting screen
+        // Email verification screen. The user can finish in two ways: type the
+        // 6-digit code from the email (stays in the app, works even if the
+        // message was found in spam on another device), or tap the link.
+        // Both prove the same thing. The code path needs {{ .Token }} in the
+        // Supabase "Confirm signup" email template.
         function showSignupSuccess(email) {
             document.getElementById('signupForm').style.display = 'none';
             document.querySelector('.auth-tabs').style.display = 'none';
@@ -842,35 +846,90 @@
                 verifyEl.id = 'signupVerifyScreen';
                 document.querySelector('.auth-card').appendChild(verifyEl);
             }
-
             verifyEl.style.display = 'block';
             verifyEl.innerHTML = `
                 <div style="text-align: center; padding: 10px 0;">
                     <i data-lucide="mail" style="width:48px;height:48px;color:var(--ocean-light);margin-bottom:16px;"></i>
-                    <h3 style="color: var(--text-primary); font-size: 20px; margin-bottom: 8px;">Check your email</h3>
-                    <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 24px; line-height: 1.5;">
-                        We sent a verification link to<br>
-                        <strong style="color: var(--ocean-light);">${email}</strong>
+                    <h3 style="color: var(--text-primary); font-size: 20px; margin-bottom: 8px;">Enter your code</h3>
+                    <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 16px; line-height: 1.5;">
+                        We emailed a 6-digit code to<br>
+                        <strong id="verifyEmailLabel" style="color: var(--ocean-light);"></strong>
                     </p>
-
-                    <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border); border-radius: 12px; padding: 16px; text-align: left; margin-bottom: 20px;">
+                    <input type="text" id="signupCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456"
+                        style="text-align:center;font-size:24px;letter-spacing:8px;margin-bottom:12px;">
+                    <div id="signupCodeMsg" style="display:none;font-size:13px;margin-bottom:12px;color:var(--danger);"></div>
+                    <button class="btn" id="signupCodeBtn" style="width:100%;margin-bottom:16px;">Verify and continue</button>
+                    <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border); border-radius: 12px; padding: 14px; text-align: left; margin-bottom: 16px;">
                         <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.8;">
-                            <div>Check your inbox</div>
-                            <div>Check <strong style="color: var(--text-primary);">Spam / Junk</strong> folder</div>
-                            <div>Can take 1-3 minutes to arrive</div>
-                            <div>Click the link in the email to verify</div>
+                            <div>Not there? Check your <strong style="color: var(--text-primary);">Spam / Junk</strong> folder.</div>
+                            <div>It can take a minute or two. You can also tap the link in the email.</div>
                         </div>
                     </div>
-
                     <div style="display: flex; flex-direction: column; gap: 12px;">
-                        <button class="btn" id="resendVerifyBtn" onclick="resendVerification('${email}')" style="font-size: 13px;">
-                            Resend Verification Email
-                        </button>
-                        <a href="#" onclick="hideSignupSuccess(); return false;" style="color: var(--text-secondary); font-size: 13px; text-decoration: none;">← Back to Login</a>
+                        <button class="btn" id="resendVerifyBtn" style="font-size: 13px;">Send a new code</button>
+                        <a href="#" id="changeSignupEmail" style="color: var(--text-secondary); font-size: 13px; text-decoration: none;">Wrong email? Change it</a>
+                        <a href="#" id="backToLogin" style="color: var(--text-secondary); font-size: 13px; text-decoration: none;">Back to Login</a>
                     </div>
                 </div>
             `;
+            document.getElementById('verifyEmailLabel').textContent = email;
+            const codeEl = document.getElementById('signupCode');
+            codeEl.addEventListener('input', () => {
+                codeEl.value = codeEl.value.replace(/\D/g, '').slice(0, 6);
+                if (codeEl.value.length === 6) verifySignupCode(email);
+            });
+            document.getElementById('signupCodeBtn').addEventListener('click', () => verifySignupCode(email));
+            document.getElementById('resendVerifyBtn').addEventListener('click', () => resendVerification(email));
+            document.getElementById('changeSignupEmail').addEventListener('click', (e) => { e.preventDefault(); changeSignupEmail(email); });
+            document.getElementById('backToLogin').addEventListener('click', (e) => { e.preventDefault(); hideSignupSuccess(); });
             initIcons();
+            try { analytics.track('signup_verify_screen_shown', {}); } catch (_) {}
+        }
+
+        let _verifyingSignupCode = false;
+        async function verifySignupCode(email) {
+            if (_verifyingSignupCode) return;
+            const codeEl = document.getElementById('signupCode');
+            const msgEl = document.getElementById('signupCodeMsg');
+            const btn = document.getElementById('signupCodeBtn');
+            const code = (codeEl?.value || '').replace(/\D/g, '');
+            const fail = (text) => {
+                msgEl.style.display = 'block';
+                msgEl.textContent = text;
+                btn.disabled = false;
+                btn.textContent = 'Verify and continue';
+            };
+            if (code.length !== 6) return fail('Enter the 6-digit code from your email.');
+            _verifyingSignupCode = true;
+            btn.disabled = true;
+            btn.textContent = 'Checking...';
+            msgEl.style.display = 'none';
+            const { data, error } = await supabaseClient.auth.verifyOtp({ email, token: code, type: 'signup' });
+            _verifyingSignupCode = false;
+            if (error || !data?.session) {
+                // Same message for a typo and an expired code: Supabase does not
+                // distinguish them, so the advice covers both.
+                return fail('That code was not accepted. Use the code from the newest email, or send a new one.');
+            }
+            try { analytics.track('signup_code_verified', {}); } catch (_) {}
+            currentUser = data.session.user;
+            const el = document.getElementById('signupVerifyScreen');
+            if (el) el.style.display = 'none';
+            document.querySelector('.auth-tabs').style.display = 'flex';
+            loadApp();
+        }
+
+        // Let someone who mistyped their address start over with it prefilled.
+        // The unconfirmed account is left to Supabase; signing up again with
+        // the corrected address creates a fresh one.
+        function changeSignupEmail(email) {
+            const el = document.getElementById('signupVerifyScreen');
+            if (el) el.style.display = 'none';
+            document.getElementById('signupForm').style.display = 'block';
+            document.querySelector('.auth-tabs').style.display = 'flex';
+            const input = document.getElementById('signupEmail');
+            if (input) { input.value = email; input.focus(); }
+            try { analytics.track('signup_change_email', {}); } catch (_) {}
         }
 
         function hideSignupSuccess() {
@@ -916,7 +975,7 @@
                     clearInterval(timer);
                     verifyCooldown = false;
                     btn.disabled = false;
-                    btn.textContent = 'Resend Verification Email';
+                    btn.textContent = 'Send a new code';
                 }
             }, 1000);
         }
