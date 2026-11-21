@@ -538,7 +538,7 @@
 
             // INCOMPLETE USER — accepted legal but missing phone/profile details
             // Allow access but show soft banner + prompt before actions
-            const isIncompleteProfile = !profile.onboarding_completed_at || !profile.phone;
+            const isIncompleteProfile = !profile.onboarding_completed_at;
             if (isIncompleteProfile) {
                 window.incompleteProfile = true; // Flag for contextual prompts
             }
@@ -7179,7 +7179,9 @@
             const emergencyPhone = document.getElementById('obEmergencyPhone').value.trim();
             const homeDomain = document.getElementById('obHomeDomain')?.value || '';
 
-            if (!fullName || !phone || !dob || !address || !city || !postal || !emergencyName || !emergencyPhone) {
+            // Phone and postal address are optional at sign-up (collected later from Profile,
+            // and phone is still enforced before joining a group swim).
+            if (!fullName || !dob || !emergencyName || !emergencyPhone) {
                 alert('Please fill in all required fields, including your emergency contact');
                 return;
             }
@@ -7189,8 +7191,8 @@
             }
 
             // Validate + normalise SA phone numbers
-            const normalizedPhone = formatSAPhone(phone);
-            if (!normalizedPhone) {
+            const normalizedPhone = phone ? formatSAPhone(phone) : null;
+            if (phone && !normalizedPhone) {
                 showToast('Phone number looks invalid. Include country code e.g. +27 82 336 9790', 'error');
                 document.getElementById('obPhone').style.borderColor = 'var(--danger)';
                 return;
@@ -7215,10 +7217,10 @@
                         display_name: fullName,   // sync display_name so name appears throughout app
                         phone: normalizedPhone,
                         date_of_birth: dob,
-                        address_line1: address,
+                        address_line1: address || null,
                         address_line2: addressLine2,
-                        city: city,
-                        postal_code: postal,
+                        city: city || null,
+                        postal_code: postal || null,
                         emergency_contact_name: emergencyName,
                         emergency_contact_phone: normalizedEmergencyPhone,
                         home_domain: homeDomain,

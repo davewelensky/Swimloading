@@ -31,3 +31,24 @@ test('index.html cache-bust for app.js was bumped past v94', () => {
   const m = readFileSync('index.html', 'utf8').match(/app\.js\?v=(\d+)/);
   assert.ok(m && Number(m[1]) >= 95);
 });
+
+// Phone and postal address are optional at onboarding; phone is still
+// enforced at the point of joining a group swim.
+const ob = js.slice(js.indexOf('async function saveOnboardingPersonal'), js.indexOf('async function saveOnboardingPersonal') + 3500);
+
+test('onboarding: phone and address are not required', () => {
+  assert.match(ob, /if \(!fullName \|\| !dob \|\| !emergencyName \|\| !emergencyPhone\)/);
+  assert.doesNotMatch(ob, /!phone \|\| !dob|!address \|\| !city \|\| !postal/);
+});
+
+test('onboarding: emergency contact is still required', () => {
+  assert.match(ob, /!emergencyName \|\| !emergencyPhone/);
+});
+
+test('join gate still requires phone and emergency contact', () => {
+  assert.match(js, /Please add your phone & emergency contact in Profile first/);
+});
+
+test('profile-complete no longer depends on phone', () => {
+  assert.match(js, /const isIncompleteProfile = !profile\.onboarding_completed_at;/);
+});
