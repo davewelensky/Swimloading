@@ -184,6 +184,18 @@
         .btn-more:disabled { opacity: .55; cursor: default; }
 
         /* ── Recent logs table → cards on phones ── */
+        /* Bounded: the logs list scrolls inside its own box on desktop, so the page itself stays short. */
+        @media (min-width: 701px) {
+            .logs-scroll { max-height: 520px; overflow-y: auto; }
+            .logs-scroll .logs-table thead th { position: sticky; top: 0; background: var(--card-bg); z-index: 1; }
+        }
+        /* Collapsible dashboard sections */
+        .section-title.collapsible { cursor: pointer; display: flex; align-items: center; gap: 8px; user-select: none; }
+        .section-title.collapsible::before { content: ''; width: 7px; height: 7px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); transition: transform .15s; flex: none; margin-right: 2px; }
+        .section-title.collapsible[aria-expanded="true"]::before { transform: rotate(45deg); }
+        .section-title.collapsible:focus-visible { outline: 2px solid var(--ocean, #38bdf8); outline-offset: 3px; border-radius: 4px; }
+        .section-title .qcount { margin-left: 6px; background: rgba(251,191,36,0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; letter-spacing: 0; text-transform: none; }
+        .sec-body[hidden] { display: none; }
         .logs-table { width: 100%; border-collapse: collapse; font-size: 13px; }
         .logs-table th { padding: 8px 12px; text-align: left; font-weight: 600; color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid var(--border); }
         .logs-table td { padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.03); }
@@ -685,7 +697,7 @@
         </div>
 
         <!-- UK Challenge — Moderation -->
-        <div class="section-title">🇬🇧 UK Challenge · Moderation</div>
+        <div class="section-title" id="uk-proposals-title" style="scroll-margin-top:16px;">🇬🇧 UK Challenge · Moderation</div>
         <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px;">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:16px;">
                 <div>
@@ -846,6 +858,7 @@
                 <input type="text" id="logUserQ" placeholder="Swimmer name" autocomplete="off" aria-label="Filter by swimmer name">
             </div>
             <div class="fmeta"><span id="logCount">Loading…</span><button type="button" id="logClear" onclick="clearLogFilters()" style="display:none;">Reset filters</button></div>
+            <div class="logs-scroll">
             <table class="logs-table">
                 <thead>
                     <tr>
@@ -861,6 +874,7 @@
                     <tr><td colspan="6" style="padding:12px; color:#64748b;">Loading…</td></tr>
                 </tbody>
             </table>
+            </div>
             <button type="button" class="btn-more" id="logMore" style="display:none;" onclick="loadMoreLogs()">Load more</button>
         </div>
 
@@ -3398,6 +3412,37 @@ async function signOut() {
     window.location.href = '/';
 }
 
+// ── Review queues: pending first, handled history collapsed ───────────────────
+// doneRows: [{title, sub, badge, date, who}] built by the caller from its own
+// data; every text value is escaped here.
+function _queueHtml(key, pendingHtml, pendingCount, doneRows, emptyMsg) {
+    const head = pendingCount
+        ? `<div style="font-size:12px;font-weight:700;color:#fbbf24;margin-bottom:10px;">${pendingCount} waiting for you</div>`
+        : `<div style="color:var(--text-secondary);font-size:13px;margin-bottom:6px;">${escapeHtml(emptyMsg)}</div>`;
+    let done = '';
+    if (doneRows.length) {
+        const rows = doneRows.map(r => `
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:7px 2px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:12px;">
+                <span style="font-weight:600;color:var(--text);flex:1 1 180px;min-width:0;">${escapeHtml(r.title)}${r.sub ? ` <span style="font-weight:400;color:var(--text-secondary);">${escapeHtml(r.sub)}</span>` : ''}</span>
+                ${r.badge}
+                <span style="color:var(--text-secondary);">${escapeHtml(r.who || '')} · ${new Date(r.date).toLocaleDateString('en-ZA', {day:'numeric',month:'short',year:'numeric'})}</span>
+            </div>`).join('');
+        done = `<details id="handled-${key}" style="margin-top:${pendingCount ? 14 : 8}px;">
+            <summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--text-secondary);">Handled (${doneRows.length})</summary>
+            <div style="margin-top:8px;max-height:300px;overflow-y:auto;">${rows}</div>
+        </details>`;
+    }
+    return head + pendingHtml + done;
+}
+function _setQueueCount(titleId, n) {
+    const t = document.getElementById(titleId);
+    if (!t) return;
+    let b = t.querySelector('.qcount');
+    if (!b) { b = document.createElement('span'); b.className = 'qcount'; t.appendChild(b); }
+    b.textContent = n ? `${n} waiting` : '';
+    b.style.display = n ? '' : 'none';
+}
+
 // ── Spot Suggestions ──────────────────────────────────────────────────────────
 let _suggestionsById = {};
 
@@ -3433,7 +3478,7 @@ async function loadSpotSuggestions() {
         ? `<span style="background:rgba(56,189,248,0.15);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase;">Merged</span>`
         : `<span style="background:rgba(248,113,113,0.15);color:#f87171;border:1px solid rgba(248,113,113,0.3);font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase;">Rejected</span>`;
 
-    el.innerHTML = data.map(s => {
+    const _renderSuggestion = s => {
         const hasCoords = s.latitude != null && s.longitude != null;
         const locationLine = [s.locality, s.admin_area, s.country].filter(Boolean).join(', ');
 
@@ -3487,7 +3532,19 @@ async function loadSpotSuggestions() {
                 </div>` : ''}
             </div>
         </div>`;
-    }).join('');
+    };
+    // A queue shows what needs doing. Everything already approved, merged or
+    // rejected used to be drawn as a full card forever, newest first, so a
+    // March approval sat between you and today's work. Handled ones now live
+    // in a collapsed list of one-line rows.
+    const _pendingS = data.filter(s => s.status === 'pending');
+    const _handledS = data.filter(s => s.status !== 'pending');
+    el.innerHTML = _queueHtml('suggestions', _pendingS.map(_renderSuggestion).join(''), _pendingS.length, _handledS.map(s => ({
+        title: s.spot_name, sub: [s.water_type, s.region].filter(Boolean).join(' · '),
+        badge: statusBadge(s.status), date: s.created_at,
+        who: s.source === 'observation_gap' ? 'coverage scan' : (profileMap[s.user_id] || 'Unknown'),
+    })), 'Nothing waiting for review.');
+    _setQueueCount('spot-suggestions', _pendingS.length);
 }
 
 // Approve = prefill the Add New Spot form (admin edits name/domain/coords/
@@ -3654,7 +3711,7 @@ async function loadUkLocationProposals() {
         ? `<span style="background:rgba(34,197,94,0.15);color:#22c55e;border:1px solid rgba(34,197,94,0.3);font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase;">${s === 'merged_to_existing' ? 'Merged' : 'Approved'}</span>`
         : `<span style="background:rgba(248,113,113,0.15);color:#f87171;border:1px solid rgba(248,113,113,0.3);font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase;">Rejected</span>`;
 
-    el.innerHTML = data.map(p => {
+    const _renderProposal = p => {
         const s = p.spot_suggestions || {};
         return `
         <div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;background:rgba(15,23,42,0.4);">
@@ -3681,7 +3738,14 @@ async function loadUkLocationProposals() {
                     style="background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.25);color:#f87171;border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;">✕ Reject</button>
             </div>` : ''}
         </div>`;
-    }).join('');
+    };
+    const _pendingP = data.filter(p => p.status === 'pending');
+    const _handledP = data.filter(p => p.status !== 'pending');
+    el.innerHTML = _queueHtml('uk-proposals', _pendingP.map(_renderProposal).join(''), _pendingP.length, _handledP.map(p => ({
+        title: (p.spot_suggestions || {}).spot_name || '(unknown)', sub: (p.spot_suggestions || {}).water_type || '',
+        badge: statusBadge(p.status), date: p.created_at, who: profileMap[p.user_id] || 'Unknown',
+    })), 'No proposals waiting.');
+    _setQueueCount('uk-proposals-title', _pendingP.length);
 }
 
 async function ukApproveNewSpot(proposalId, spotName, waterType, lat, lng) {
@@ -3962,7 +4026,7 @@ async function deleteSpotlightUpdate(updateId, spotlightId) {
 // Server-side filtered and paged. Before this it fetched the newest 50 rows
 // of everything, and 71% of temp_logs are automated sensor readings with no
 // user, so the table was mostly sensor feeds. The default is now "Swimmers".
-const LOG_PAGE = 50;
+const LOG_PAGE = 20;
 const logState = { range: '7', source: 'swimmers', offset: 0, total: null, shown: 0, req: 0, busy: false };
 
 function _debounce(fn, ms) {
@@ -4170,6 +4234,62 @@ function syncStickyOffsets() {
     const h = document.querySelector('.header');
     if (h && 'ResizeObserver' in window) new ResizeObserver(syncStickyOffsets).observe(h);
     window.addEventListener('resize', syncStickyOffsets);
+})();
+
+// ── Collapsible sections ──────────────────────────────────────────────────────
+// The dashboard is ~18 stacked sections. Click a section title to fold it; the
+// choice is remembered on this device. Reference/history sections start folded
+// so the queues and the logs are not buried under them.
+(function setupCollapsibleSections() {
+    const main = document.querySelector('.main');
+    if (!main) return;
+    const FOLDED_BY_DEFAULT = ['Spot Activity', 'User Locations', 'App Installation Funnel', 'Partner Report',
+        'eo SwimBETTER Standings', 'July 2026 Newsletter Builder'];
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem('adminSectionsOpen') || '{}'); } catch (e) {}
+    const titles = [...main.children].filter(el => el.classList.contains('section-title'));
+    titles.forEach(title => {
+        const label = title.textContent.trim().replace(/\s+/g, ' ');
+        const nodes = [];
+        for (let n = title.nextElementSibling; n && !n.classList.contains('section-title') && !n.classList.contains('section'); n = n.nextElementSibling) nodes.push(n);
+        if (!nodes.length) return;
+        const body = document.createElement('div');
+        body.className = 'sec-body';
+        title.after(body);
+        nodes.forEach(n => body.appendChild(n));
+        title.classList.add('collapsible');
+        title.setAttribute('role', 'button');
+        title.tabIndex = 0;
+        const apply = open => {
+            body.hidden = !open;
+            title.setAttribute('aria-expanded', String(open));
+            if (open && window.Chart && Chart.instances) Object.values(Chart.instances).forEach(c => { try { c.resize(); } catch (e) {} });
+        };
+        const defaultOpen = !FOLDED_BY_DEFAULT.some(f => label.indexOf(f) !== -1);
+        apply(label in saved ? !!saved[label] : defaultOpen);
+        const toggle = () => {
+            const open = body.hidden;
+            apply(open);
+            saved[label] = open;
+            try { localStorage.setItem('adminSectionsOpen', JSON.stringify(saved)); } catch (e) {}
+        };
+        title.addEventListener('click', e => { if (e.target.closest('a,button')) return; toggle(); });
+        title.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+        title._open = () => { if (body.hidden) apply(true); };
+    });
+    // A jump-bar link or #hash into a folded section opens it first.
+    const openHash = () => {
+        const t = location.hash && document.getElementById(location.hash.slice(1));
+        if (t && t._open) t._open();
+    };
+    window.addEventListener('hashchange', openHash);
+    document.addEventListener('click', e => {
+        const a = e.target.closest && e.target.closest('a[href^="#"]');
+        if (!a || a.getAttribute('href').length < 2) return;
+        const t = document.getElementById(a.getAttribute('href').slice(1));
+        if (t && t._open) t._open();
+    });
+    openHash();
 })();
 
 // ── Go ────────────────────────────────────────────────────────────────────────
