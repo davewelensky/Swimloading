@@ -757,6 +757,12 @@
         footer p { font-size: 14px; color: var(--text-secondary); }
         footer a { color: var(--ocean-light); text-decoration: none; }
         .explore-swims-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+        /* Placeholder cards while the live swims load (replaced the moment they land), so the section never shows an empty gap on a slow connection */
+        .explore-skel { min-height: 134px; border-radius: 18px; border: 1px solid var(--border);
+            background: linear-gradient(100deg, rgba(30,41,59,0.4) 30%, rgba(56,189,248,0.09) 50%, rgba(30,41,59,0.4) 70%);
+            background-size: 220% 100%; animation: explore-skel 1.5s linear infinite; }
+        @keyframes explore-skel { from { background-position: 120% 0; } to { background-position: -120% 0; } }
+        @media (prefers-reduced-motion: reduce) { .explore-skel { animation: none; } }
         @media (max-width: 1000px) { .explore-swims-grid { grid-template-columns: repeat(2, 1fr); } }
         .footer-links {
             display: flex; justify-content: center; gap: 10px 24px; margin-top: 12px;
@@ -1208,7 +1214,7 @@
                 margin-left: -24px; margin-right: -24px; padding: 4px 24px 14px; scroll-padding: 0 24px; scrollbar-width: none;
             }
             .explore-swims-grid::-webkit-scrollbar, .partner-grid::-webkit-scrollbar, .proof-grid::-webkit-scrollbar { display: none; }
-            .explore-swims-grid > a, .partner-grid > *, .proof-grid > .proof-card { flex: 0 0 82%; scroll-snap-align: start; }
+            .explore-swims-grid > a, .explore-swims-grid > .explore-skel, .partner-grid > *, .proof-grid > .proof-card { flex: 0 0 82%; scroll-snap-align: start; }
             .proof-card.lead blockquote { font-size: 19px; }
             .cta-section { padding: 88px 16px 80px; }
             .cta-box { padding: 40px 22px; }
@@ -1699,7 +1705,7 @@
             </div>
 
             <!-- Eight real swims, soonest first: 4x2 desktop, 2x4 tablet — no half-empty rows. -->
-            <div id="exploreSwims" class="explore-swims-grid"></div>
+            <div id="exploreSwims" class="explore-swims-grid" aria-busy="true"><div class="explore-skel" aria-hidden="true"></div><div class="explore-skel" aria-hidden="true"></div><div class="explore-skel" aria-hidden="true"></div><div class="explore-skel" aria-hidden="true"></div><div class="explore-skel" aria-hidden="true"></div><div class="explore-skel" aria-hidden="true"></div><div class="explore-skel" aria-hidden="true"></div><div class="explore-skel" aria-hidden="true"></div></div>
 
             <div style="margin-top:34px;">
                 <a href="/explore" class="btn-primary" style="display:inline-flex;align-items:center;gap:9px;">
@@ -1794,7 +1800,7 @@
                 var place = [r.city, countryName(r.country_code)].filter(Boolean).join(', ');
                 var dists = (r.distances || []).slice(0,3).map(function(d){ return esc(d.label); }).join(' · ');
                 var href = r.url || '/explore';
-                return '<a href="' + esc(href) + '" style="display:flex;flex-direction:column;gap:7px;background:rgba(30,41,59,0.4);border:1px solid var(--border);border-radius:18px;padding:20px;text-decoration:none;transition:border-color .2s,transform .2s;" '
+                return '<a data-swim href="' + esc(href) + '" style="display:flex;flex-direction:column;gap:7px;background:rgba(30,41,59,0.4);border:1px solid var(--border);border-radius:18px;padding:20px;text-decoration:none;transition:border-color .2s,transform .2s;" '
                   + 'onmouseover="this.style.borderColor=\'rgba(56,189,248,0.5)\';this.style.transform=\'translateY(-3px)\'" onmouseout="this.style.borderColor=\'\';this.style.transform=\'\'">'
                   + '<div style="font-size:12px;font-weight:700;color:var(--ocean-light);letter-spacing:.4px;">' + esc(when(r.start_date)) + '</div>'
                   + '<div style="font-size:16px;font-weight:700;color:var(--text-primary);line-height:1.3;">' + esc(r.name) + '</div>'
@@ -1815,23 +1821,56 @@
         // timeout returns 502, seen Nov 2026), and before this one failure left
         // the strip empty for that visitor until they reloaded the page.
         var RETRY_MS = [1500, 4000];
+        // Placeholders give way to the real cards (render() overwrites the grid);
+        // if the request ultimately fails they must not sit there pulsing for
+        // ever, so they become one plain card that still leads to the catalogue.
+        function giveUp(){
+            grid.removeAttribute('aria-busy');
+            if(grid.querySelector('a[data-swim]')) return;
+            grid.innerHTML = '<a href="/explore" style="display:flex;flex-direction:column;gap:7px;background:rgba(30,41,59,0.4);border:1px solid var(--border);border-radius:18px;padding:20px;text-decoration:none;grid-column:1/-1;">'
+              + '<div style="font-size:16px;font-weight:700;color:var(--text-primary);">Search the swim calendar</div>'
+              + '<div style="font-size:13px;color:var(--text-secondary);">Races, escorted swims and group swims worldwide, with the water temperature where we have one.</div></a>';
+        }
+        // A request that never settles (a bad mobile connection) would leave the
+        // placeholders up for ever, so each attempt is time-boxed.
+        function fetchTimed(url, ms){
+            var ac = window.AbortController ? new AbortController() : null;
+            var t = setTimeout(function(){ if(ac) ac.abort(); }, ms);
+            return fetch(url, ac ? { signal: ac.signal } : undefined).finally(function(){ clearTimeout(t); });
+        }
+        var started = false;
         function go(attempt){
             attempt = attempt || 0;
-            fetch('/api/explore/events?sort=date&page=1&page_size=18')
+            fetchTimed('/api/explore/events?sort=date&page=1&page_size=18', 7000)
                 .then(function(r){ return r.ok ? r.json() : Promise.reject(new Error(r.status)); })
-                .then(render)
+                .then(function(json){ grid.removeAttribute('aria-busy'); render(json); if(!grid.querySelector('a')) giveUp(); })
                 .catch(function(e){
+                    // The placeholders go as soon as the first attempt fails; the
+                    // retries carry on quietly and replace the fallback card if
+                    // one of them lands.
+                    giveUp();
                     if(attempt < RETRY_MS.length){ setTimeout(function(){ go(attempt + 1); }, RETRY_MS[attempt]); return; }
                     console.warn('Explore preview unavailable:', e);
                 });
         }
+        function start(){ if(started) return; started = true; go(0); }
         function schedule(){
             // wrapped: requestIdleCallback passes an IdleDeadline, which go() would read as the attempt number
-            if(window.requestIdleCallback) requestIdleCallback(function(){ go(0); }, { timeout: 2500 });
-            else setTimeout(function(){ go(0); }, 400);
+            if(window.requestIdleCallback) requestIdleCallback(start, { timeout: 2500 });
+            else setTimeout(start, 400);
         }
         if(document.readyState === 'complete') schedule();
         else window.addEventListener('load', schedule, { once: true });
+        // On a phone the 'load' event can be many seconds away (fonts, images, the
+        // globe's texture), and a visitor who scrolls here first would see
+        // placeholders for all of it. Start as soon as the section is near the
+        // screen, whichever comes first; start() runs once.
+        if('IntersectionObserver' in window){
+            var near = new IntersectionObserver(function(es){
+                if(es[0].isIntersecting){ near.disconnect(); start(); }
+            }, { rootMargin: '900px 0px' });
+            near.observe(grid);
+        }
     })();
     </script>
 
@@ -2812,6 +2851,14 @@
         if (!canvas) return;
         const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+        // Warm the (tiny, same-origin) library once the page has finished loading,
+        // so by the time someone scrolls here it is already in the browser cache
+        // and the globe can draw at once. Deliberately after 'load' + idle: it
+        // must never compete with first paint.
+        const warmGlobeLib = () => { import('/vendor/cobe-0.6.4.js').catch(() => {}); };
+        const afterLoad = () => (window.requestIdleCallback ? requestIdleCallback(warmGlobeLib, { timeout: 4000 }) : setTimeout(warmGlobeLib, 1500));
+        if (document.readyState === 'complete') afterLoad(); else window.addEventListener('load', afterLoad, { once: true });
+
         // Wait until the globe is near the viewport before loading anything.
         // IntersectionObserver when available, plus a scroll fallback.
         await new Promise(resolve => {
@@ -2839,14 +2886,25 @@
             window.addEventListener('scroll', onScroll, { passive: true });
         });
 
+        // The library is self-hosted (/vendor, ~12 KB, fetched quietly once the page has loaded): it used
+        // to come from esm.sh, a third-party host that a phone on mobile data has
+        // to resolve, connect to and TLS-handshake with before anything else could
+        // happen, and a stall there left the globe's slot empty. The CDN is kept
+        // as a fallback only, and every attempt is time-boxed.
+        const withTimeout = (promise, ms) => Promise.race([
+            promise,
+            new Promise((_, reject) => setTimeout(() => reject(new Error('timed out after ' + ms + 'ms')), ms)),
+        ]);
         let createGlobe;
-        try {
-            ({ default: createGlobe } = await import('https://esm.sh/cobe@0.6.4'));
-        } catch (e) {
-            console.warn('Globe library failed to load:', e);
-            canvas.parentElement.style.display = 'none';
-            return;
+        for (const url of ['/vendor/cobe-0.6.4.js', 'https://esm.sh/cobe@0.6.4']) {
+            try {
+                ({ default: createGlobe } = await withTimeout(import(url), 10000));
+                break;
+            } catch (e) {
+                console.warn('Globe library failed to load from ' + url + ':', e);
+            }
         }
+        if (!createGlobe) { canvas.parentElement.style.display = 'none'; return; }
 
         function slugify(s) {
             return (s || '').toString().toLowerCase().trim()
@@ -2897,14 +2955,24 @@
             latitude: c.anchor[0], longitude: c.anchor[1], reading: null,
         });
         let countryCards = COUNTRIES.map(countryCard);
+        // Every request is time-boxed. A fetch with no timeout on a flaky mobile
+        // connection simply never settles, and the globe used to wait for these.
+        const fetchT = (url, opts, ms = 8000) => {
+            const ac = new AbortController();
+            const t = setTimeout(() => ac.abort(), ms);
+            return fetch(url, Object.assign({}, opts, { signal: ac.signal })).finally(() => clearTimeout(t));
+        };
         let readingsLoaded = false;
+        let pendingMarkers = null; // real spots, applied on the next frame once they arrive
+        async function loadLiveData() {
+        let logsOk = false;
         try {
             const SB_URL = 'https://szgkzuswelntnevobnoh.supabase.co';
             const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2t6dXN3ZWxudG5ldm9ibm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxODY1NTUsImV4cCI6MjA4Mzc2MjU1NX0.UfKqj2OZ-XeyzCy-MZYZqsDWjn_4EKrhgCFR8eIK2NA';
             const headers = { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY };
             const [spotsRes, logsRes] = await Promise.all([
-                fetch(SB_URL + '/rest/v1/spots?select=id,name,latitude,longitude,country_code&active=eq.true&latitude=not.is.null', { headers }),
-                fetch(SB_URL + '/rest/v1/temp_logs?select=spot_id,temp_c,created_at&temp_c=not.is.null&order=created_at.desc&limit=400', { headers }),
+                fetchT(SB_URL + '/rest/v1/spots?select=id,name,latitude,longitude,country_code&active=eq.true&latitude=not.is.null', { headers }),
+                fetchT(SB_URL + '/rest/v1/temp_logs?select=spot_id,temp_c,created_at&temp_c=not.is.null&order=created_at.desc&limit=400', { headers }),
             ]);
             if (spotsRes.ok) {
                 const spots = await spotsRes.json();
@@ -2922,7 +2990,7 @@
                         if (!sp || age > RECENT_MS || recentBySpot.has(sp.id)) return;
                         recentBySpot.set(sp.id, l);
                     });
-                    readingsLoaded = true;
+                    logsOk = true;
                 }
 
                 const live = spots
@@ -2931,7 +2999,7 @@
                         location: [sp.latitude, sp.longitude],
                         size: recentSpotIds.has(sp.id) ? 0.08 : 0.03,
                     }));
-                if (live.length > 5) markers = live;
+                if (live.length > 5) pendingMarkers = live;
 
                 // 1. Spot cards for every spot logged this week
                 const spotCards = [];
@@ -2950,12 +3018,12 @@
 
                 // 2. Country cards for countries with no log this week: their latest log, any age
                 countryCards = countryCards.filter(c => !coveredIsos.has(c.iso));
-                if (readingsLoaded) {
+                if (logsOk) {
                     await Promise.all(countryCards.map(async card => {
                         const ids = spots.filter(sp => isoOf(sp) === card.iso).map(sp => sp.id);
                         if (!ids.length) { card.unknown = true; return; } // no mappable spots: never claim "no log yet"
                         try {
-                            const r = await fetch(SB_URL + '/rest/v1/temp_logs?select=spot_id,temp_c,created_at&temp_c=not.is.null&spot_id=in.(' + ids.join(',') + ')&order=created_at.desc&limit=1', { headers });
+                            const r = await fetchT(SB_URL + '/rest/v1/temp_logs?select=spot_id,temp_c,created_at&temp_c=not.is.null&spot_id=in.(' + ids.join(',') + ')&order=created_at.desc&limit=1', { headers });
                             if (!r.ok) { card.unknown = true; return; }
                             const [l] = await r.json();
                             if (!l) return;
@@ -2966,8 +3034,11 @@
                     }));
                 }
                 countryCards = spotCards.concat(countryCards);
+                countryCards.forEach(c => { c._vec = markerVector(c.latitude, c.longitude); });
+                readingsLoaded = logsOk; // only now may a card say "no swimmer log yet": every lookup has finished
             }
         } catch (e) { /* country cards still show from site-config anchors, without readings */ }
+        }
 
         // Never initialise at zero width (hidden tab, collapsed viewport) — WebGL buffer would be 0x0
         while (!canvas.offsetWidth) await new Promise(r => setTimeout(r, 250));
@@ -3165,6 +3236,7 @@
             scheduleCycle();
         }
 
+        try {
         createGlobe(canvas, {
             devicePixelRatio: 2,
             width: w * 2,
@@ -3186,14 +3258,23 @@
                 state.phi = phi + drag;
                 state.width = w * 2;
                 state.height = w * 2;
+                if (pendingMarkers) { state.markers = pendingMarkers; pendingMarkers = null; }
                 lastCamPhi = state.phi;
                 positionOverlay();
             },
         });
+        } catch (e) {
+            // No WebGL (or it ran out of memory): drop the empty slot rather than
+            // leave a blank hole under the heading.
+            console.warn('Globe could not start:', e);
+            canvas.parentElement.style.display = 'none';
+            return;
+        }
         canvas.style.opacity = '1';
         const caption = document.getElementById('globeCaption');
         if (caption) caption.style.opacity = '1';
         scheduleCycle(3500); // first callout appears a few seconds after the globe fades in
+        loadLiveData(); // after first paint of the globe, never before it
 
         // Drag to spin
         canvas.addEventListener('pointerdown', e => {
