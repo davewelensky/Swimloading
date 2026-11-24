@@ -140,6 +140,87 @@
         .kpi-card.amber .kpi-value { color: var(--amber); }
         .kpi-card.red .kpi-value { color: var(--red); }
 
+        /* ── Sticky jump bar ──
+           Sits under the sticky header. --hdr-h is measured in JS (the header
+           wraps on phones, so a fixed number would be wrong). */
+        .jump-bar {
+            position: sticky; top: var(--hdr-h, 57px); z-index: 90;
+            display: flex; gap: 7px; flex-wrap: nowrap; overflow-x: auto;
+            margin: 0 -24px 22px; padding: 9px 24px;
+            background: var(--dark-bg); border-bottom: 1px solid var(--border);
+            scrollbar-width: none;
+        }
+        .jump-bar::-webkit-scrollbar { display: none; }
+        .jump-bar a {
+            flex: none; padding: 7px 13px; border-radius: 50px;
+            background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+            color: var(--text-secondary); font-size: 12px; font-weight: 600; text-decoration: none;
+        }
+        .jump-bar a.primary { background: rgba(56,189,248,0.14); border-color: rgba(56,189,248,0.35); color: #38bdf8; font-weight: 700; }
+        .jump-bar a:hover { color: var(--text); }
+        /* Anchored sections must clear BOTH sticky bars */
+        .section-title[id] { scroll-margin-top: calc(var(--hdr-h, 57px) + 60px) !important; }
+
+        /* ── Filter bars (Recent Logs, Active Spots) ── */
+        .fbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+        .fbar input[type=text], .fbar select {
+            background: rgba(255,255,255,0.06); border: 1px solid var(--border); border-radius: 8px;
+            padding: 8px 10px; color: var(--text); font-size: 13px; min-width: 0;
+        }
+        .fbar input[type=text] { flex: 1 1 160px; }
+        .fbar select { flex: 0 1 auto; max-width: 100%; }
+        .fchips { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+        .fchip {
+            background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text-secondary);
+            border-radius: 50px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer;
+        }
+        .fchip.on { background: rgba(56,189,248,0.16); border-color: rgba(56,189,248,0.4); color: #38bdf8; }
+        .fmeta { font-size: 12px; color: var(--text-secondary); margin: 2px 0 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .fmeta button { background: none; border: 0; color: #38bdf8; font-size: 12px; cursor: pointer; padding: 0; }
+        .btn-more {
+            display: block; margin: 14px auto 0; background: rgba(56,189,248,0.12); border: 1px solid rgba(56,189,248,0.3);
+            color: #38bdf8; border-radius: 8px; padding: 9px 22px; font-size: 13px; font-weight: 600; cursor: pointer;
+        }
+        .btn-more:disabled { opacity: .55; cursor: default; }
+
+        /* ── Recent logs table → cards on phones ── */
+        .logs-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .logs-table th { padding: 8px 12px; text-align: left; font-weight: 600; color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid var(--border); }
+        .logs-table td { padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+        .logs-table .lg-when { color: #94a3b8; white-space: nowrap; }
+        .logs-table .lg-user { font-weight: 600; }
+        .logs-table .lg-spot { color: #94a3b8; }
+        .logs-table .lg-temp { color: #38bdf8; white-space: nowrap; }
+        .logs-table .lg-notes { color: #94a3b8; font-size: 12px; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .logs-table .lg-del { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); color: #f87171; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; white-space: nowrap; }
+        @media (max-width: 700px) {
+            .logs-table thead { display: none; }
+            .logs-table, .logs-table tbody { display: block; }
+            .logs-table tr.lg-row {
+                display: grid; grid-template-columns: 1fr auto; grid-template-areas: "spot temp" "user when" "notes notes" "act act";
+                gap: 4px 10px; padding: 12px 0; border-bottom: 1px solid var(--border);
+            }
+            .logs-table td { display: block; padding: 0; border: 0; }
+            .logs-table .lg-spot { grid-area: spot; color: var(--text); font-weight: 600; font-size: 14px; }
+            .logs-table .lg-temp { grid-area: temp; font-size: 16px; font-weight: 700; }
+            .logs-table .lg-user { grid-area: user; font-size: 12px; font-weight: 400; color: #94a3b8; }
+            .logs-table .lg-when { grid-area: when; font-size: 12px; text-align: right; }
+            .logs-table .lg-notes { grid-area: notes; max-width: none; white-space: normal; }
+            .logs-table .lg-notes:empty { display: none; }
+            .logs-table .lg-actcell { grid-area: act; }
+            .logs-table .lg-del { padding: 8px 14px; }
+        }
+
+        /* ── Phone layout for the page chrome ── */
+        @media (max-width: 700px) {
+            .header { flex-wrap: wrap; gap: 8px; padding: 10px 14px; }
+            .header-right { flex-wrap: wrap; gap: 8px; }
+            .header-email { display: none; }
+            .main { padding: 16px 14px; }
+            .jump-bar { margin: 0 -14px 18px; padding: 8px 14px; }
+            .spotmgmt-grid { grid-template-columns: 1fr !important; }
+        }
+
         /* ── Users section ── */
         .section { margin-bottom: 40px; }
 
@@ -431,16 +512,20 @@
              suggestion, approve a station) and READING numbers. The reading
              occupied the top ~40 tiles, so adding a spot meant scrolling past
              all of it every time. These are the doing-jobs, one click away. -->
-        <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:22px;">
-            <a href="#spot-management" style="padding:7px 13px;border-radius:50px;background:rgba(56,189,248,0.14);border:1px solid rgba(56,189,248,0.35);color:#38bdf8;font-size:12px;font-weight:700;text-decoration:none;">+ Add / manage spots</a>
-            <a href="#spot-suggestions" style="padding:7px 13px;border-radius:50px;background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--text-secondary);font-size:12px;font-weight:600;text-decoration:none;">Spot suggestions</a>
-            <a href="#observation-stations" style="padding:7px 13px;border-radius:50px;background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--text-secondary);font-size:12px;font-weight:600;text-decoration:none;">Station review</a>
-            <a href="#recent-logs" style="padding:7px 13px;border-radius:50px;background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--text-secondary);font-size:12px;font-weight:600;text-decoration:none;">Recent logs</a>
-            <a href="#users" style="padding:7px 13px;border-radius:50px;background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--text-secondary);font-size:12px;font-weight:600;text-decoration:none;">Users</a>
-        </div>
+        <nav class="jump-bar" id="jumpBar" aria-label="Jump to section">
+            <a class="primary" href="#spot-management">Add a spot</a>
+            <a href="#spot-suggestions">Spot suggestions</a>
+            <a href="#observation-stations">Observation stations</a>
+            <a href="#analytics">Analytics</a>
+            <a href="#overview">Overview</a>
+            <a href="#spot-activity">Spot activity</a>
+            <a href="#recent-logs">Recent logs</a>
+            <a href="#locations">Locations</a>
+            <a href="#users">Users</a>
+        </nav>
 
         <!-- Analytics -->
-        <div class="section-title">Feature Analytics</div>
+        <div class="section-title" id="analytics">Feature Analytics</div>
         <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:24px;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
                 <div style="font-size:13px;color:var(--text-secondary);">Events tracked in app: what features are being used.</div>
@@ -525,7 +610,7 @@
         </div>
 
         <!-- KPI Cards -->
-        <div class="section-title">Overview</div>
+        <div class="section-title" id="overview">Overview</div>
         <div class="kpi-row">
             <div class="kpi-card blue">
                 <div class="kpi-label">Total Users</div>
@@ -642,7 +727,7 @@
         <!-- Spot Management -->
         <div class="section-title" id="spot-management" style="scroll-margin-top:16px;">Spot Management</div>
         <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px;">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+            <div class="spotmgmt-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
 
                 <!-- Add New Spot -->
                 <div>
@@ -689,7 +774,24 @@
                 <!-- Active Spots List -->
                 <div>
                     <div style="font-size:13px; font-weight:700; margin-bottom:14px; color: var(--ocean-light);">📍 Active Spots <span id="activeSpotCount" style="color:var(--text-secondary); font-weight:400;"></span></div>
-                    <div id="spotMgmtList" style="max-height:280px; overflow-y:auto; display:flex; flex-direction:column; gap:6px;">
+                    <div class="fbar" style="margin-bottom:8px;">
+                        <input type="text" id="spotFilterQ" placeholder="Search spots" autocomplete="off" oninput="spotFilterDebounced()" aria-label="Search spots">
+                        <select id="spotFilterDomain" onchange="applySpotFilters()" aria-label="Region"><option value="">All regions</option></select>
+                        <select id="spotFilterType" onchange="applySpotFilters()" aria-label="Water type"><option value="">All water types</option></select>
+                        <select id="spotFilterLogs" onchange="applySpotFilters()" aria-label="Recent logs">
+                            <option value="">Any log history</option>
+                            <option value="30">Logged in last 30 days</option>
+                            <option value="none30">No log in 30 days</option>
+                            <option value="never">Never logged</option>
+                        </select>
+                        <select id="spotFilterActive" onchange="applySpotFilters()" aria-label="Status">
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                            <option value="all">Active and inactive</option>
+                        </select>
+                    </div>
+                    <div class="fmeta"><span id="spotFilterCount"></span><button type="button" id="spotFilterClear" onclick="clearSpotFilters()" style="display:none;">Reset filters</button></div>
+                    <div id="spotMgmtList" style="max-height:min(60vh, 520px); overflow-y:auto; display:flex; flex-direction:column; gap:6px;">
                         <div style="color:var(--text-secondary); font-size:12px; padding:8px;">Loading spots…</div>
                     </div>
                 </div>
@@ -697,7 +799,7 @@
         </div>
 
         <!-- Spot Charts -->
-        <div class="section-title">Spot Activity</div>
+        <div class="section-title" id="spot-activity">Spot Activity</div>
         <div class="charts-row">
             <div class="chart-card">
                 <div style="font-size:13px; font-weight:600; margin-bottom:14px;">Top Spots by Temp Logs</div>
@@ -723,27 +825,47 @@
         </div>
 
         <!-- Recent Logs -->
-        <div class="section-title" id="recent-logs" style="scroll-margin-top:16px;">Recent Logs</div>
-        <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:16px; padding:20px; margin-bottom:24px; overflow-x:auto;">
-            <table style="width:100%; border-collapse:collapse; font-size:13px;">
+        <div class="section-title" id="recent-logs">Recent Logs</div>
+        <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:16px; padding:20px; margin-bottom:24px;">
+            <div class="fbar">
+                <span class="fchips" id="logRange" role="group" aria-label="Date range">
+                    <button type="button" class="fchip" data-range="today">Today</button>
+                    <button type="button" class="fchip on" data-range="7">7 days</button>
+                    <button type="button" class="fchip" data-range="30">30 days</button>
+                    <button type="button" class="fchip" data-range="all">All time</button>
+                </span>
+                <select id="logSource" aria-label="Source">
+                    <option value="swimmers">Swimmers</option>
+                    <option value="sensors">Sensors</option>
+                    <option value="all">All sources</option>
+                </select>
+            </div>
+            <div class="fbar">
+                <input type="text" id="logSpotQ" list="logSpotList" placeholder="Spot" autocomplete="off" aria-label="Filter by spot">
+                <datalist id="logSpotList"></datalist>
+                <input type="text" id="logUserQ" placeholder="Swimmer name" autocomplete="off" aria-label="Filter by swimmer name">
+            </div>
+            <div class="fmeta"><span id="logCount">Loading…</span><button type="button" id="logClear" onclick="clearLogFilters()" style="display:none;">Reset filters</button></div>
+            <table class="logs-table">
                 <thead>
-                    <tr style="color:#64748b; font-size:11px; text-transform:uppercase; letter-spacing:0.05em; border-bottom:1px solid var(--border);">
-                        <th style="padding:8px 12px; text-align:left; font-weight:600;">When</th>
-                        <th style="padding:8px 12px; text-align:left; font-weight:600;">User</th>
-                        <th style="padding:8px 12px; text-align:left; font-weight:600;">Spot</th>
-                        <th style="padding:8px 12px; text-align:left; font-weight:600;">Temp</th>
-                        <th style="padding:8px 12px; text-align:left; font-weight:600;">Notes</th>
-                        <th style="padding:8px 12px;"></th>
+                    <tr>
+                        <th>When</th>
+                        <th>User</th>
+                        <th>Spot</th>
+                        <th>Temp</th>
+                        <th>Notes</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody id="recentLogsTable">
                     <tr><td colspan="6" style="padding:12px; color:#64748b;">Loading…</td></tr>
                 </tbody>
             </table>
+            <button type="button" class="btn-more" id="logMore" style="display:none;" onclick="loadMoreLogs()">Load more</button>
         </div>
 
         <!-- Location Breakdown -->
-        <div class="section-title">User Locations</div>
+        <div class="section-title" id="locations">User Locations</div>
         <div class="charts-row" style="margin-bottom:36px;">
             <div class="chart-card">
                 <div style="font-size:13px; font-weight:600; margin-bottom:14px;">Users by City</div>
@@ -1084,7 +1206,15 @@ async function showDashboard(user) {
     document.getElementById('loadingScreen').style.display = 'none';
     document.getElementById('adminEmail').textContent = user.email;
     document.getElementById('dashboard').style.display = 'block';
-    await Promise.all([loadAdminDomains(), loadUsers(), loadSpotActivity(), loadLocationData(), loadSpotManagement(), loadSpotlights(), loadSpotSuggestions(), loadRecentLogs(), loadAntiCheat(), loadChallengeStats(), loadUkLocationProposals()]);
+    syncStickyOffsets();
+    jumpToHash();
+    try {
+        await Promise.all([loadAdminDomains(), loadUsers(), loadSpotActivity(), loadLocationData(), loadSpotManagement(), loadSpotlights(), loadSpotSuggestions(), loadRecentLogs(), loadAntiCheat(), loadChallengeStats(), loadUkLocationProposals()]);
+    } finally {
+        // Sections above the target grow as they load, which pushes it down
+        jumpToHash();
+        setTimeout(jumpToHash, 800);
+    }
     loadAnalytics(7);
     loadPartnerReport();
     loadInstallFunnel();
@@ -2563,6 +2693,16 @@ async function loadSpotActivity() {
         if (!data || data.length < 1000) break;
     }
 
+    // Newest log per spot_id, for the Active Spots filters (see applySpotFilters)
+    spotLastLog = {};
+    for (const l of logs) {
+        if (!l.spot_id) continue;
+        const d = new Date(l.created_at);
+        if (!spotLastLog[l.spot_id] || d > spotLastLog[l.spot_id]) spotLastLog[l.spot_id] = d;
+    }
+    spotLogsReady = true;
+    if (allSpotsAdmin.length) applySpotFilters();
+
     // Group by spot
     const spotMap = {};
     for (const l of logs) {
@@ -2875,12 +3015,84 @@ async function loadSpotManagement() {
 
     const active = spots.filter(s => s.active);
     document.getElementById('activeSpotCount').textContent = `(${active.length})`;
-    renderSpotMgmtList(spots);
+    _fillSpotFilterOptions();
+    _fillLogSpotList();
+    applySpotFilters();
+}
+
+// ── Active Spots: search + filters ───────────────────────────────────────────
+// The list used to dump every spot ever added into one 280px scroller. These
+// filters narrow it; the log-history ones use spotLastLog, which
+// loadSpotActivity() fills from the same temp_logs pass it already makes for
+// the Spot Activity counts (so no extra query here).
+let spotLastLog = {};          // spot_id -> Date of newest log
+let spotLogsReady = false;
+const _niceCode = c => String(c || '').replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, m => m.toUpperCase());
+const spotFilterDebounced = _debounce(() => applySpotFilters(), 200);
+
+function _fillSpotFilterOptions() {
+    const fill = (id, values, label) => {
+        const sel = document.getElementById(id);
+        if (!sel) return;
+        const keep = sel.value;
+        sel.innerHTML = `<option value="">${label}</option>` +
+            [...new Set(values.filter(Boolean))].sort().map(v => `<option value="${escapeHtml(v)}">${escapeHtml(_niceCode(v))}</option>`).join('');
+        sel.value = keep;
+    };
+    fill('spotFilterDomain', allSpotsAdmin.map(s => s.domain), 'All regions');
+    fill('spotFilterType', allSpotsAdmin.map(s => s.water_type), 'All water types');
+}
+
+function _spotFiltersAreDefault() {
+    return !document.getElementById('spotFilterQ').value.trim()
+        && !document.getElementById('spotFilterDomain').value
+        && !document.getElementById('spotFilterType').value
+        && !document.getElementById('spotFilterLogs').value
+        && document.getElementById('spotFilterActive').value === 'active';
+}
+
+function clearSpotFilters() {
+    document.getElementById('spotFilterQ').value = '';
+    document.getElementById('spotFilterDomain').value = '';
+    document.getElementById('spotFilterType').value = '';
+    document.getElementById('spotFilterLogs').value = '';
+    document.getElementById('spotFilterActive').value = 'active';
+    applySpotFilters();
+}
+
+function applySpotFilters() {
+    const q = document.getElementById('spotFilterQ').value.trim().toLowerCase();
+    const domain = document.getElementById('spotFilterDomain').value;
+    const type = document.getElementById('spotFilterType').value;
+    const logs = document.getElementById('spotFilterLogs').value;
+    const status = document.getElementById('spotFilterActive').value;
+    const cutoff = Date.now() - 30 * 86400000;
+
+    const out = allSpotsAdmin.filter(s => {
+        if (status === 'active' && !s.active) return false;
+        if (status === 'inactive' && s.active) return false;
+        if (domain && s.domain !== domain) return false;
+        if (type && s.water_type !== type) return false;
+        if (q && !((s.name || '').toLowerCase().includes(q) || _niceCode(s.domain).toLowerCase().includes(q))) return false;
+        if (logs && spotLogsReady) {
+            const last = spotLastLog[s.id];
+            if (logs === '30' && !(last && last.getTime() >= cutoff)) return false;
+            if (logs === 'none30' && last && last.getTime() >= cutoff) return false;
+            if (logs === 'never' && last) return false;
+        }
+        return true;
+    });
+
+    document.getElementById('spotFilterCount').textContent =
+        `Showing ${out.length} of ${allSpotsAdmin.length} spots` +
+        (logs && !spotLogsReady ? ' (log history still loading)' : '');
+    document.getElementById('spotFilterClear').style.display = _spotFiltersAreDefault() ? 'none' : '';
+    renderSpotMgmtList(out);
 }
 
 function renderSpotMgmtList(spots) {
     const el = document.getElementById('spotMgmtList');
-    if (!spots.length) { el.innerHTML = '<div style="color:var(--text-secondary);font-size:12px;padding:8px;">No spots found.</div>'; return; }
+    if (!spots.length) { el.innerHTML = '<div style="color:var(--text-secondary);font-size:12px;padding:8px;">No spots match these filters.</div>'; return; }
     el.innerHTML = spots.map(s => {
         const activeStyle = s.active
             ? 'background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.25);'
@@ -2889,13 +3101,15 @@ function renderSpotMgmtList(spots) {
         const btnStyle = s.active
             ? 'background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3);'
             : 'background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3);';
+        const last = spotLastLog[s.id];
+        const logTxt = !spotLogsReady ? '' : (last ? ` · last log ${relativeDate(last)}` : ' · never logged');
         return `
         <div style="${activeStyle} border-radius:8px; padding:8px 10px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
             <div style="flex:1; min-width:0;">
-                <div style="font-size:12px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${s.name}</div>
-                <div style="font-size:10px; color:var(--text-secondary);">${s.water_type} · ${s.domain} · ${s.latitude?.toFixed(4)}, ${s.longitude?.toFixed(4)}</div>
+                <div style="font-size:12px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(s.name)}</div>
+                <div style="font-size:10px; color:var(--text-secondary);">${escapeHtml(s.water_type)} · ${escapeHtml(s.domain)} · ${s.latitude?.toFixed(4)}, ${s.longitude?.toFixed(4)}${logTxt}</div>
             </div>
-            <button onclick="toggleSpotActive('${s.id}', ${s.active})" style="${btnStyle} border-radius:6px; padding:4px 10px; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap;">${btnLabel}</button>
+            <button onclick="toggleSpotActive('${s.id}', ${s.active})" style="${btnStyle} border-radius:6px; padding:6px 10px; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap;">${btnLabel}</button>
         </div>`;
     }).join('');
 }
@@ -3745,18 +3959,123 @@ async function deleteSpotlightUpdate(updateId, spotlightId) {
 }
 
 // ── Recent Logs ───────────────────────────────────────────────────────────────
-async function loadRecentLogs() {
-    // Step 1: fetch logs + spot names (no profiles join — user_id FKs to auth.users, not profiles)
-    const { data, error } = await supabaseClient
-        .from('temp_logs')
-        .select('id, user_id, temp_c, conditions, notes, logged_at, created_at, location_source, spots!temp_logs_spot_id_fkey(name)')
-        .order('created_at', { ascending: false })
-        .limit(50);
+// Server-side filtered and paged. Before this it fetched the newest 50 rows
+// of everything, and 71% of temp_logs are automated sensor readings with no
+// user, so the table was mostly sensor feeds. The default is now "Swimmers".
+const LOG_PAGE = 50;
+const logState = { range: '7', source: 'swimmers', offset: 0, total: null, shown: 0, req: 0, busy: false };
 
+function _debounce(fn, ms) {
+    let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
+}
+const _likeEsc = s => s.replace(/[\\%_]/g, m => '\\' + m);
+
+function _fillLogSpotList() {
+    const dl = document.getElementById('logSpotList');
+    if (!dl) return;
+    dl.innerHTML = allSpotsAdmin.map(s => `<option value="${escapeHtml(s.name)}"></option>`).join('');
+}
+
+function _logFiltersAreDefault() {
+    return logState.range === '7' && logState.source === 'swimmers'
+        && !document.getElementById('logSpotQ').value.trim()
+        && !document.getElementById('logUserQ').value.trim();
+}
+
+function clearLogFilters() {
+    logState.range = '7'; logState.source = 'swimmers';
+    document.getElementById('logSource').value = 'swimmers';
+    document.getElementById('logSpotQ').value = '';
+    document.getElementById('logUserQ').value = '';
+    document.querySelectorAll('#logRange .fchip').forEach(b => b.classList.toggle('on', b.dataset.range === '7'));
+    loadRecentLogs();
+}
+
+function _logSince() {
+    if (logState.range === 'all') return null;
+    const d = new Date();
+    if (logState.range === 'today') { d.setHours(0, 0, 0, 0); return d.toISOString(); }
+    return new Date(Date.now() - Number(logState.range) * 86400000).toISOString();
+}
+
+function _updateLogCount() {
+    const el = document.getElementById('logCount');
+    const tot = logState.total;
+    el.textContent = tot == null
+        ? `Showing ${logState.shown}`
+        : `Showing ${logState.shown} of ${tot.toLocaleString()} log${tot === 1 ? '' : 's'}`;
+    document.getElementById('logClear').style.display = _logFiltersAreDefault() ? 'none' : '';
+    const more = document.getElementById('logMore');
+    const hasMore = tot == null ? logState.lastBatch === LOG_PAGE : logState.shown < tot;
+    more.style.display = hasMore ? '' : 'none';
+    more.disabled = false; more.textContent = 'Load more';
+}
+
+// Fresh query (page 1). Called on boot, on any filter change, and after nothing else.
+async function loadRecentLogs() {
+    logState.offset = 0; logState.shown = 0; logState.total = null;
+    await _fetchLogs(true);
+}
+function loadMoreLogs() { return _fetchLogs(false); }
+
+async function _fetchLogs(reset) {
     const container = document.getElementById('recentLogsTable');
     if (!container) return;
-    if (error) { console.error('loadRecentLogs error:', error); container.innerHTML = '<tr><td colspan="6" style="padding:12px; color:#f87171;">Error loading logs.</td></tr>'; return; }
-    if (!data || data.length === 0) { container.innerHTML = '<tr><td colspan="6" style="padding:12px; color:#64748b;">No logs found.</td></tr>'; return; }
+    const req = ++logState.req;                       // newest request wins; stale ones are dropped
+    const more = document.getElementById('logMore');
+    if (reset) {
+        container.innerHTML = '<tr><td colspan="6" style="padding:12px; color:#64748b;">Loading…</td></tr>';
+        document.getElementById('logCount').textContent = 'Loading…';
+        more.style.display = 'none';
+    } else { more.disabled = true; more.textContent = 'Loading…'; }
+
+    const spotQ = document.getElementById('logSpotQ').value.trim();
+    const userQ = document.getElementById('logUserQ').value.trim();
+
+    // Swimmer-name filter: public_profiles holds the names, temp_logs only the id.
+    let userIds = null;
+    if (userQ) {
+        const { data: found, error: fErr } = await supabaseClient
+            .from('public_profiles').select('id').ilike('display_name', `%${_likeEsc(userQ)}%`).limit(300);
+        if (req !== logState.req) return;
+        if (fErr) console.error('loadRecentLogs name search error:', fErr);
+        userIds = (found || []).map(p => p.id);
+        if (!userIds.length) {
+            container.innerHTML = '<tr><td colspan="6" style="padding:12px; color:#64748b;">No swimmer matches that name.</td></tr>';
+            logState.total = 0; logState.shown = 0; _updateLogCount(); return;
+        }
+    }
+
+    // !inner only when filtering on the spot, so unfiltered pages keep every row
+    const embed = spotQ ? 'spots!temp_logs_spot_id_fkey!inner(name)' : 'spots!temp_logs_spot_id_fkey(name)';
+    let q = supabaseClient
+        .from('temp_logs')
+        .select(`id, user_id, temp_c, conditions, notes, logged_at, created_at, location_source, ${embed}`,
+                reset ? { count: 'exact' } : undefined)
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false });
+    const since = _logSince();
+    if (since) q = q.gte('created_at', since);
+    if (logState.source === 'swimmers') q = q.not('user_id', 'is', null);
+    if (logState.source === 'sensors') q = q.eq('location_source', 'sensor');
+    if (spotQ) q = q.ilike('spots.name', `%${_likeEsc(spotQ)}%`);
+    if (userIds) q = q.in('user_id', userIds);
+    q = q.range(logState.offset, logState.offset + LOG_PAGE - 1);
+
+    const { data, error, count } = await q;
+    if (req !== logState.req) return;
+    if (error) {
+        console.error('loadRecentLogs error:', error);
+        if (reset) container.innerHTML = '<tr><td colspan="6" style="padding:12px; color:#f87171;">Error loading logs.</td></tr>';
+        more.disabled = false; more.textContent = 'Load more';
+        return;
+    }
+    if (reset) logState.total = count;
+    logState.lastBatch = (data || []).length;
+    if (reset && (!data || data.length === 0)) {
+        container.innerHTML = '<tr><td colspan="6" style="padding:12px; color:#64748b;">No logs match these filters. Try a wider date range or "All sources".</td></tr>';
+        _updateLogCount(); return;
+    }
 
     // Step 2: fetch display names for all unique users in this batch.
     //
@@ -3767,18 +4086,19 @@ async function loadRecentLogs() {
     // The whole request then fails and EVERY name on the page falls back to
     // "Unknown" — including the real swimmers. That looked like an RLS
     // regression for days; it was one null in an IN list.
-    const userIds = [...new Set(data.map(l => l.user_id).filter(Boolean))];
+    const batchIds = [...new Set(data.map(l => l.user_id).filter(Boolean))];
     let nameMap = {};
-    if (userIds.length) {
+    if (batchIds.length) {
         const { data: profilesData, error: profErr } = await supabaseClient
-            .from('public_profiles').select('id, display_name').in('id', userIds);
+            .from('public_profiles').select('id, display_name').in('id', batchIds);
         // Surfaced, not swallowed: silently returning no names is exactly
         // how this hid for so long.
         if (profErr) console.error('loadRecentLogs profiles error:', profErr);
         nameMap = Object.fromEntries((profilesData || []).map(p => [p.id, p.display_name]));
+        if (req !== logState.req) return;
     }
 
-    container.innerHTML = data.map(log => {
+    const rows = data.map(log => {
         const when = new Date(log.logged_at || log.created_at).toLocaleString('en-ZA', { dateStyle: 'short', timeStyle: 'short' });
         // A sensor reading has no user and never will. Calling it "Unknown"
         // implies a swimmer we failed to identify; it is an automated feed.
@@ -3787,28 +4107,70 @@ async function loadRecentLogs() {
             : (log.location_source === 'sensor' ? 'Sensor' : 'System');
         const spot = log.spots?.name || 'Unknown spot';
         const temp = log.temp_c != null ? `${log.temp_c}°C` : '–';
-        return `<tr>
-            <td style="padding:8px 12px; color:#94a3b8; font-size:13px; white-space:nowrap;">${when}</td>
-            <td style="padding:8px 12px; font-weight:600;">${user}</td>
-            <td style="padding:8px 12px; color:#94a3b8;">${spot}</td>
-            <td style="padding:8px 12px; color:#38bdf8;">${temp}</td>
-            <td style="padding:8px 12px; color:#94a3b8; font-size:12px; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${log.notes || ''}</td>
-            <td style="padding:8px 12px;">
-                <button onclick="deleteLog('${log.id}')"
-                    style="background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3); color:#f87171; padding:4px 10px; border-radius:6px; cursor:pointer; font-size:12px; white-space:nowrap;">
-                    Delete
-                </button>
-            </td>
+        return `<tr class="lg-row" data-log-id="${escapeHtml(log.id)}">
+            <td class="lg-when">${escapeHtml(when)}</td>
+            <td class="lg-user">${escapeHtml(user)}</td>
+            <td class="lg-spot">${escapeHtml(spot)}</td>
+            <td class="lg-temp">${escapeHtml(temp)}</td>
+            <td class="lg-notes">${escapeHtml(log.notes || '')}</td>
+            <td class="lg-actcell"><button class="lg-del" onclick="deleteLog('${escapeHtml(log.id)}')">Delete</button></td>
         </tr>`;
     }).join('');
+    if (reset) container.innerHTML = rows; else container.insertAdjacentHTML('beforeend', rows);
+    logState.offset += data.length;
+    logState.shown += data.length;
+    _updateLogCount();
 }
+
+(function wireLogFilters() {
+    const reload = _debounce(() => loadRecentLogs(), 350);
+    document.querySelectorAll('#logRange .fchip').forEach(btn => btn.addEventListener('click', () => {
+        logState.range = btn.dataset.range;
+        document.querySelectorAll('#logRange .fchip').forEach(b => b.classList.toggle('on', b === btn));
+        loadRecentLogs();
+    }));
+    document.getElementById('logSource').addEventListener('change', e => { logState.source = e.target.value; loadRecentLogs(); });
+    document.getElementById('logSpotQ').addEventListener('input', reload);
+    document.getElementById('logUserQ').addEventListener('input', reload);
+})();
 
 async function deleteLog(id) {
     if (!confirm('Delete this temperature log? This cannot be undone.')) return;
     const { error } = await supabaseClient.from('temp_logs').delete().eq('id', id);
     if (error) { alert('Error: ' + error.message); return; }
-    loadRecentLogs();
+    // Drop the row in place so the filters and scroll position survive
+    const row = document.querySelector(`#recentLogsTable tr[data-log-id="${CSS.escape(id)}"]`);
+    if (row) row.remove();
+    logState.shown = Math.max(0, logState.shown - 1);
+    logState.offset = Math.max(0, logState.offset - 1);
+    if (logState.total != null) logState.total = Math.max(0, logState.total - 1);
+    _updateLogCount();
 }
+
+// ── Deep links ─────────────────────────────────────────────────────────────────
+// The dashboard is display:none until login, so the browser's own #hash scroll
+// finds nothing, and sections above the target keep growing as data arrives.
+// Re-apply the hash after each settle, but stop as soon as the user scrolls.
+let _userScrolled = false;
+['wheel', 'touchstart', 'keydown'].forEach(ev => window.addEventListener(ev, () => { _userScrolled = true; }, { passive: true, once: true }));
+function jumpToHash() {
+    if (_userScrolled || !location.hash) return;
+    let id; try { id = decodeURIComponent(location.hash.slice(1)); } catch (e) { return; }
+    const el = id && document.getElementById(id);
+    if (el) el.scrollIntoView();
+}
+
+// ── Sticky offsets ─────────────────────────────────────────────────────────────
+// The header wraps onto two lines on phones, so the jump bar's `top` is measured.
+function syncStickyOffsets() {
+    const h = document.querySelector('.header');
+    if (h && h.offsetHeight) document.documentElement.style.setProperty('--hdr-h', h.offsetHeight + 'px');
+}
+(function () {
+    const h = document.querySelector('.header');
+    if (h && 'ResizeObserver' in window) new ResizeObserver(syncStickyOffsets).observe(h);
+    window.addEventListener('resize', syncStickyOffsets);
+})();
 
 // ── Go ────────────────────────────────────────────────────────────────────────
 boot();
