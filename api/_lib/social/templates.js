@@ -190,6 +190,7 @@ export function visualCopy(post, i = null) {
   const F = (k) => post.facts.find((f) => f.key === k)?.text;
   switch (post.category) {
     case CATEGORIES.SWIM_SPOTLIGHT: {
+      if (post.angle === 'logbook') return { headline: F('name'), sub: `${F('range')} recorded`, chip: `${post.logCount} readings` };
       const opened = F('opened');
       return { headline: F('name'), sub: opened ? `${opened} · ${F('area')}` : `${F('region')}, ${F('country')}`, chip: F('water_type') };
     }

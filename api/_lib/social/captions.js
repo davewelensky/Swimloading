@@ -21,6 +21,11 @@ export function buildCaptions(post) {
 
 const BUILDERS = {
   [CATEGORIES.SWIM_SPOTLIGHT]: (p) => {
+    if (p.angle === 'logbook') return {
+      body: `How cold does ${F(p, 'name')} get?\n\n${F(p, 'coldest')}.\n${F(p, 'warmest')}.\n${F(p, 'latest') ? `${F(p, 'latest')}.\n` : ''}\nFrom ${F(p, 'count')}. ${F(p, 'since')}.\n\nSwum there? Log your temperature on SwimLoading.`,
+      fbCta: `${F(p, 'name')} on SwimLoading:`,
+      tags: ['#openwaterswimming', '#watertemperature', '#swimloading'],
+    };
     const opened = F(p, 'opened');
     if (opened) {
       return {

@@ -27,9 +27,9 @@ test('JAKED: a quote that leaves the page blocks the post (no stale claims)', ()
   const bad = { ...p, facts: p.facts.map((f) => (f.key === 'line' ? { ...f, source: { ...f.source, quote: 'a sentence that is not on the page' } } : f)) };
   assert.equal(validatePost(bad, { now: NOW }).risk, RISK.BLOCKED);
 });
-test('JAKED: only built while partner_pages says live; the reason is reported', () => {
-  assert.equal(jakedAngles([{ id: 'r', name: 'JAKED', chip_state: 'soon' }]).posts.length, 0);
-  assert.match(jakedAngles([{ id: 'r', name: 'JAKED', chip_state: 'soon' }]).note, /not "live"/);
+test('JAKED: built while JAKED is a current partner; withdrawn or missing is reported', () => {
+  assert.equal(jakedAngles([{ id: 'r', name: 'JAKED', chip_state: 'ended' }]).posts.length, 0);
+  assert.match(jakedAngles([{ id: 'r', name: 'JAKED', chip_state: 'ended' }]).note, /not a current partner/);
   assert.match(jakedAngles([]).note, /no JAKED row/);
 });
 test('JAKED captions: call to action is the enquiry form; no price, discount, stock or order-count claims; no emoji or dashes', () => {
@@ -72,14 +72,14 @@ test('JAKED catalogue entries are product photos tied to the partner, with conse
 test('JAKED has its own share of the mix: the general partner cap is untouched', () => {
   assert.ok(GROUPS.includes('jaked')); assert.ok(SOCIAL_DEFAULTS.mix.jaked >= 0.1);
   assert.ok(Math.abs(Object.values(SOCIAL_DEFAULTS.mix).reduce((a, b) => a + b, 0) - 1) < 1e-9, 'mix sums to 1');
-  assert.equal(SOCIAL_DEFAULTS.partnerMaxShare, 0.10);
+  assert.equal(SOCIAL_DEFAULTS.partnerMaxShare, 0.25);
   assert.equal(groupOfPost({ source_key: 'jaked:wetsuit', category: 'BEHIND THE BRAND' }), 'jaked');
   assert.equal(groupOfPost({ source_key: 'partner:maurten', category: 'BEHIND THE BRAND' }), 'partners');
   const { counts } = windowCounts([{ source_key: 'jaked:about', category: 'BEHIND THE BRAND', status: 'PUBLISHED', created_at: '2026-11-10' }]);
   assert.equal(counts.jaked, 1); assert.equal(counts.partners, undefined);
   // with nothing posted yet, JAKED is picked once it is the group furthest below target
   const picked = new Set();
-  const c = { explore: 3, locations: 2, crossings: 1, ocean: 1, partners: 1, clubsAndPlatform: 1 };
+  const c = { explore: 3, locations: 3, crossings: 1, ocean: 1, partners: 3, clubsAndPlatform: 1 };
   assert.equal(pickGroup(c, SOCIAL_DEFAULTS.mix, new Set(GROUPS)), 'jaked'); picked.add('jaked');
 });
 
@@ -163,13 +163,13 @@ test('cron handlers still require the cron secret', async () => {
   }
 });
 
-test('partner caps: JAKED is held to its own ceiling, other partners to 10%, and a near-empty window never trips a cap', () => {
+test('partner caps: JAKED is held to its own ceiling, other partners to 25%, and a near-empty window never trips a cap', () => {
   const j = { ...jakedAngles(live).posts[0] };
   assert.equal(j.partner.priority, true);
   assert.equal(validatePost(j, { now: NOW, partnerShare: 0.15 }).risk, RISK.AUTO, 'inside JAKED\'s 20% ceiling');
   assert.equal(validatePost(j, { now: NOW, partnerShare: 0.30 }).risk, RISK.REVIEW);
   const other = { ...j, partner: { ...j.partner, priority: false, slug: 'maurten' } };
-  assert.equal(validatePost(other, { now: NOW, partnerShare: 0.15 }).risk, RISK.REVIEW, 'any other partner stops at 10%');
+  assert.equal(validatePost(other, { now: NOW, partnerShare: 0.30 }).risk, RISK.REVIEW, 'any other partner stops at 25%');
 });
 test('autopilot dry run on an empty queue plans JAKED without tripping the share cap', async () => {
   const { runWeekly } = await import('../api/_lib/social/autopilot-run.js');

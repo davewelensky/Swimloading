@@ -77,8 +77,9 @@ test('validate: unverified photo licence, and share-alike notes, need review', (
   assert.equal(validatePost(basePost({ image: { url: 'u', licenceVerified: false } }), { now: NOW }).risk, RISK.REVIEW);
   assert.equal(validatePost(basePost({ image: { url: 'u', licenceVerified: true, reviewNote: 'sa' } }), { now: NOW }).risk, RISK.REVIEW);
 });
-test('validate: partner that is not live needs review; live passes', () => {
-  assert.equal(validatePost(basePost({ partner: { chipState: 'soon' } }), { now: NOW }).risk, RISK.REVIEW);
+test('validate: a withdrawn partner needs review; every current partner passes (soon included)', () => {
+  assert.equal(validatePost(basePost({ partner: { chipState: 'ended' } }), { now: NOW }).risk, RISK.REVIEW);
+  assert.equal(validatePost(basePost({ partner: { chipState: 'soon' } }), { now: NOW }).risk, RISK.AUTO);
   assert.equal(validatePost(basePost({ partner: { chipState: 'live' } }), { now: NOW }).risk, RISK.AUTO);
   assert.equal(validatePost(basePost({ partner: { chipState: 'live' } }), { now: NOW, partnerShare: 0.4 }).risk, RISK.REVIEW);
 });

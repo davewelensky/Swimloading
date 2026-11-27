@@ -29,8 +29,7 @@ export function makeRecheck(rest) {
     const partnerIds = rowsOf(post, 'partner_pages');
     if (partnerIds.length) {
       const rows = await rest(`partner_pages?select=id,chip_state,section&id=in.(${partnerIds.join(',')})`);
-      const priority = /^jaked:/.test(post.source_key || post.sourceKey || '');
-      const bad = (rows || []).find((r) => !partnerMayPost(r, { priority }));
+      const bad = (rows || []).find((r) => !partnerMayPost(r));
       if (!(rows || []).length || bad) return { ok: false, reason: `partner is no longer live (chip_state ${bad?.chip_state ?? 'missing'}, section ${bad?.section ?? 'missing'})` };
     }
     return { ok: true };

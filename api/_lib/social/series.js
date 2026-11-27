@@ -5,7 +5,8 @@
 //   conditionsWeekly  measured readings only (spot_conditions_live), never model data
 //   regionalUnits / regionalMap   discovery maps for every country/region with 3+ active spots with coordinates
 //   crossingAngles    qualifying swim / season / route map, DB columns only
-//   partnerCards      partner_pages rows with chip_state live, claims quoted from the row
+//   partnerCards      every current partner_pages row, claims quoted from the row (time-bound sentences removed)
+//   spotLogbook       one post per spot from members' own temperature logs (anonymous totals)
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { countryByCode } from '../../_countries.js';
@@ -208,7 +209,7 @@ export function crossingAngles(c) {
 // ── (e) Live partners from partner_pages ───────────────────────────────────
 /** Only chip_state 'live' in section 'active'. Claims are the row's own blurb, verbatim. status_note is internal and is never used. */
 export function partnerCards(rows) {
-  return rows.filter((r) => partnerMayPost(r) && r.blurb && r.hero_page).map((r) => {
+  return rows.filter((r) => partnerMayPost(r) && r.hero_page && evergreenBlurb(r.blurb)).map((r) => {
     const slug = slugify(r.name.replace(/\s*[×x]\s*Art of Endurance/i, ''));
     const logoFile = r.logo_url ? resolve(ROOT, r.logo_url.replace(/^\//, '')) : null;
     const src = (col) => ({ table: 'partner_pages', row: r.id, column: col });
@@ -216,7 +217,7 @@ export function partnerCards(rows) {
       category: CATEGORIES.BEHIND_THE_BRAND, angle: 'partner-profile',
       sourceKey: `partner:${slug}`, sourceUrl: `${SITE}${r.hero_page}`,
       partner: { name: r.name.replace(/\s*×\s*Art of Endurance/, ''), slug, chipState: r.chip_state, logo: logoFile && existsSync(logoFile) ? logoFile : null, pageId: r.id },
-      facts: [fact('name', r.name.replace(/\s*×\s*Art of Endurance/, ''), src('name')), fact('blurb', r.blurb, src('blurb'))],
+      facts: [fact('name', r.name.replace(/\s*×\s*Art of Endurance/, ''), src('name')), fact('blurb', evergreenBlurb(r.blurb), src('blurb'))],
       image: { url: null, credit: 'Partner logo supplied for SwimLoading partner page', licenceVerified: true },
       freshnessAssessment: 'Evergreen partner description from partner_pages. Re-checked at publish: the partner must still be live.',
     };
@@ -270,16 +271,21 @@ export const JAKED_ANGLES = {
 /** @param rows partner_pages rows. @returns { posts: [...], note } ; no posts (and a reason) unless JAKED is live in partner_pages. */
 /**
  * May this partner be posted? ONE rule, used by the builders and by the publish-time check, so they can never disagree.
- * Ordinary partners: chip_state live AND section active. The priority partner (JAKED): chip_state live is enough, because
- * Dave approved pushing it while its row still sits in the `coming_soon` section (that column also drives the public site).
- * Two JAKED posts were rejected at publish time on 17 and 26 Nov 2026 when these two rules differed.
+ * Every partner stays a partner until withdrawn (Dave, 27 Nov 2026: a closed competition does not end a partnership), so
+ * `soon` chips and the `coming_soon` section are all eligible. Only an ended / withdrawn / archived row, or a deleted one,
+ * is refused. (Two JAKED posts were rejected at publish time in Nov 2026 when builder and check used different rules.)
  */
-export const partnerMayPost = (row, { priority = false } = {}) => !!row && row.chip_state === 'live' && (priority ? ['active', 'coming_soon', undefined, null].includes(row.section) : row.section === 'active');
+const PARTNER_GONE = ['ended', 'withdrawn', 'archived', 'removed'];
+export const partnerMayPost = (row) => !!row && !PARTNER_GONE.includes(row.chip_state) && !PARTNER_GONE.includes(row.section);
+
+/** Partner blurbs can mention time-bound things (a challenge, a prize, "coming soon"). Those sentences never go into a post. */
+const TIME_BOUND = /\b(challenge|prizes?|goodie|giveaway|draw|win|coming soon|coming|soon|on the way|presenting sponsor|january|february|march|april|may \d|june|july|august|september|october|november|december|20\d\d)\b/i;
+export const evergreenBlurb = (blurb) => String(blurb || '').split(/(?<=[.!?]["\u201d]?)\s+/).filter((x) => x.trim() && !TIME_BOUND.test(x)).join(' ').trim();
 
 export function jakedAngles(rows) {
   const row = (rows || []).find((r) => /jaked/i.test(r.name || ''));
   if (!row) return { posts: [], note: 'JAKED: no JAKED row in partner_pages, so no JAKED posts were built.' };
-  if (!partnerMayPost(row, { priority: true })) return { posts: [], note: `JAKED: partner_pages chip_state is "${row.chip_state}" (section "${row.section}"), not "live", so no JAKED posts were built.` };
+  if (!partnerMayPost(row)) return { posts: [], note: `JAKED: partner_pages chip_state is "${row.chip_state}" (section "${row.section}"), not a current partner, so no JAKED posts were built.` };
   const logo = row.logo_url && existsSync(resolve(ROOT, row.logo_url.replace(/^\//, ''))) ? row.logo_url.replace(/^\//, '') : 'icons/jaked-logo.png';
   const posts = Object.entries(JAKED_ANGLES).map(([angle, a]) => {
     const facts = [fact('name', 'JAKED', { table: 'partner_pages', row: row.id, column: 'name' }), ...a.facts()];
@@ -294,4 +300,61 @@ export function jakedAngles(rows) {
     };
   });
   return { posts, note: null };
+}
+
+// ── Spot logbook: a post for every spot with enough real data of our own ────────────────────────────────────────────
+// Aggregates only (no names, no individual log). Excluded on purpose:
+//   * Big Bay SwimOps entries and Derrick's accounts: his data is never published (Dave, 10 Nov 2026)
+//   * Strava imports: Strava's API terms restrict showing that data to others
+// A spot needs MIN_LOGS readings from at least MIN_LOGGERS different people (or a sensor), so no total points at one person.
+export const LOGBOOK = { minLogs: 10, minLoggers: 3, recentDays: 60 };
+// School, club and squad venues (children train there) are never promoted.
+export const PRIVATE_VENUE = /primary|school|\bhigh\b|college|academy|\bk8\b|aqua\s*sharks|\bduc\b|\bclub\b/i;
+export const publishableLog = (l, excludedUsers = new Set()) => {
+  const t = Number(l.temp_c);
+  if (l.temp_c == null || !(t > -2 && t < 36)) return false;
+  if (excludedUsers.has(l.user_id)) return false;
+  return !/big\s*bay\s*(events|swimops)|swimops|derrick|imported from strava/i.test(l.notes || '');
+};
+const monthYear = (iso) => { const d = new Date(iso); return `${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`; };
+const deg = (t) => `${(Math.round(Number(t) * 10) / 10)}\u00b0C`;
+
+/** @returns candidates, one per qualifying spot, richest first. @param logs temp_logs rows; spots spots rows. */
+export function spotLogbook(logs, spots, { excludedUsers = new Set(), now = new Date() } = {}) {
+  const by = new Map();
+  for (const l of logs) { if (!publishableLog(l, excludedUsers)) continue; (by.get(l.spot_id) || by.set(l.spot_id, []).get(l.spot_id)).push(l); }
+  const out = [];
+  for (const s of spots) {
+    const rows = by.get(s.id);
+    if (PRIVATE_VENUE.test(s.name) || !rows || rows.length < LOGBOOK.minLogs) continue;
+    const loggers = new Set(rows.filter((r) => r.location_source !== 'sensor').map((r) => r.user_id)).size;
+    const sensor = rows.some((r) => r.location_source === 'sensor');
+    if (!sensor && loggers < LOGBOOK.minLoggers) continue;
+    const when = (r) => r.logged_at || r.created_at;
+    const sorted = [...rows].sort((a, b) => String(when(a)).localeCompare(String(when(b))));
+    const min = rows.reduce((m, r) => (Number(r.temp_c) < Number(m.temp_c) ? r : m)), max = rows.reduce((m, r) => (Number(r.temp_c) > Number(m.temp_c) ? r : m));
+    const latest = sorted.at(-1), recent = (now - new Date(when(latest))) / 86400e3 <= LOGBOOK.recentDays;
+    const country = countryName(s.country_code);
+    const place = [prettyArea(s.area), country].filter(Boolean).join(', ') || country || '';
+    const agg = (col) => ({ table: 'temp_logs', column: col, filter: `spot_id=${s.id}` });
+    const facts = [
+      fact('name', s.name, { table: 'spots', row: s.id, column: 'name' }),
+      ...(place ? [fact('place', place, { table: 'spots', row: s.id, column: 'area' })] : []),
+      fact('water_type', WATER[s.water_type] || s.water_type, { table: 'spots', row: s.id, column: 'water_type' }),
+      fact('count', `${rows.length} water temperature readings on SwimLoading`, agg('count')),
+      fact('since', `Readings since ${monthYear(when(sorted[0]))}`, agg('logged_at')),
+      fact('coldest', `Coldest recorded: ${deg(min.temp_c)} (${monthYear(when(min))})`, agg('min(temp_c)')),
+      fact('warmest', `Warmest recorded: ${deg(max.temp_c)} (${monthYear(when(max))})`, agg('max(temp_c)')),
+      fact('range', `${deg(min.temp_c)} to ${deg(max.temp_c)}`, agg('min/max(temp_c)')),
+      ...(recent ? [fact('latest', `Most recent reading: ${deg(latest.temp_c)} on ${fmtUtc(when(latest)).replace(/ \d\d:\d\d UTC$/, '')}`, agg('latest'))] : []),
+    ];
+    out.push({
+      category: CATEGORIES.SWIM_SPOTLIGHT, angle: 'logbook', sourceKey: `spotlog:${s.id}`, sourceUrl: `${SITE}/spots/${slugify(s.name)}`,
+      spot: s, logCount: rows.length, facts,
+      geo: s.latitude != null && s.longitude != null ? { points: [{ lat: Number(s.latitude), lng: Number(s.longitude), label: s.name }], maxZoom: 11 } : null,
+      image: { url: null, licenceVerified: true },
+      freshnessAssessment: 'Historical totals from SwimLoading readings. Every figure carries its month or date; nothing is presented as the current temperature.',
+    });
+  }
+  return out.sort((a, b) => b.logCount - a.logCount || a.sourceKey.localeCompare(b.sourceKey));
 }

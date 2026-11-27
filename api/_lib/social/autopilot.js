@@ -16,7 +16,7 @@ import { dbGet } from '../../seo-utils.js';
 import { SOCIAL_DEFAULTS, CATEGORIES, MIX_GROUP, nextSlots } from './config.js';
 import { validatePost } from './validate.js';
 import { spotlightFromVenueMap, exploreUpcoming } from './sources.js';
-import { conditionsWeekly, regionalUnits, regionalMap, crossingAngles, partnerCards, jakedAngles } from './series.js';
+import { conditionsWeekly, regionalUnits, regionalMap, crossingAngles, partnerCards, jakedAngles, spotLogbook } from './series.js';
 import { slotMs } from './queue.js';
 
 export const GROUPS = ['explore', 'locations', 'crossings', 'ocean', 'partners', 'jaked', 'clubsAndPlatform'];
@@ -107,6 +107,11 @@ export async function buildPool(data, { now = new Date(), recentExploreIds = new
   for (const u of regionalUnits(await data.spots())) for (let p = 0; p < SOCIAL_DEFAULTS.autopilot.regionMaxPages; p++) {
     const post = regionalMap(u, p);
     if (!post.gap) add('locations', post.sourceKey, () => post);
+  }
+  // every spot with enough of our own readings (anonymous totals; see spotLogbook for what is excluded)
+  if (data.spotLogs) {
+    const { logs, excludedUsers } = await data.spotLogs();
+    for (const post of spotLogbook(logs, await data.spots(), { excludedUsers, now })) add('locations', post.sourceKey, () => post);
   }
   // crossings
   for (const c of await data.crossings()) for (const post of crossingAngles(c)) add('crossings', post.sourceKey, () => post);

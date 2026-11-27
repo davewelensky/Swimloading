@@ -48,9 +48,10 @@ export function validatePost(post, { now = new Date(), recentSourceKeys = {}, pa
 
   // 6. Partner rules.
   if (post.partner) {
-    const live = post.partner.chipState === 'live';
-    ok('partner is live/approved', live);
-    if (!live) raise(RISK.REVIEW, `partner status is "${post.partner.chipState}"`);
+    // every partner is current until withdrawn: a finished competition or a `soon` chip does not end a partnership
+    const current = !['ended', 'withdrawn', 'archived', 'removed'].includes(post.partner.chipState);
+    ok('partner is current', current);
+    if (!current) raise(RISK.REVIEW, `partner status is "${post.partner.chipState}"`);
     const cap = post.partner.priority ? SOCIAL_DEFAULTS.priorityPartnerMaxShare : SOCIAL_DEFAULTS.partnerMaxShare;
     if (partnerShare > cap) raise(RISK.REVIEW, `partner share of recent posts would exceed its ${Math.round(cap * 100)}% cap`);
   }

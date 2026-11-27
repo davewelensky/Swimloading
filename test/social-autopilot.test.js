@@ -119,13 +119,13 @@ const PP = [
   { id: 'p3', name: 'eo SwimBETTER', hero_page: '/partners/eolab', section: 'active', chip_state: 'soon', blurb: 'Quote.' },
   { id: 'p4', name: 'Zero BS', hero_page: '/partners/zerobs', section: 'active', chip_state: 'live', logo_url: null, blurb: 'South African tallow-based skincare.', status_note: 'products only. No member discount agreed.' },
 ];
-test('partners: only live + active; the blurb is quoted verbatim; internal status notes never reach a post', () => {
+test('partners: every current partner (soon and coming-soon included); the blurb is quoted; internal status notes never reach a post', () => {
   const cards = partnerCards(PP);
-  assert.deepEqual(cards.map((c) => c.sourceKey), ['partner:maurten', 'partner:zero-bs']);
+  assert.deepEqual(cards.map((c) => c.sourceKey), ['partner:maurten', 'partner:form', 'partner:eo-swimbetter', 'partner:zero-bs']);
   const m = cards[0];
   assert.equal(m.facts.find((f) => f.key === 'blurb').text, PP[0].blurb);
   assert.equal(m.facts.find((f) => f.key === 'blurb').source.table, 'partner_pages');
-  assert.ok(!JSON.stringify(m).includes('9-month') && !JSON.stringify(cards[1]).includes('discount agreed'));
+  assert.ok(!JSON.stringify(m).includes('9-month') && !JSON.stringify(cards[3]).includes('discount agreed'));
   const cap = buildCaptions(m);
   assert.ok(cap.facebook.includes(PP[0].blurb) && !EMOJI.test(cap.facebook) && !/\u2014/.test(cap.facebook));
   assert.equal(validatePost(m, { now: NOW }).risk, 'AUTO_ELIGIBLE');
@@ -162,9 +162,9 @@ test('planner: nothing is written without realise (dry run), and the plan covers
   assert.ok(slots.length >= 5 && slots.length <= 6);
   for (const s of slots) { const d = new Date(new Date(s).getTime() + 2 * 3600e3); assert.ok([2, 4, 6].includes(d.getUTCDay()) && d.getUTCHours() === 10); assert.ok(new Date(s) - NOW <= 14 * 86400e3); }
 });
-test('planner: follows the configured mix over a window (27/22/13/8/7/15 JAKED/8) and redistributes the share of an empty group', async () => {
-  assert.equal(pickGroup({}, SOCIAL_DEFAULTS.mix, new Set(['explore', 'locations', 'crossings'])), 'explore');
-  const c = { explore: 3, locations: 3, crossings: 1, ocean: 1, partners: 1, clubsAndPlatform: 0 };
+test('planner: follows the configured mix over a window (22/25/10/8/18/12 JAKED/5) and redistributes the share of an empty group', async () => {
+  assert.equal(pickGroup({}, SOCIAL_DEFAULTS.mix, new Set(['explore', 'locations', 'crossings'])), 'locations', 'the largest share goes first');
+  const c = { explore: 3, locations: 3, crossings: 1, ocean: 1, partners: 3, clubsAndPlatform: 0 };
   assert.equal(pickGroup(c, SOCIAL_DEFAULTS.mix, new Set(['explore', 'locations', 'crossings', 'ocean', 'partners', 'clubsAndPlatform'])), 'clubsAndPlatform');
   assert.equal(pickGroup(c, SOCIAL_DEFAULTS.mix, new Set(['explore', 'locations', 'crossings', 'ocean', 'partners'])), 'crossings', 'with no clubs supply the next-most-owed group is chosen');
   // simulate 20 slots: counts stay within one post of target
@@ -191,10 +191,10 @@ test('ledger: publish-ledger ids are mapped to source keys through posts.json', 
 });
 test('planner: partner cap, no un-capped partner posts', async () => {
   assert.ok(partnerAllowed({ explore: 1, partners: 1 }), 'a window under 8 posts has no meaningful share: not capped');
-  assert.ok(!partnerAllowed({ explore: 4, locations: 4, partners: 1 }), '(1+1)/(9+1) = 20% over a real window: refused');
+  assert.ok(!partnerAllowed({ explore: 4, locations: 4, partners: 2 }), '(2+1)/(10+1) = 27% over a real window: refused');
   assert.ok(partnerAllowed({ explore: 5, locations: 4, crossings: 3, ocean: 1, partners: 0 }));
-  assert.ok(!partnerAllowed({ explore: 9, locations: 9, partners: 2 }), '(2+1)/(20+1) > 10%');
-  const full = Array.from({ length: 12 }, (_, i) => ({ source_key: `k${i}`, status: 'PUBLISHED', category: i < 2 ? CAT.partners : CAT.locations, created_at: hoursAgo(24 * (i + 1)), scheduled_for: hoursAgo(24 * (i + 1)) }));
+  assert.ok(!partnerAllowed({ explore: 7, locations: 7, partners: 5 }), '(5+1)/(19+1) = 30% > 25%');
+  const full = Array.from({ length: 12 }, (_, i) => ({ source_key: `k${i}`, status: 'PUBLISHED', category: i < 4 ? CAT.partners : CAT.locations, created_at: hoursAgo(24 * (i + 1)), scheduled_for: hoursAgo(24 * (i + 1)) }));
   const r = await run({ partners: many('partners', 4, { evergreen: false }), locations: many('locations', 4) }, { posts: full });
   assert.ok(!r.plan.some((p) => p.group === 'partners' && p.action === 'schedule'), 'already at the cap: no more partner posts');
 });
@@ -268,7 +268,7 @@ test('buildPool: supply per group from fixtures (no network, nothing built yet)'
   const data = { spots: async () => [...mk(9, 'FR', 'FRANCE'), ...mk(3, 'CH', 'EUROPE')], conditionSpots: async () => [], conditions: async () => [], crossings: async () => [EC], partners: async () => PP };
   const p = await buildPool(data, { now: NOW });
   assert.equal(p.locations.filter((c) => c.key.startsWith('region:')).length, 4);       // FR 3 pages + CH 1
-  assert.equal(p.crossings.length, 3); assert.equal(p.partners.length, 2); assert.ok(p.explore.length === 1 && p.ocean.length === 1);
+  assert.equal(p.crossings.length, 3); assert.equal(p.partners.length, 4); assert.ok(p.explore.length === 1 && p.ocean.length === 1);
   assert.equal(p.clubsAndPlatform.length, 0);
 });
 

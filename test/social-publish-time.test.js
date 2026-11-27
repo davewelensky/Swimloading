@@ -23,17 +23,17 @@ test('BUILDER AND PUBLISH-TIME CHECK AGREE: every JAKED post that can be built a
 });
 test('every ordinary partner card that can be built also passes at publish time', async () => {
   const cards = partnerCards([MAURTEN, { ...MAURTEN, id: 'x', name: 'Soon Co', section: 'coming_soon' }]);
-  assert.deepEqual(cards.map((c) => c.partner.name), ['Maurten'], 'ordinary partners still need the active section');
-  for (const c of cards) assert.equal((await makeRecheck(restFor([MAURTEN]))(asRow(c), NOW)).ok, true);
+  assert.deepEqual(cards.map((c) => c.partner.name), ['Maurten', 'Soon Co'], 'a coming-soon partner is still a partner');
+  for (const c of cards) assert.equal((await makeRecheck(restFor([{ ...MAURTEN, id: c.partner.pageId, section: 'coming_soon', chip_state: 'soon' }]))(asRow(c), NOW)).ok, true);
 });
 test('a partner that stops being live is still refused at publish time, with the reason', async () => {
   const c = jakedAngles([JAKED]).posts[0];
-  for (const row of [{ ...JAKED, chip_state: 'soon' }, { ...JAKED, section: 'ended' }]) {
+  for (const row of [{ ...JAKED, chip_state: 'ended' }, { ...JAKED, section: 'withdrawn' }]) {
     const v = await makeRecheck(restFor([row]))(asRow(c), NOW);
     assert.equal(v.ok, false); assert.match(v.reason, /chip_state .*section/);
   }
   assert.equal((await makeRecheck(restFor([]))(asRow(c), NOW)).ok, false, 'row deleted');
-  assert.equal(partnerMayPost({ ...MAURTEN, section: 'coming_soon' }), false);
+  assert.equal(partnerMayPost({ ...MAURTEN, section: 'archived' }), false);
 });
 test('a post replaced by a reserve at publish time ALWAYS emails', async () => {
   const rows = new Map([['p1', { id: 'p1', source_key: 'jaked:about', status: 'SCHEDULED', scheduled_for: '2026-11-28T08:00:00+00:00', image_paths: ['a.jpg'], fb_caption: 'x' }],

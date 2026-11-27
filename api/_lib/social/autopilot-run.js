@@ -20,6 +20,19 @@ export function makeData({ store = null, snapshot = null, now = new Date() } = {
   const since = new Date(now.getTime() - 72 * 3600e3).toISOString();
   return {
     spots: getSpots, conditionSpots: getSpots,
+    // temp_logs for the spot-logbook series, paged. Derrick's / Big Bay accounts are excluded by id as well as by note.
+    spotLogs: async () => {
+      if (snapshot) return { logs: snapshot.temp_logs || [], excludedUsers: new Set(snapshot.excluded_users || []) };
+      if (!store) return { logs: [], excludedUsers: new Set() };
+      const hidden = await store.rest('profiles?select=id&or=(email.ilike.*bigbay*,email.ilike.*derrick*,full_name.ilike.*derrick*)');
+      const logs = [];
+      for (let offset = 0; offset < 60000; offset += 1000) {
+        const page = await store.rest(`temp_logs?select=spot_id,user_id,temp_c,logged_at,created_at,notes,location_source&temp_c=not.is.null&order=created_at,id&limit=1000&offset=${offset}`);
+        logs.push(...page);
+        if (page.length < 1000) break;
+      }
+      return { logs, excludedUsers: new Set(hidden.map((p) => p.id)) };
+    },
     crossings: async () => snapshot?.crossings || need('crossings?select=*&is_active=eq.true'),
     partners: async () => snapshot?.partner_pages || (store ? store.rest('partner_pages?select=*') : (() => { throw new Error('partner_pages needs SUPABASE_SERVICE_KEY (or --snapshot)'); })()),
     conditions: async () => snapshot?.conditions || (await dbGet(`spot_conditions_live?select=spot_id,water_temperature_c,observed_at,provider_code,provider_name,station_name,distance_km,is_primary,quality_code&water_temperature_c=not.is.null&is_primary=eq.true&observed_at=gte.${encodeURIComponent(since)}&limit=1000`)) || [],

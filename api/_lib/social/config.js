@@ -11,10 +11,11 @@ export const SOCIAL_DEFAULTS = {
   ],
   // Target share of posts. Targets, not quotas: a weak candidate is skipped, never padded in.
   // jaked: priority partner (Dave, 16 Nov 2026: push the partnership and sell the products). Its own share, on top of the 10% cap that applies to every other partner.
-  mix: { explore: 0.27, locations: 0.22, crossings: 0.13, ocean: 0.08, partners: 0.07, jaked: 0.15, clubsAndPlatform: 0.08 },
+  // 27 Nov 2026: all 11 partners are current, and spot pages add supply, so partners rise to 18% (JAKED separately at 12%).
+  mix: { explore: 0.22, locations: 0.25, crossings: 0.10, ocean: 0.08, partners: 0.18, jaked: 0.12, clubsAndPlatform: 0.05 },
   dedupeDays: 90,
   reserveMin: 6,                      // validated evergreen posts held back as fallback
-  partnerMaxShare: 0.10,              // never more than this share of recent posts (every partner except the priority one)
+  partnerMaxShare: 0.25,              // never more than this share of recent posts (every partner except the priority one)
   priorityPartnerMaxShare: 0.20,      // the priority partner (JAKED) has its own, higher ceiling; its target is mix.jaked
   media: {
     rotationPosts: 3,        // a photograph from the same session as any of the last N posts' photographs is skipped
