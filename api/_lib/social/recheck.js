@@ -4,7 +4,7 @@
 //   measured temps   still on record, still fresh   (conditionsRecheck)
 //   partners         still live and active          (partner_pages)
 import { revalidateEvents } from './validate.js';
-import { conditionsRecheck } from './series.js';
+import { conditionsRecheck, partnerMayPost } from './series.js';
 import { eventIdsOf } from './publisher.js';
 
 const FRESH = 'id,title,discipline,status,date_confirmed,start_date,verification_tier,official_url,event_venues(display_name,city,country_code)';
@@ -29,7 +29,9 @@ export function makeRecheck(rest) {
     const partnerIds = rowsOf(post, 'partner_pages');
     if (partnerIds.length) {
       const rows = await rest(`partner_pages?select=id,chip_state,section&id=in.(${partnerIds.join(',')})`);
-      if (!(rows || []).length || rows.some((r) => r.chip_state !== 'live' || r.section !== 'active')) return { ok: false, reason: 'partner is no longer live' };
+      const priority = /^jaked:/.test(post.source_key || post.sourceKey || '');
+      const bad = (rows || []).find((r) => !partnerMayPost(r, { priority }));
+      if (!(rows || []).length || bad) return { ok: false, reason: `partner is no longer live (chip_state ${bad?.chip_state ?? 'missing'}, section ${bad?.section ?? 'missing'})` };
     }
     return { ok: true };
   };

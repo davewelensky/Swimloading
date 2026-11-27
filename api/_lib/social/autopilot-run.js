@@ -51,7 +51,9 @@ export async function runWeekly({ store = null, snapshot = null, dry = true, now
     const history = hist.map((h) => ({ assetId: h.asset_id, usedAt: h.used_at }));
     const logo = fileUri(new URL('../../../icons/logo-wave.png', import.meta.url).pathname);
     realise = async (post, { slotIso, reserve, review, expiresAt, validateOpts }) => {
-      const r = await renderPost(post, { catalogue, history, now, slotIso, logo, validateOpts, ...(renderImpl ? { render: renderImpl } : {}) });
+      let r;
+      try { r = await renderPost(post, { catalogue, history, now, slotIso, logo, validateOpts, ...(renderImpl ? { render: renderImpl } : {}) }); }
+      catch (e) { console.error('autopilot: could not render', post.sourceKey, e.message); return { ok: false, reason: `render failed: ${String(e.message).slice(0, 120)}` }; }
       if (r.verdict.risk === 'BLOCKED') return { ok: false, reason: r.verdict.reasons.join('; ') };
       const dir = `${now.toISOString().slice(0, 10)}/${slugForPath(post.sourceKey)}`;
       const paths = r.images.map((_, i) => `${dir}/slide-${i + 1}.jpg`);

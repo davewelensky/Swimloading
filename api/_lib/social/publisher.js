@@ -97,6 +97,7 @@ export async function runPublisher({ store, meta, recheck = async () => ({ ok: t
     }
     await store.update(post.id, { status: 'REJECTED', review_reasons: [...(post.review_reasons || []), `publish-time check failed: ${reason}`] });
     await store.update(swap.id, { is_reserve: false, status: 'SCHEDULED', scheduled_for: post.scheduled_for });
+    await notify('Social post replaced at publish time', `Post ${post.source_key} failed its publish-time check (${reason}). Reserve post ${swap.source_key} went out in its slot instead. If this was not expected, check that source before it is scheduled again.`);
     post = { ...swap, is_reserve: false, status: 'SCHEDULED', scheduled_for: post.scheduled_for };
   }
 

@@ -208,7 +208,7 @@ export function crossingAngles(c) {
 // ── (e) Live partners from partner_pages ───────────────────────────────────
 /** Only chip_state 'live' in section 'active'. Claims are the row's own blurb, verbatim. status_note is internal and is never used. */
 export function partnerCards(rows) {
-  return rows.filter((r) => r.chip_state === 'live' && r.section === 'active' && r.blurb && r.hero_page).map((r) => {
+  return rows.filter((r) => partnerMayPost(r) && r.blurb && r.hero_page).map((r) => {
     const slug = slugify(r.name.replace(/\s*[×x]\s*Art of Endurance/i, ''));
     const logoFile = r.logo_url ? resolve(ROOT, r.logo_url.replace(/^\//, '')) : null;
     const src = (col) => ({ table: 'partner_pages', row: r.id, column: col });
@@ -268,10 +268,18 @@ export const JAKED_ANGLES = {
 };
 
 /** @param rows partner_pages rows. @returns { posts: [...], note } ; no posts (and a reason) unless JAKED is live in partner_pages. */
+/**
+ * May this partner be posted? ONE rule, used by the builders and by the publish-time check, so they can never disagree.
+ * Ordinary partners: chip_state live AND section active. The priority partner (JAKED): chip_state live is enough, because
+ * Dave approved pushing it while its row still sits in the `coming_soon` section (that column also drives the public site).
+ * Two JAKED posts were rejected at publish time on 17 and 26 Nov 2026 when these two rules differed.
+ */
+export const partnerMayPost = (row, { priority = false } = {}) => !!row && row.chip_state === 'live' && (priority ? ['active', 'coming_soon', undefined, null].includes(row.section) : row.section === 'active');
+
 export function jakedAngles(rows) {
   const row = (rows || []).find((r) => /jaked/i.test(r.name || ''));
   if (!row) return { posts: [], note: 'JAKED: no JAKED row in partner_pages, so no JAKED posts were built.' };
-  if (row.chip_state !== 'live') return { posts: [], note: `JAKED: partner_pages chip_state is "${row.chip_state}", not "live", so no JAKED posts were built.` };
+  if (!partnerMayPost(row, { priority: true })) return { posts: [], note: `JAKED: partner_pages chip_state is "${row.chip_state}" (section "${row.section}"), not "live", so no JAKED posts were built.` };
   const logo = row.logo_url && existsSync(resolve(ROOT, row.logo_url.replace(/^\//, ''))) ? row.logo_url.replace(/^\//, '') : 'icons/jaked-logo.png';
   const posts = Object.entries(JAKED_ANGLES).map(([angle, a]) => {
     const facts = [fact('name', 'JAKED', { table: 'partner_pages', row: row.id, column: 'name' }), ...a.facts()];
