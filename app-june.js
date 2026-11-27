@@ -6,7 +6,8 @@
         // each month. Do NOT create app-july.js / app-august.js. Do NOT assume the
         // content is stale just because the month changed — read what it serves now.
         //
-        //   CURRENTLY SERVING: October 2026 · Maurten Gel 100 3-pack draw (third month running with Maurten)
+        //   CURRENTLY SERVING: The 12 Swims of Christmas · FORM Smart Swim 2 · 1 Dec 2026 to 6 Jan 2027
+        //   (JC_EDITION_MAURTEN below is the fallback copy, last used for October 2026)
         //   (September 2026 winner: Deon Odendaal — replacement draw, verified and approved 1 Oct 2026.
         //   August 2026 was Maurten too — winner: see site-config.js challenges['2026-08'], not yet recorded there.
         //   July 2026 was Blu Smooth MK2 Comp — winner: rodhols (later re-drawn: Rod Holshausen, see site-config.js).
@@ -18,6 +19,13 @@
         //
         // The challenge lives in FOUR places that must stay in step every month —
         // see CLAUDE.md → "Site Sync" → "the monthly challenge lives in FOUR places".
+        //
+        // EDITIONS (added Nov 2026): the copy lives in jcEd(). An edition with its own
+        // date window (The 12 Swims of Christmas · FORM · 1 Dec 2026 to 6 Jan 2027)
+        // takes over at 00:00 SAST on its first day with no deploy, and counts swim
+        // days straight from temp_logs (get_form_challenge_standings), so a missed
+        // client call can never lose a day. Preview before launch, testers only:
+        // /app?preview=form
         //
         // All scoring goes through award_challenge_points RPC (Postgres SECURITY DEFINER).
         // The RPC inserts into challenge_points_audit (audit trail) and
@@ -51,6 +59,145 @@
             streak_7day:    '7-day logging streak',
         };
 
+        // ── Editions ────────────────────────────────────────────────────────────────
+
+        const JC_FORM_WINDOW = { start: '2026-12-01', end: '2027-01-06' };
+        const JC_PREVIEW_FORM = /[?&]preview=form(&|$)/.test(window.location.search);
+        const JC_APP_URL = 'https://swimloading.com/app';
+
+        const JC_EDITION_MAURTEN = {
+            key: 'maurten',
+            rpc: 'get_challenge_leaders',
+            name: 'October Challenge',
+            sponsor: 'Maurten',
+            target: 10,
+            todayPrompt: 'Log 10 times this month to enter',
+            logo: '<img src="/icons/Maurten%20logo.jpg" alt="Maurten" style="max-width:100%;max-height:100%;object-fit:contain;display:block;">',
+            countdownSub: 'Box of Maurten Gel 100s · supplied by Art of Endurance',
+            prizeTitle: 'Maurten Gel 100 3-pack',
+            prizeSupplier: 'Supplied by Art of Endurance',
+            prizeRule: 'Log 10 to enter · every 10 logs = another entry',
+            unit: n => n === 1 ? 'log' : 'logs',
+            entryWord: n => n === 1 ? 'ticket' : 'tickets',
+            inDrawSub: 'Keep logging to add tickets',
+            emptyText: 'Log 10 swims this month to enter the draw, and every 10 logs is another entry',
+            boardHeadline: 'Log. Swim. Share. Win.',
+            boardIntro: 'Log 10 swims to enter the draw. Every 10 logs, group swim, and 7-day streak earns another entry. The more you swim, the better your odds.',
+            boardPrize: 'Grand Prize: Maurten Gel 100s',
+            boardPrizeSub: 'Box of Gel 100s · supplied by Art of Endurance',
+            rulesTitle: 'How to earn points',
+            showPoints: true,
+            rulesHtml: `<span style="color:#7dd3fc;font-weight:700;">Winning the Gel 100s:</span> points set your rank here, but the prize is a draw. Log 10 swims to enter, then every 10 logs, group swim, and 7-day streak adds another entry. Winner drawn 1 October.<br>
+                        <span style="color:rgba(100,116,139,0.7);">Fair play rules apply. Draw eligibility requires genuine participation.</span>`,
+            inDrawTitle: "You're in the October draw",
+            inDrawDetail: n => `You have <strong style="color:var(--text);">${n} ${n === 1 ? 'ticket' : 'tickets'}</strong> in the hat. Every 10 more logs, group swim, or 7-day streak adds another.`,
+            poolLine: (swimmers, tickets) => `<strong style="color:#7dd3fc;font-size:16px;">${swimmers}</strong> ${swimmers === 1 ? 'swimmer' : 'swimmers'} in the draw &middot; <strong style="color:#7dd3fc;">${tickets}</strong> ${tickets === 1 ? 'ticket' : 'tickets'} in the hat`,
+            poolNote: "It's a random draw for the Gel 100s, and every ticket has an equal shot at each pick.",
+            emptyWall: "No one's crossed 10 logs yet.<br>Be the first swimmer in the October draw.",
+            share: {
+                tempAt: where => `I just logged ${where} on SwimLoading. October Challenge is live! ${JC_APP_URL}`,
+                temp: `Just shared swim conditions on SwimLoading. October Challenge is live! ${JC_APP_URL}`,
+                joined: spot => `I joined a community swim${spot} on SwimLoading. Join the October Challenge! ${JC_APP_URL}`,
+                inDraw: `I'm in the October draw for Maurten Gel 100s on SwimLoading! Log 10 swims and you're in too. ${JC_APP_URL}`,
+                open: `October Challenge is live on SwimLoading! Log. Swim. Win Maurten Gel 100s. ${JC_APP_URL}`,
+            },
+        };
+
+        const JC_EDITION_FORM = {
+            key: 'form',
+            rpc: 'get_form_challenge_standings',
+            window: JC_FORM_WINDOW,
+            name: '12 Swims of Christmas',
+            label: '12 Swims of Christmas',
+            sponsor: 'FORM',
+            target: 12,
+            todayPrompt: 'Swim on 12 days by 6 January to enter',
+            logo: '<span style="font-family:\'Bebas Neue\',sans-serif;font-size:17px;letter-spacing:1.5px;color:#080f1a;line-height:1;">FORM</span>',
+            countdownSub: 'FORM Smart Swim 2 goggles',
+            prizeTitle: 'FORM Smart Swim 2 goggles',
+            prizeSupplier: 'Supplied by FORM · 1 winner',
+            prizeRule: 'Swim on 12 days to enter · bonus entries for Christmas and New Year',
+            unit: n => n === 1 ? 'swim day' : 'swim days',
+            entryWord: n => n === 1 ? 'entry' : 'entries',
+            inDrawSub: "Christmas Day and New Year's Day swims add an entry each",
+            emptyText: 'Swim on 12 different days from 1 December to 6 January to enter the draw',
+            boardHeadline: '12 swim days. One pair of smart goggles.',
+            boardIntro: "Swim on 12 different days between 1 December and 6 January, log each one, and you are in the draw for a pair of FORM Smart Swim 2 goggles. Swim on Christmas Day or New Year's Day for bonus entries.",
+            boardPrize: 'Prize: FORM Smart Swim 2 goggles',
+            boardPrizeSub: 'One pair · delivered to a South African address',
+            rulesTitle: 'Rules',
+            showPoints: false,
+            rulesHtml: `Swim on 12 different days from 1 December 2026 to 6 January 2027 (South African time) and log each swim on SwimLoading.<br>
+                        A swim you log yourself counts only if you log it the day you swam. A Strava swim counts on the day of the activity, and can be imported for up to 48 hours.<br>
+                        Every swim must be logged by midnight on 6 January.<br>
+                        12 days gives you 1 entry. A swim on Christmas Day adds 1, and a swim on New Year's Day adds 1: 3 entries at most. Bonus entries count once you have 12 days.<br>
+                        The prize is one pair of FORM Smart Swim 2 goggles, delivered to a South African address.<br>
+                        The organiser and their household cannot win. The winner is drawn at random on 7 January 2027.<br>
+                        <span style="color:rgba(100,116,139,0.7);">Fair play rules apply. Only genuine swims count.</span>`,
+            inDrawTitle: "You're in the FORM draw",
+            inDrawDetail: n => n >= 3
+                ? 'You have <strong style="color:var(--text);">3 entries</strong>, the most anyone can have.'
+                : `You have <strong style="color:var(--text);">${n} ${n === 1 ? 'entry' : 'entries'}</strong>. A Christmas Day or New Year's Day swim adds one.`,
+            poolLine: (swimmers, entries) => `<strong style="color:#7dd3fc;font-size:16px;">${swimmers}</strong> ${swimmers === 1 ? 'swimmer' : 'swimmers'} in the draw &middot; <strong style="color:#7dd3fc;">${entries}</strong> ${entries === 1 ? 'entry' : 'entries'}`,
+            poolNote: 'One random draw on 7 January for one pair of goggles.',
+            emptyWall: 'No one has reached 12 swim days yet.<br>Be the first swimmer in the draw.',
+            tracker: jcFormTracker,
+            share: {
+                tempAt: where => `I just logged ${where} on SwimLoading. The 12 Swims of Christmas is on! ${JC_APP_URL}`,
+                temp: `Just shared swim conditions on SwimLoading. The 12 Swims of Christmas is on! ${JC_APP_URL}`,
+                joined: spot => `I joined a community swim${spot} on SwimLoading. Take on the 12 Swims of Christmas! ${JC_APP_URL}`,
+                inDraw: `I've done my 12 Swims of Christmas and I'm in the draw for FORM Smart Swim 2 goggles on SwimLoading. ${JC_APP_URL}`,
+                open: `The 12 Swims of Christmas: swim on 12 days from 1 December to 6 January to be in the draw for FORM Smart Swim 2 goggles. ${JC_APP_URL}`,
+            },
+        };
+
+        // Twelve boxes to tick off, plus the two bonus days.
+        function jcFormTracker(score) {
+            const days = score?.logs || 0;
+            const boxes = Array.from({ length: 12 }, (_, i) => {
+                const done = i < days;
+                return `<div style="height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;${done
+                    ? 'background:linear-gradient(135deg,#38bdf8,#0284c7);color:#080f1a;border:1px solid #38bdf8;'
+                    : 'background:rgba(255,255,255,0.03);color:#475569;border:1px dashed rgba(125,211,252,0.28);'}">${done ? '<i data-lucide="check" style="width:15px;height:15px;"></i>' : i + 1}</div>`;
+            }).join('');
+            const bonus = (done, icon, label) => `<div style="flex:1;display:flex;align-items:center;gap:7px;padding:8px 10px;border-radius:10px;font-size:11px;font-weight:700;line-height:1.3;${done
+                ? 'background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.4);color:#10b981;'
+                : 'background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.09);color:#94a3b8;'}"><i data-lucide="${done ? 'check-circle' : icon}" style="width:15px;height:15px;flex-shrink:0;"></i><span>${label}</span></div>`;
+            return `<div class="jc-tracker" style="margin-bottom:12px;">
+              <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:8px;">${boxes}</div>
+              <div style="display:flex;gap:6px;">
+                ${bonus(score?.christmas, 'gift', 'Christmas Day<br>+1 entry')}
+                ${bonus(score?.newYear, 'sparkles', "New Year's Day<br>+1 entry")}
+              </div>
+            </div>`;
+        }
+
+        function jcSastDate(now = new Date()) {
+            // en-CA formats as YYYY-MM-DD
+            return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Johannesburg', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+        }
+
+        function jcIsTester() {
+            return !!(currentUser && (jcConfig?.tester_ids || []).includes(currentUser.id));
+        }
+
+        function jcEd() {
+            const today = jcSastDate();
+            if (today >= JC_FORM_WINDOW.start && today <= JC_FORM_WINDOW.end) return JC_EDITION_FORM;
+            if (JC_PREVIEW_FORM && jcIsTester()) return JC_EDITION_FORM;
+            return JC_EDITION_MAURTEN;
+        }
+
+        // The overlay header is static HTML in index.html; keep it on the same edition.
+        function jcStampOverlayHeader() {
+            const ed = jcEd();
+            const set = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+            set('jcOverlayLogo', ed.logo);
+            set('jcOverlayPrize', ed.prizeTitle);
+            set('jcOverlaySupplier', ed.prizeSupplier);
+            set('jcOverlayRule', ed.prizeRule);
+        }
+
         // ── Init & config ───────────────────────────────────────────────────────────
 
         async function jcInit() {
@@ -74,6 +221,8 @@
 
         function jcIsActive() {
             if (!jcConfig || !jcConfig.enabled) return false;
+            // A windowed edition carries its own dates (jcEd already checked them).
+            if (jcEd().window) return true;
             if (jcConfig.test_mode) {
                 if (!currentUser) return false;
                 const ids = jcConfig.tester_ids || [];
@@ -86,6 +235,13 @@
         }
 
         function jcDateRange() {
+            const win = jcEd().window;
+            if (win) {
+                return {
+                    start: new Date(win.start + 'T00:00:00+02:00'),
+                    end:   new Date(win.end   + 'T23:59:59+02:00'),
+                };
+            }
             const launch = jcConfig?.launch_date || '2026-06-01';
             const close  = jcConfig?.end_date    || '2026-06-30';
             return {
@@ -137,6 +293,11 @@
                     const score = await jcGetMyScore();
                     jcShowPostActionFeedback(actionType, result.points, result.draw_entries, score, opts);
                     jcLoadDashboardCard();
+                } else if (jcEd().window && actionType === 'temp_log') {
+                    // Swim days come from temp_logs, so a second log in a day (no points) still gets progress.
+                    const score = await jcGetMyScore();
+                    jcShowPostActionFeedback(actionType, null, null, score, opts);
+                    jcLoadDashboardCard();
                 } else if (result?.reason === 'already_earned_today') {
                     // Silent — user already knows they logged today
                 } else if (result?.reason === 'own_swim') {
@@ -153,10 +314,11 @@
         // ── Post-action feedback ─────────────────────────────────────────────────────
 
         function jcShowPostActionFeedback(actionType, pts, drawEntries, score, opts) {
-            const parts = [`+${pts} pts`];
-            if (score?.inDraw)            parts.push(`In the draw · ${score.entries} ${score.entries === 1 ? 'ticket' : 'tickets'}`);
-            else if (score?.logs != null) parts.push(`${score.logs}/10 logs to enter`);
-            showToast(parts.join(' · '), 'success');
+            const ed = jcEd();
+            const parts = ed.showPoints && pts != null ? [`+${pts} pts`] : [];
+            if (score?.inDraw)            parts.push(`In the draw · ${score.entries} ${ed.entryWord(score.entries)}`);
+            else if (score?.logs != null) parts.push(`${score.logs}/${ed.target} ${ed.unit(ed.target)} to enter`);
+            if (parts.length) showToast(parts.join(' · '), 'success');
 
             if (['temp_log', 'create_swim', 'join_swim'].includes(actionType)) {
                 setTimeout(() => jcShowSharePrompt(actionType, opts, score), 1400);
@@ -166,20 +328,18 @@
         // ── WhatsApp share ───────────────────────────────────────────────────────────
 
         function jcBuildShareText(actionType, opts, score) {
-            const base = 'https://swimloading.com/app';
+            const share = jcEd().share;
             switch (actionType) {
                 case 'temp_log':
                     return opts.spotName
-                        ? `I just logged ${opts.temp ? opts.temp + '°C at ' : 'conditions at '}${opts.spotName} on SwimLoading. October Challenge is live! ${base}`
-                        : `Just shared swim conditions on SwimLoading. October Challenge is live! ${base}`;
+                        ? share.tempAt(`${opts.temp ? opts.temp + '°C at ' : 'conditions at '}${opts.spotName}`)
+                        : share.temp;
                 case 'create_swim':
-                    return `I just created a community swim${opts.spotName ? ' at ' + opts.spotName : ''} on SwimLoading. Join me! ${base}`;
+                    return `I just created a community swim${opts.spotName ? ' at ' + opts.spotName : ''} on SwimLoading. Join me! ${JC_APP_URL}`;
                 case 'join_swim':
-                    return `I joined a community swim${opts.spotName ? ' at ' + opts.spotName : ''} on SwimLoading. Join the October Challenge! ${base}`;
+                    return share.joined(opts.spotName ? ' at ' + opts.spotName : '');
                 default:
-                    return score?.inDraw
-                        ? `I'm in the October draw for Maurten Gel 100s on SwimLoading! Log 10 swims and you're in too. ${base}`
-                        : `October Challenge is live on SwimLoading! Log. Swim. Win Maurten Gel 100s. ${base}`;
+                    return score?.inDraw ? share.inDraw : share.open;
             }
         }
 
@@ -195,7 +355,7 @@
                  style="display:flex;align-items:center;gap:10px;padding:11px 14px;background:rgba(37,211,102,0.1);border:1px solid rgba(37,211,102,0.28);border-radius:12px;cursor:pointer;margin-top:8px;">
               <svg width="17" height="17" viewBox="0 0 24 24" fill="#25d366" style="flex-shrink:0;"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
               <span style="font-size:13px;font-weight:600;color:#25d366;flex:1;">Share to WhatsApp</span>
-              <span style="font-size:11px;color:var(--text-secondary);">+${JC_POINTS.whatsapp_share} pts</span>
+              ${jcEd().showPoints ? `<span style="font-size:11px;color:var(--text-secondary);">+${JC_POINTS.whatsapp_share} pts</span>` : ''}
               <button onclick="event.stopPropagation();this.closest('[onclick]').remove();"
                 aria-label="Dismiss" style="background:none;border:none;color:var(--text-secondary);font-size:16px;cursor:pointer;padding:0;line-height:1;margin-left:4px;">&times;</button>
             </div>`;
@@ -217,7 +377,7 @@
         async function jcGetMyScore() {
             if (!currentUser || !jcIsActive()) return null;
             try {
-                const { data } = await supabaseClient.rpc('get_challenge_leaders');
+                const { data } = await supabaseClient.rpc(jcEd().rpc);
                 const rows = data || [];
                 const me   = rows.find(r => r.user_id === currentUser.id) || null;
                 const pool = rows.filter(r => r.qualified_for_draw && !r.disqualified).length;
@@ -225,6 +385,8 @@
                 jcMyScore = {
                     points:    me?.total_points || 0,
                     logs:      me?.temp_logs_rewarded || 0,
+                    christmas: !!me?.christmas_swim,
+                    newYear:   !!me?.new_year_swim,
                     entries:   me?.draw_entries || 0,
                     inDraw:    !!(me && me.qualified_for_draw && !me.disqualified),
                     poolCount: pool,
@@ -251,9 +413,9 @@
                     <div onclick="showPage('leaderboard')" style="cursor:pointer;background:linear-gradient(135deg,#0c1520,#080f1a);border:1px solid rgba(56,189,248,0.3);border-radius:16px;overflow:hidden;">
                       <div style="height:3px;background:linear-gradient(90deg,#0284c7,#38bdf8,#7dd3fc);"></div>
                       <div style="padding:16px;">
-                        <div style="font-size:11px;font-weight:700;color:#38bdf8;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">October Challenge</div>
+                        <div style="font-size:11px;font-weight:700;color:#38bdf8;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">${jcEd().name}</div>
                         <div style="font-weight:800;font-size:18px;color:#f1f5f9;">Starts in ${daysAway} day${daysAway !== 1 ? 's' : ''}</div>
-                        <div style="font-size:12px;color:#64748b;margin-top:4px;">Box of Maurten Gel 100s · supplied by Art of Endurance</div>
+                        <div style="font-size:12px;color:#64748b;margin-top:4px;">${jcEd().countdownSub}</div>
                       </div>
                     </div>`;
                     initIcons();
@@ -284,6 +446,7 @@
         }
 
         function jcRenderDashboardCard(score, daysLeft, recent) {
+            const ed = jcEd();
             const testBadge = jcConfig?.test_mode
                 ? `<span style="background:rgba(245,158,11,0.25);color:#f59e0b;font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:0.5px;margin-left:6px;vertical-align:middle;">TEST</span>`
                 : '';
@@ -297,28 +460,28 @@
                 <div style="background:linear-gradient(135deg,rgba(16,185,129,0.1),rgba(6,95,70,0.06));border:1px solid rgba(16,185,129,0.3);border-radius:12px;padding:14px 16px;margin-bottom:12px;display:flex;align-items:center;gap:12px;">
                   <div style="flex:1;">
                     <div style="font-size:17px;font-weight:900;color:#10b981;line-height:1.1;display:flex;align-items:center;gap:5px;"><i data-lucide="check-circle" style="width:16px;height:16px;"></i>You're in the draw</div>
-                    <div style="font-size:12px;color:#64748b;margin-top:4px;">Keep logging to add tickets</div>
+                    <div style="font-size:12px;color:#64748b;margin-top:4px;">${ed.inDrawSub}</div>
                   </div>
                   <div style="text-align:right;">
                     <div style="font-size:26px;font-weight:900;color:#38bdf8;line-height:1;">${tix}</div>
-                    <div style="font-size:11px;color:#475569;margin-top:2px;">${tix === 1 ? 'ticket' : 'tickets'}</div>
+                    <div style="font-size:11px;color:#475569;margin-top:2px;">${ed.entryWord(tix)}</div>
                   </div>
                 </div>`;
             } else if (myLogs > 0) {
-                const toGo = Math.max(0, 10 - myLogs);
-                const pct  = Math.min(100, myLogs * 10);
+                const toGo = Math.max(0, ed.target - myLogs);
+                const pct  = Math.min(100, Math.round(myLogs * 100 / ed.target));
                 rankBlock = `
                 <div style="background:linear-gradient(135deg,rgba(56,189,248,0.08),rgba(14,116,144,0.06));border:1px solid rgba(56,189,248,0.22);border-radius:12px;padding:14px 16px;margin-bottom:12px;">
                   <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
-                    <div style="font-size:15px;font-weight:800;color:#f1f5f9;">${myLogs}/10 logs</div>
+                    <div style="font-size:15px;font-weight:800;color:#f1f5f9;">${myLogs}/${ed.target} ${ed.unit(ed.target)}</div>
                     <div style="font-size:12px;color:#38bdf8;font-weight:700;">${toGo} to enter the draw</div>
                   </div>
-                  <div style="height:8px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#0284c7,#38bdf8);border-radius:4px;"></div></div>
+                  ${ed.tracker ? '' : `<div style="height:8px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#0284c7,#38bdf8);border-radius:4px;"></div></div>`}
                 </div>`;
             } else {
                 rankBlock = `
                 <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:13px 16px;margin-bottom:12px;">
-                  <div style="font-size:13px;color:#475569;line-height:1.5;">Log 10 swims this month to enter the draw, and every 10 logs is another entry</div>
+                  <div style="font-size:13px;color:#475569;line-height:1.5;">${ed.emptyText}</div>
                 </div>`;
             }
 
@@ -346,7 +509,7 @@
               <div style="padding:16px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
                   <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.8px;">
-                    <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#10b981;margin-right:5px;vertical-align:middle;box-shadow:0 0 6px rgba(16,185,129,0.6);"></span>October Challenge · Live${testBadge}
+                    <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#10b981;margin-right:5px;vertical-align:middle;box-shadow:0 0 6px rgba(16,185,129,0.6);"></span>${ed.name} · Live${testBadge}
                   </div>
                   <div style="font-size:12px;font-weight:700;color:#38bdf8;">${daysLeft}d left</div>
                 </div>
@@ -354,24 +517,25 @@
                 <div style="border:1px solid rgba(56,189,248,0.3);border-radius:12px;overflow:hidden;margin-bottom:14px;background:linear-gradient(135deg,#04263b,#0d1728);">
                   <div style="padding:14px;display:flex;align-items:center;gap:14px;">
                     <div style="flex-shrink:0;width:52px;height:52px;border-radius:10px;background:#fff;display:flex;align-items:center;justify-content:center;padding:8px;">
-                      <img src="/icons/Maurten%20logo.jpg" alt="Maurten" style="max-width:100%;max-height:100%;object-fit:contain;display:block;">
+                      ${ed.logo}
                     </div>
                     <div style="flex:1;min-width:0;">
-                      <div style="font-size:13px;font-weight:900;color:#7dd3fc;letter-spacing:-0.2px;">Maurten Gel 100 3-pack</div>
-                      <div style="font-size:11px;color:#bae6fd;font-weight:600;margin-top:2px;">Supplied by Art of Endurance · Grand prize</div>
-                      <div style="font-size:10px;color:rgba(186,230,253,0.75);margin-top:2px;">Log 10 to enter · every 10 logs = another entry</div>
+                      <div style="font-size:13px;font-weight:900;color:#7dd3fc;letter-spacing:-0.2px;">${ed.prizeTitle}</div>
+                      <div style="font-size:11px;color:#bae6fd;font-weight:600;margin-top:2px;">${ed.prizeSupplier}</div>
+                      <div style="font-size:10px;color:rgba(186,230,253,0.75);margin-top:2px;">${ed.prizeRule}</div>
                     </div>
                     <i data-lucide="trophy" style="width:20px;height:20px;color:#38bdf8;flex-shrink:0;"></i>
                   </div>
                 </div>
 
                 ${rankBlock}
+                ${ed.tracker ? ed.tracker(score) : ''}
 
                 ${liveRow}
 
                 <div style="display:flex;align-items:center;gap:8px;padding:11px 14px;border-radius:10px;background:rgba(56,189,248,0.07);border:1px solid rgba(56,189,248,0.25);">
                   <i data-lucide="activity" style="width:15px;height:15px;color:#38bdf8;"></i>
-                  <span style="font-size:13px;font-weight:700;color:#38bdf8;">View live feed + leaderboard</span>
+                  <span style="font-size:13px;font-weight:700;color:#38bdf8;">${ed.window ? 'View live feed + who is in' : 'View live feed + leaderboard'}</span>
                   <i data-lucide="chevron-right" style="width:14px;height:14px;color:#38bdf8;margin-left:auto;"></i>
                 </div>
               </div>
@@ -386,8 +550,9 @@
             if (!el) return;
             await jcInit();
             if (!jcIsActive()) return;
+            const ed = jcEd();
 
-            el.innerHTML = `<div style="text-align:center;padding:14px;color:var(--text-secondary);font-size:13px;">Loading October Challenge…</div>`;
+            el.innerHTML = `<div style="text-align:center;padding:14px;color:var(--text-secondary);font-size:13px;">Loading ${ed.name}…</div>`;
 
             try {
                 const { start, end } = jcDateRange();
@@ -395,7 +560,7 @@
                 const daysLeft = Math.max(0, Math.ceil((end - now) / 86400000));
 
                 // Use get_challenge_leaders RPC for authoritative leaderboard
-                const { data: leaders, error: lbErr } = await supabaseClient.rpc('get_challenge_leaders');
+                const { data: leaders, error: lbErr } = await supabaseClient.rpc(jcEd().rpc);
                 if (lbErr) throw lbErr;
 
                 const sorted = (leaders || []);
@@ -411,9 +576,9 @@
                 <div style="background:linear-gradient(135deg,rgba(14,116,144,0.1),rgba(125,211,252,0.06));border:1px solid rgba(125,211,252,0.3);border-radius:14px;padding:18px;margin-bottom:4px;">
                   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
                     <div>
-                      <div style="font-size:10px;color:#7dd3fc;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;margin-bottom:3px;">October Challenge${testBadge}</div>
-                      <div style="font-weight:800;font-size:17px;color:var(--text);line-height:1.2;">Log. Swim. Share. Win.</div>
-                      <div style="font-size:12px;color:var(--text-secondary);margin-top:3px;line-height:1.4;">Log 10 swims to enter the draw. Every 10 logs, group swim, and 7-day streak earns another entry. The more you swim, the better your odds.</div>
+                      <div style="font-size:10px;color:#7dd3fc;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;margin-bottom:3px;">${ed.name}${testBadge}</div>
+                      <div style="font-weight:800;font-size:17px;color:var(--text);line-height:1.2;">${ed.boardHeadline}</div>
+                      <div style="font-size:12px;color:var(--text-secondary);margin-top:3px;line-height:1.4;">${ed.boardIntro}</div>
                     </div>
                     <div style="background:rgba(125,211,252,0.15);color:#7dd3fc;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;">${daysLeft}d left</div>
                   </div>
@@ -422,8 +587,8 @@
                   <div style="margin-bottom:14px;">
                     <div style="background:linear-gradient(135deg,rgba(56,189,248,0.12),rgba(2,132,199,0.07));border:1px solid rgba(56,189,248,0.3);border-radius:8px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;">
                       <div>
-                        <div style="font-size:12px;font-weight:700;color:#7dd3fc;">Grand Prize: Maurten Gel 100s</div>
-                        <div style="font-size:11px;color:#38bdf8;margin-top:2px;">Box of Gel 100s · supplied by Art of Endurance</div>
+                        <div style="font-size:12px;font-weight:700;color:#7dd3fc;">${ed.boardPrize}</div>
+                        <div style="font-size:11px;color:#38bdf8;margin-top:2px;">${ed.boardPrizeSub}</div>
                       </div>
                       <div style="font-size:11px;font-weight:700;color:#7dd3fc;white-space:nowrap;margin-left:12px;">1 winner</div>
                     </div>
@@ -440,18 +605,17 @@
                   <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-top:12px;">
                     <div onclick="const b=this.nextElementSibling;b.style.display=b.style.display==='block'?'none':'block';this.querySelector('i').style.transform=b.style.display==='block'?'rotate(180deg)':'';"
                          style="cursor:pointer;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;background:rgba(15,23,42,0.4);">
-                      <div style="font-size:13px;font-weight:700;color:var(--text);">How to earn points</div>
+                      <div style="font-size:13px;font-weight:700;color:var(--text);">${ed.rulesTitle}</div>
                       <i data-lucide="chevron-down" style="width:15px;height:15px;color:var(--text-secondary);transition:transform 0.2s;"></i>
                     </div>
                     <div style="display:none;padding:12px 14px;background:rgba(15,23,42,0.3);border-top:1px solid var(--border);">
-                      ${Object.entries(JC_ACTION_LABELS).map(([k, label]) => `
+                      ${!ed.showPoints ? '' : Object.entries(JC_ACTION_LABELS).map(([k, label]) => `
                         <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
                           <span style="font-size:13px;color:var(--text);">${label}</span>
                           <span style="font-size:13px;font-weight:700;color:var(--ocean-light);white-space:nowrap;margin-left:12px;">+${JC_POINTS[k]}</span>
                         </div>`).join('')}
                       <div style="margin-top:10px;font-size:11px;color:var(--text-secondary);line-height:1.6;">
-                        <span style="color:#7dd3fc;font-weight:700;">Winning the Gel 100s:</span> points set your rank here, but the prize is a draw. Log 10 swims to enter, then every 10 logs, group swim, and 7-day streak adds another entry. Winner drawn 1 October.<br>
-                        <span style="color:rgba(100,116,139,0.7);">Fair play rules apply. Draw eligibility requires genuine participation.</span>
+                        ${ed.rulesHtml}
                       </div>
                     </div>
                   </div>
@@ -465,7 +629,7 @@
                 initIcons();
             } catch (e) {
                 console.warn('jcLoadBoardSection error:', e);
-                el.innerHTML = `<div style="text-align:center;color:var(--text-secondary);padding:16px;">Could not load October Challenge</div>`;
+                el.innerHTML = `<div style="text-align:center;color:var(--text-secondary);padding:16px;">Could not load ${ed.name}</div>`;
             }
         }
 
@@ -477,6 +641,7 @@
         // wall), never a competitive ranking. Nobody should look at it and feel they've
         // already lost. (sorted = get_challenge_leaders rows.)
         function jcRenderDrawView(sorted) {
+            const ed      = jcEd();
             const rows    = sorted || [];
             const inDraw  = rows.filter(r => r.qualified_for_draw && !r.disqualified);
             const tickets = inDraw.reduce((s, r) => s + (r.draw_entries || 0), 0);
@@ -484,28 +649,29 @@
             const myLogs  = me?.temp_logs_rewarded || 0;
             const myTix   = me?.draw_entries || 0;
             const iAmIn   = !!(me && me.qualified_for_draw && !me.disqualified);
+            const myScore = { logs: myLogs, christmas: !!me?.christmas_swim, newYear: !!me?.new_year_swim };
 
             // 1. Your own status — the reachable personal goal
             let mine = '';
             if (iAmIn) {
                 mine = `<div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.3);border-radius:12px;padding:14px 16px;margin-bottom:14px;">
-                  <div style="font-size:15px;font-weight:800;color:#10b981;display:flex;align-items:center;gap:5px;"><i data-lucide="check-circle" style="width:15px;height:15px;"></i>You're in the October draw</div>
-                  <div style="font-size:12px;color:var(--text-secondary);margin-top:3px;line-height:1.5;">You have <strong style="color:var(--text);">${myTix} ${myTix === 1 ? 'ticket' : 'tickets'}</strong> in the hat. Every 10 more logs, group swim, or 7-day streak adds another.</div>
+                  <div style="font-size:15px;font-weight:800;color:#10b981;display:flex;align-items:center;gap:5px;"><i data-lucide="check-circle" style="width:15px;height:15px;"></i>${ed.inDrawTitle}</div>
+                  <div style="font-size:12px;color:var(--text-secondary);margin-top:3px;line-height:1.5;">${ed.inDrawDetail(myTix)}</div>
                 </div>`;
             } else if (currentUser) {
-                const toGo = Math.max(0, 10 - myLogs);
-                const pct  = Math.min(100, myLogs * 10);
+                const toGo = Math.max(0, ed.target - myLogs);
+                const pct  = Math.min(100, Math.round(myLogs * 100 / ed.target));
                 mine = `<div style="background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.28);border-radius:12px;padding:14px 16px;margin-bottom:14px;">
-                  <div style="font-size:14px;font-weight:800;color:var(--text);">${myLogs}/10 logs to enter the draw</div>
-                  <div style="height:7px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden;margin:8px 0 6px;"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#0284c7,#38bdf8);border-radius:4px;"></div></div>
-                  <div style="font-size:12px;color:#38bdf8;font-weight:600;">${toGo > 0 ? toGo + ' more ' + (toGo === 1 ? 'log' : 'logs') + " and you're in. Everyone in the draw has a real shot" : "You're in!"}</div>
+                  <div style="font-size:14px;font-weight:800;color:var(--text);">${myLogs}/${ed.target} ${ed.unit(ed.target)} to enter the draw</div>
+                  ${ed.tracker ? '<div style="height:8px;"></div>' : `<div style="height:7px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden;margin:8px 0 6px;"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#0284c7,#38bdf8);border-radius:4px;"></div></div>`}
+                  <div style="font-size:12px;color:#38bdf8;font-weight:600;">${toGo > 0 ? toGo + ' more ' + ed.unit(toGo) + " and you're in. Everyone in the draw has a real shot" : "You're in!"}</div>
                 </div>`;
             }
 
             // 2. The pool — belonging, not hierarchy
             const pool = `<div style="text-align:center;padding:2px 0 12px;">
-              <div style="font-size:13px;color:var(--text);"><strong style="color:#7dd3fc;font-size:16px;">${inDraw.length}</strong> ${inDraw.length === 1 ? 'swimmer' : 'swimmers'} in the draw &middot; <strong style="color:#7dd3fc;">${tickets}</strong> ${tickets === 1 ? 'ticket' : 'tickets'} in the hat</div>
-              <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;line-height:1.5;">It's a random draw for the Gel 100s, and every ticket has an equal shot at each pick.</div>
+              <div style="font-size:13px;color:var(--text);">${ed.poolLine(inDraw.length, tickets)}</div>
+              <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;line-height:1.5;">${ed.poolNote}</div>
             </div>`;
 
             // 3. Who's in — avatar wall, no ranking
@@ -519,10 +685,12 @@
                 wall = `<div style="font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.7px;margin:4px 0 10px;">In the draw</div>
                   <div style="display:flex;flex-wrap:wrap;gap:7px;">${avatars}</div>`;
             } else {
-                wall = `<div style="padding:20px 16px;text-align:center;font-size:13px;color:var(--text-secondary);line-height:1.6;">No one's crossed 10 logs yet.<br>Be the first swimmer in the October draw.</div>`;
+                wall = `<div style="padding:20px 16px;text-align:center;font-size:13px;color:var(--text-secondary);line-height:1.6;">${ed.emptyWall}</div>`;
             }
 
-            return mine + pool + wall;
+            const tracker = ed.tracker && currentUser ? ed.tracker(myScore) : '';
+
+            return mine + tracker + pool + wall;
         }
 
         // Kept name for existing call sites — now renders the draw view, not a ranking.
@@ -533,6 +701,7 @@
         function jcOpenOverlay() {
             const overlay = document.getElementById('jcOverlay');
             if (!overlay) return;
+            jcStampOverlayHeader();
             overlay.style.display = 'flex';
             document.body.style.overflow = 'hidden';
             jcLoadOverlayContent();
@@ -555,7 +724,7 @@
             const { start, end } = jcDateRange();
             try {
                 const [lbResult, feedRes] = await Promise.all([
-                    supabaseClient.rpc('get_challenge_leaders'),
+                    supabaseClient.rpc(jcEd().rpc),
                     supabaseClient
                         .from('june_challenge_events')
                         .select('user_id, display_name, action_type, points, spot_name, created_at')
@@ -727,7 +896,7 @@
                         .lte('created_at', end.toISOString())
                         .order('created_at', { ascending: false })
                         .limit(200),
-                    supabaseClient.rpc('get_challenge_leaders'),
+                    supabaseClient.rpc(jcEd().rpc),
                     supabaseClient
                         .from('challenge_admin_flags')
                         .select('*')

@@ -38,12 +38,20 @@ const EXCLUDED_IDS = new Map([
 //   --exclude=<user_id>[,<user_id>]   extra accounts removed from the pool BEFORE tickets are built
 //   --replaces=<challenge_draw_results.id>   links the new row to the one it replaces (replacement_for)
 //   --reason="..."                    recorded in the new row's description (must be the real, disclosed reason)
+//   --rpc=get_form_challenge_standings    standings function for an edition with its own rules (one entry per
+//                                         qualifier, so the draw is equal odds). Default: get_challenge_leaders
 const flagArgs = process.argv.slice(2).filter(a => a.startsWith('--'));
 const flag = name => { const f = flagArgs.find(a => a.startsWith(`--${name}=`)); return f ? f.slice(name.length + 3).replace(/^"|"$/g, '') : null; };
 const [startDateArg, endDateArg, labelArg] = process.argv.slice(2).filter(a => !a.startsWith('--'));
 const extraExcluded = (flag('exclude') || '').split(',').map(x => x.trim()).filter(Boolean);
 const replacesId = flag('replaces');
 const replaceReason = flag('reason');
+const STANDINGS_RPCS = ['get_challenge_leaders', 'get_form_challenge_standings'];
+const standingsRpc = flag('rpc') || 'get_challenge_leaders';
+if (!STANDINGS_RPCS.includes(standingsRpc)) {
+    console.error(`Unknown --rpc=${standingsRpc}. Use one of: ${STANDINGS_RPCS.join(', ')}`);
+    process.exit(1);
+}
 
 if (!SUPABASE_SERVICE_KEY) {
     console.error('Set SUPABASE_SERVICE_KEY env var first:');
@@ -79,13 +87,14 @@ async function main() {
     console.log(`SwimLoading Monthly Draw — ${label}`);
     console.log(`Window (SAST): ${startDateArg} → ${endDateArg}`);
     console.log(`Window (UTC bounds passed to RPC): ${rangeStartUtc} → ${rangeEndUtc}`);
+    console.log(`Standings function: ${standingsRpc}`);
     console.log(`Run at: ${new Date().toISOString()}`);
     console.log('═'.repeat(70));
 
-    const { data, error } = await supabase.rpc('get_challenge_leaders', {
-        p_month_start: rangeStartUtc,
-        p_month_end: rangeEndUtc,
-    });
+    // The FORM function carries its own fixed window and takes no arguments.
+    const { data, error } = await supabase.rpc(standingsRpc, standingsRpc === 'get_challenge_leaders'
+        ? { p_month_start: rangeStartUtc, p_month_end: rangeEndUtc }
+        : {});
 
     if (error) {
         console.error('RPC error:', error.message);

@@ -493,9 +493,10 @@
     // Today and Challenges always say the same thing. Same facts as the v1 dashboard card.
     function challengeStatus(score) {
         var logs = (score && score.logs) || 0, tickets = (score && score.entries) || 0;
-        if (score && score.inDraw) return { headline: "You're in the draw", sub: tickets + (tickets === 1 ? ' ticket' : ' tickets') + ' in the hat', bar: 0 };
-        if (logs > 0) return { headline: logs + ' of 10 to enter the draw', sub: (10 - logs) + ' to go', bar: Math.min(100, logs * 10) };
-        return { headline: 'Enter the draw', sub: 'Log 10 times this month to enter', bar: 0 };
+        var ed = jcEd();
+        if (score && score.inDraw) return { headline: "You're in the draw", sub: tickets + ' ' + ed.entryWord(tickets) + ' in the hat', bar: 0 };
+        if (logs > 0) return { headline: logs + ' of ' + ed.target + ' to enter the draw', sub: (ed.target - logs) + ' to go', bar: Math.min(100, Math.round(logs * 100 / ed.target)) };
+        return { headline: 'Enter the draw', sub: ed.todayPrompt, bar: 0 };
     }
     window.V2.challengeStatus = challengeStatus;
 
@@ -509,7 +510,7 @@
             var range = jcDateRange();
             var daysLeft = Math.max(0, Math.ceil((range.end - new Date()) / 86400000));
             var score = await jcGetMyScore();
-            var month = range.end.toLocaleDateString('en-ZA', { month: 'long' });
+            var month = jcEd().label || range.end.toLocaleDateString('en-ZA', { month: 'long' });
             var st = challengeStatus(score);
             var headline = st.headline, sub = st.sub;
             var bar = st.bar ? '<div class="v2-prog"><div style="width:' + st.bar + '%"></div></div>' : '';

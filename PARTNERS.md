@@ -269,9 +269,9 @@ Dave
 
 | Field | Value |
 |-------|-------|
-| **Status** | Partnership confirmed (Jul 2026) — details being finalised with Timmy |
-| **Hero page** | `/partners/form` (live in coming-soon state) |
-| **Welcome card** | Yes (coming soon badge — update once details are confirmed) |
+| **Status** | Active (Nov 2026): prize received, challenge page live. Member discount still to confirm with Timmy |
+| **Hero page** | `/partners/form` |
+| **Welcome card** | Yes (from the `partner_pages` row) |
 | **Geography** | `[UNCONFIRMED]` — confirm with Timmy which countries the discount/prize applies to before geo-targeting |
 | **Contact** | Timmy (surname + contact details `[TBD]` — store in local memory, not in public repo) |
 | **Partner URL** | https://www.formswim.com |
@@ -282,7 +282,14 @@ Dave
 
 **What they offer members:**
 - **Member discounts** on FORM goggles — percentage, code/portal, and geography `[TBD from Timmy]`
-- **Prize: a pair of FORM Smart Swim 2 goggles** — which challenge/month and mechanics `[TBD from Timmy]`
+- **Prize: one pair of FORM Smart Swim 2 goggles** (received by Dave, 27 Nov 2026)
+
+**Challenge: The 12 Swims of Christmas** (rules chosen by Dave, 27 Nov 2026):
+- 1 December 2026 to 6 January 2027 (SAST); swim and log on 12 different days
+- 1 entry; +1 for a Christmas Day swim, +1 for a New Year's Day swim (3 at most)
+- Delivered to a South African address; past prize winners may win; organiser and household excluded
+- Draw 7 January 2027: `node scripts/draw-monthly-winner.mjs 2026-12-01 2027-01-06 "12 Swims of Christmas: FORM Smart Swim 2" --rpc=get_form_challenge_standings`, then approve in /admin and set `winner` in `site-config.js`
+- Standings come from `get_form_challenge_standings()` (reads `temp_logs` directly)
 
 **Product facts on hero page** (verified from formswim.com, Jul 7 2026):
 - Tagline: "YOUR SWIM. IN FOCUS."
@@ -295,9 +302,9 @@ Dave
 - FORM ships worldwide (USD/CAD/AUD/EUR/GBP) — but OUR discount/prize geography is still unconfirmed
 
 **Outstanding actions:**
-- [ ] Get from Timmy: discount % / code or portal, geography, prize timing + mechanics, logo assets, preferred copy
+- [ ] Get from Timmy: discount % / code or portal, discount geography, logo assets, preferred copy
 - [ ] Get FORM logo asset (page currently uses a text wordmark) — add to `/partners/`
-- [ ] Update hero page + welcome card from coming-soon to live once confirmed
+- [x] Hero page + welcome card moved from coming-soon to live (Nov 2026)
 - [ ] Add FORM to the International Expansion assessment table once geography is confirmed
 - [ ] Store Timmy's contact details in local memory
 

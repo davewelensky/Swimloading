@@ -50,7 +50,7 @@
             var range = jcDateRange();
             var daysLeft = Math.max(0, Math.ceil((range.end - new Date()) / 86400000));
             var score = await jcGetMyScore();
-            var month = range.end.toLocaleDateString('en-ZA', { month: 'long' });
+            var month = jcEd().label || range.end.toLocaleDateString('en-ZA', { month: 'long' });
             var st = window.V2.challengeStatus(score);
             box.innerHTML =
                 '<div class="v2-card v2-status-card">' +

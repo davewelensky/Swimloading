@@ -134,6 +134,14 @@ window.SITE_CONFIG = {
       endDate:   '2026-10-31',
       winner:    null,   // random draw after 31 October — leave null until drawn AND verified (Board tab panel, screenshot first)
     },
+    '2026-12': {
+      title:     'The 12 Swims of Christmas',
+      sponsor:   'FORM',
+      prize:     'pair of FORM Smart Swim 2 goggles',
+      startDate: '2026-12-01',
+      endDate:   '2027-01-06',
+      winner:    null,   // draw 7 Jan 2027 with --rpc=get_form_challenge_standings; set only once approved
+    },
   },
 
   /* ── SPONSOR CHALLENGE BLOCKS (partner pages) ──────────────────────────
@@ -147,6 +155,7 @@ window.SITE_CONFIG = {
   sponsorChallenges: {
     magic5:    { challengeMonth: '2026-06' },   // THEMAGIC5 sponsored June
     blusmooth: { challengeMonth: '2026-07' },   // Blu Smooth sponsored July (Winter Warrior)
+    form:      { challengeMonth: '2026-12' },   // FORM supplies the December prize
     maurten:   { challengeMonth: '2026-10' },   // Maurten sponsors October (also Aug + Sep — see challenges['2026-08'] / ['2026-09'])
   },
 

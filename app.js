@@ -1444,7 +1444,7 @@
                     typeof ukInit === 'function' ? ukInit() : null,
                 ]);
                 const active = [
-                    (typeof jcIsActive === 'function' && jcIsActive()) ? 'Maurten' : null,
+                    (typeof jcIsActive === 'function' && jcIsActive()) ? jcEd().sponsor : null,
                     (typeof eoIsActive === 'function' && eoIsActive()) ? 'eo SwimBETTER' : null,
                     (typeof ukIsActive === 'function' && ukIsActive()) ? 'TRIHARD UK' : null,
                 ].filter(Boolean);

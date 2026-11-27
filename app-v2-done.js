@@ -223,12 +223,14 @@
                     var pre = st.preScore;
                     var gained = pre && (post.entries || 0) > pre.entries ? post.entries - pre.entries : 0;
                     var logs = post.logs || 0, tickets = post.entries || 0;
+                    var ed = jcEd();
+                    var held = tickets + ' ' + ed.entryWord(tickets) + ' in the draw';
                     if (gained > 0) {
-                        add(reward('ticket', 'var(--sl-green)', '+' + gained + (gained > 1 ? ' draw tickets' : ' draw ticket'), tickets + (tickets === 1 ? ' ticket' : ' tickets') + ' in the draw'));
+                        add(reward('ticket', 'var(--sl-green)', '+' + gained + ' draw ' + ed.entryWord(gained), held));
                     } else if (post.inDraw) {
-                        add(reward('ticket', 'var(--sl-green)', "You're in the draw", tickets + (tickets === 1 ? ' ticket' : ' tickets') + ' in the draw'));
+                        add(reward('ticket', 'var(--sl-green)', "You're in the draw", held));
                     } else if (logs > 0) {
-                        add(reward('ticket', 'var(--sl-cyan)', logs + ' of 10 to enter the draw', (10 - logs) + ' to go'));
+                        add(reward('ticket', 'var(--sl-cyan)', logs + ' of ' + ed.target + ' to enter the draw', (ed.target - logs) + ' to go'));
                     }
                 }
             }
