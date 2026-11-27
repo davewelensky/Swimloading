@@ -1,7 +1,10 @@
 // Supabase REST store for social_posts / social_settings (service key; RLS allows only Dave's login otherwise).
 const URL_ = () => process.env.SUPABASE_URL || 'https://szgkzuswelntnevobnoh.supabase.co';
 export const POSTS_BUCKET = 'social-posts'; // PUBLIC bucket: generated post images only (no EXIF, no originals)
-export const publicUrl = (path) => `${URL_()}/storage/v1/object/public/${POSTS_BUCKET}/${path}`;
+// A hand-made post may point at an image we serve from our own site (no storage upload needed). Nothing else
+// is accepted as a full address: any other value is treated as a path inside the posts bucket.
+const OWN_IMAGE = /^https:\/\/www\.swimloading\.com\/[A-Za-z0-9_\-./]+\.jpg$/;
+export const publicUrl = (path) => (OWN_IMAGE.test(path) ? path : `${URL_()}/storage/v1/object/public/${POSTS_BUCKET}/${path}`);
 
 export function createStore({ key = process.env.SUPABASE_SERVICE_KEY, fetchImpl = fetch } = {}) {
   if (!key) throw new Error('SUPABASE_SERVICE_KEY not set');
