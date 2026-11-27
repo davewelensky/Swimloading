@@ -291,6 +291,10 @@ Dave
 - Draw 7 January 2027: `node scripts/draw-monthly-winner.mjs 2026-12-01 2027-01-06 "12 Swims of Christmas: FORM Smart Swim 2" --rpc=get_form_challenge_standings`, then approve in /admin and set `winner` in `site-config.js`
 - Standings come from `get_form_challenge_standings()` (reads `temp_logs` directly)
 
+**Photos** (`partners/form-*.jpg`): FORM's own product photography from eu.formswim.com (Smart Swim 2 page),
+downloaded with Dave's go-ahead 27 Nov 2026 and credited on the page. Confirm with Timmy that this use is fine.
+Page accent `#e6ff00` is taken from the same site.
+
 **Product facts on hero page** (verified from formswim.com, Jul 7 2026):
 - Tagline: "YOUR SWIM. IN FOCUS."
 - Models: Smart Swim 2 LT / Smart Swim 2 / Smart Swim 2 PRO — do NOT publish prices (USD prices on site change)
